@@ -1,5 +1,8 @@
 module Protobuf
 
-# package code goes here
+export writeproto, readproto
+
+include("codec.jl")
 
 end # module
+
