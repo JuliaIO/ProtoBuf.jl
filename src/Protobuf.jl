@@ -1,6 +1,6 @@
 module Protobuf
 
-export writeproto, readproto
+export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, ProtoFill
 
 include("codec.jl")
 

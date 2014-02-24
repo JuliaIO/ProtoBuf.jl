@@ -25,7 +25,9 @@ const WIRETYPES = {
     :double         => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
 
     :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   String),
-    :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{Uint8,1}),
+    #:bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{Uint8,1}),
+    :obj            => (WIRETYP_LENDELIM,   :write_proto,   :read_proto,    Any),
+    #:packed         => (WIRETYP_LENDELIM,   :write_packed,  :read_packed,   Array),
     #embedded messages, packed repeated fields
 
     :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
@@ -116,8 +118,6 @@ function _read_fixed{T <: Unsigned}(io, ret::T, N::Int)
     ret
 end
 
-write_string(io, x::String) = write_string(io, bytestring(x))
-write_string(io, x::ByteString) = write_bytes(io, x.data)
 function write_bytes(io, data::Array{Uint8,1})
     n = _write_uleb(io, sizeof(data))
     n += write(io, data)
@@ -131,22 +131,132 @@ function read_bytes(io)
     data
 end
 read_bytes(io, ::Type{Array{Uint8,1}}) = read_bytes(io)
+
+write_string(io, x::String) = write_string(io, bytestring(x))
+write_string(io, x::ByteString) = write_bytes(io, x.data)
+
 read_string(io) = bytestring(read_bytes(io))
 read_string(io, ::Type{String}) = read_string(io)
 read_string{T <: ByteString}(io, ::Type{T}) = convert(T, read_string(io))
 
 ##
 # read and write protobuf structures
-function writeproto(io, fld::Int, ptyp::Symbol, val)
-    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
-    n = _write_key(io, fld, wiretyp)
-    eval(write_fn)(io, convert(jtyp, val))
+
+type ProtoMetaAttribs
+    fldnum::Int             # the field number in the structure
+    fld::Symbol
+    ptyp::Symbol            # protobuf type
+    occurrence::Int         # 0: optional, 1: required, 2: repeated
+    packed::Bool            # if repeated, whether packed
+    default::Array          # the default value, empty array if none is specified, first element is used if something is specified
+    meta::Any               # the ProtoMeta if this is a nested type
 end
 
-function readproto(io, ptyp::Symbol)
-    fld, wiretyp = _read_key(io)
-    _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
-    (wiretyp != _wiretyp) && error("cannot read wire type $wiretyp as $ptyp")
-    eval(read_fn)(io, jtyp)
+type ProtoMeta
+    jtype::Type
+    symdict::Dict{Symbol,ProtoMetaAttribs}
+    numdict::Dict{Int,ProtoMetaAttribs}
+    ordered::Array{ProtoMetaAttribs,1}
+end
+
+type ProtoFill
+    jtype::Type
+    filled::Dict{Symbol, Union(Bool,ProtoFill)}
+end
+
+function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
+    fld = attrib.fldnum
+    meta = attrib.meta
+    ptyp = attrib.ptyp
+    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+
+    if attrib.occurrence == 2
+        if attrib.packed
+            # write elements as a length delimited field
+            iob = IOBuffer()
+            if ptyp == :obj
+                for eachval in val
+                    eval(write_fn)(iob, convert(jtyp, eachval), meta, fill)
+                end
+            else
+                for eachval in val
+                    eval(write_fn)(iob, convert(jtyp, eachval))
+                end
+            end
+            n = _write_key(io, fld, WIRETYP_LENDELIM)
+            write_bytes(io, takebuf_array(iob))
+        else
+            # write each field separately
+            if ptyp == :obj
+                for eachval in val
+                    n = _write_key(io, fld, wiretyp)
+                    eval(write_fn)(io, convert(jtyp, eachval), meta, fill)
+                end
+            else
+                for eachval in val
+                    n = _write_key(io, fld, wiretyp)
+                    eval(write_fn)(io, convert(jtyp, eachval))
+                end
+            end
+        end
+    else
+        n = _write_key(io, fld, wiretyp)
+        if ptyp == :obj
+            eval(write_fn)(io, convert(jtyp, val), meta, fill)
+        else
+            eval(write_fn)(io, convert(jtyp, val))
+        end
+    end
+end
+
+function writeproto(io, obj, meta::ProtoMeta, fill=nothing)
+    for attrib in meta.ordered 
+        fld = attrib.fld
+        filled = (fill == nothing) ? nothing : get(fill.filled, fld, false)
+        if isdefined(obj, fld) && (filled != false)
+            val = getfield(obj, fld)
+            writeproto(io, val, attrib, filled)
+        elseif attrib.occurrence == 1
+            error("missing required field $fld (#$(attrib.fldnum))")
+        end
+    end
+end
+
+
+function readproto(io, obj, meta::ProtoMeta, fill=nothing)
+    while !eof(io)
+        fldnum, wiretyp = _read_key(io)
+
+        attrib = meta.numdict[int(fldnum)]
+        ptyp = attrib.ptyp
+        fld = attrib.fld
+
+        _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+        isrepeat = (attrib.occurrence == 2)
+
+        if isrepeat && attrib.packed
+            (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
+            iob = IOBuffer(read_bytes(io))
+            ofld = getfield(obj, fld)
+            while !eof(iob)
+                val = eval(read_fn)(iob, jtyp)
+                push!(ofld, val)
+            end
+        else
+            (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
+
+            if ptyp == :obj
+                ofld = getfield(obj, fld)
+                filled = (fill == nothing) ? nothing : ProtoFill(typeof(ofld), Dict{Symbol, Union(Bool,ProtoFill)}())
+                val = eval(read_fn)(IOBuffer(read_bytes(io)), ofld, attrib.meta, filled)
+            else
+                filled = true
+                val = eval(read_fn)(io, jtyp)
+            end
+            isrepeat ? push!(getfield(obj, fld), val) : setfield!(obj, fld, val)
+        end
+
+        (nothing != fill) && (fill.filled[fld] = true)
+    end
 end
 
