@@ -21,6 +21,32 @@ type TestOptional
     iVal2::Array{Int64,1}
 end
 
+type TestNested
+    fld1::TestType
+    fld2::TestOptional
+end
+
+function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
+    (meta1,filled1) = mk_test_meta(1, :int64)
+    (meta2, filled2) = mk_test_optional_meta(o21, o22)
+
+    filled = Dict{Symbol, Union(Bool,ProtoFill)}()
+    filled[:fld1] = o1 ? false : filled1
+    filled[:fld2] = o2 ? false : filled2
+
+    attrib1 = ProtoMetaAttribs(1, :fld1, :obj, o1 ? 0 : 1, false, [], meta1)
+    attrib2 = ProtoMetaAttribs(2, :fld2, :obj, o2 ? 0 : 1, false, [], meta2)
+    symdict = Dict{Symbol,ProtoMetaAttribs}()
+    numdict = Dict{Int,ProtoMetaAttribs}()
+    attribarr = ProtoMetaAttribs[]
+    for (sym,fldnum,attrib) in [(:fld1,1,attrib1), (:fld2,2,attrib2)]
+        symdict[sym] = numdict[fldnum] = attrib
+        push!(attribarr, attrib)
+    end
+
+    (ProtoMeta(TestNested, symdict, numdict, attribarr), ProtoFill(TestNested, filled))
+end
+
 function mk_test_optional_meta(opt1::Bool, opt2::Bool)
     attrib1 = ProtoMetaAttribs(1, :iVal1, :int64, opt1 ? 0 : 1, false, [], nothing)
     attrib2 = ProtoMetaAttribs(2, :sVal2, :string, opt2 ? 0 : 1, false, [], nothing)
@@ -49,7 +75,11 @@ function mk_test_meta(fldnum::Int, ptyp::Symbol)
     numdict = Dict{Int,ProtoMetaAttribs}()
     symdict[:val] = attrib
     numdict[fldnum] = attrib
-    ProtoMeta(TestType, symdict, numdict, [attrib])
+
+    filled = Dict{Symbol, Union(Bool,ProtoFill)}()
+    filled[:val] = true
+
+    (ProtoMeta(TestType, symdict, numdict, [attrib]), ProtoFill(TestType, filled))
 end
 
 
@@ -62,7 +92,7 @@ function test_types()
         print_hdr(typ)
         for idx in 1:100
             testval.val = eval(typ)(rand() * 10^9)
-            meta = mk_test_meta(int(rand() * 100) + 1, typ)
+            (meta,filled) = mk_test_meta(int(rand() * 100) + 1, typ)
             writeproto(pb, testval, meta) 
             readproto(pb, readval, meta)
             @assert testval.val == readval.val
@@ -73,7 +103,7 @@ function test_types()
         print_hdr(typ)
         for idx in 1:100
             testval.val = (typ != :float) ? eval(typ)(rand() * 10^9) : float32(rand() * 10^9)
-            meta = mk_test_meta(int(rand() * 100) + 1, typ)
+            (meta,filled) = mk_test_meta(int(rand() * 100) + 1, typ)
             writeproto(pb, testval, meta) 
             readproto(pb, readval, meta)
             @assert testval.val == readval.val
@@ -83,7 +113,7 @@ function test_types()
     print_hdr("string")
     for idx in 1:100
         testval.val = randstring(50)
-        meta = mk_test_meta(int(rand() * 100) + 1, :string)
+        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :string)
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
         @assert testval.val == readval.val
@@ -99,7 +129,7 @@ function test_repeats()
     for idx in 1:100
         testval.val = convert(Array{Int64,1}, randstring(50).data)
         readval.val = Int64[]
-        meta = mk_test_meta(int(rand() * 100) + 1, :int64)
+        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :int64)
         meta.ordered[1].occurrence = 2
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
@@ -110,7 +140,7 @@ function test_repeats()
     for idx in 1:100
         testval.val = convert(Array{Int64,1}, randstring(50).data)
         readval.val = Int64[]
-        meta = mk_test_meta(int(rand() * 100) + 1, :int64)
+        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :int64)
         meta.ordered[1].occurrence = 2
         meta.ordered[1].packed = true
         writeproto(pb, testval, meta) 
@@ -122,7 +152,7 @@ function test_repeats()
     for idx in 1:100
         testval.val = [randstring(5) for i in 1:10] 
         readval.val = String[]
-        meta = mk_test_meta(int(rand() * 100) + 1, :string)
+        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :string)
         meta.ordered[1].occurrence = 2
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
@@ -156,11 +186,62 @@ function test_optional()
             end
         end
     end
+end
 
-    
+function test_nested()
+    print_hdr("testing nested types")
+    pb = PipeBuffer()
+
+    testfld1 = TestType(0)
+    readfld1 = TestType(0)
+    testfld2 = TestOptional(1, "", Int64[1,2,3])
+    readfld2 = TestOptional(1, "", Int64[])
+    testval = TestNested(testfld1, testfld2)
+    readval = TestNested(readfld1, readfld2)
+
+    for idx in 1:100
+        testfld1.val = int64(rand() * 10^9)
+        testfld2.iVal1 = int(rand() * 100)
+        testfld2.sVal2 = randstring(5)
+        testfld2.iVal2 = Int64[int(rand() * 100) for i in 1:10]
+
+        (meta, fill) = mk_test_nested_meta(randbool(), randbool(), randbool(), randbool())
+
+        writeproto(pb, testval, meta, fill)
+        readfill = ProtoFill(TestNested, Dict{Symbol, Union(Bool,ProtoFill)}())
+        readfld2.iVal2 = Int64[]
+        readproto(pb, readval, meta, readfill)
+
+        for fldfill in keys(fill.filled)
+            fill2 = fill.filled[fldfill]
+            if fill2 != false
+                readfill2 = readfill.filled[fldfill]
+                for fld in keys(fill2.filled)
+                    @assert fill2.filled[fld] == (fld in keys(readfill2.filled))
+                end
+            end
+        end
+
+        fill2 = fill.filled[:fld1]
+        if fill2 != false
+            if fill2.filled[:val] == true
+                @assert getfield(testval.fld1, :val) == getfield(readval.fld1, :val)
+            end
+        end
+        fill2 = fill.filled[:fld2]
+        if fill2 != false
+            for fld in [:iVal1, :sVal2, :iVal2]
+                if fill2.filled[fld] == true
+                    @assert getfield(testval.fld2, fld) == getfield(readval.fld2, fld)
+                end
+            end
+        end
+    end
+
 end
 
 test_types()
 test_repeats()
 test_optional()
+test_nested()
 

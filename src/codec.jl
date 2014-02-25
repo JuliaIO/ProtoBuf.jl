@@ -26,7 +26,7 @@ const WIRETYPES = {
 
     :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   String),
     #:bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{Uint8,1}),
-    :obj            => (WIRETYP_LENDELIM,   :write_proto,   :read_proto,    Any),
+    :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
     #:packed         => (WIRETYP_LENDELIM,   :write_packed,  :read_packed,   Array),
     #embedded messages, packed repeated fields
 
@@ -170,56 +170,64 @@ function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
     ptyp = attrib.ptyp
     wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
 
+    n = 0
     if attrib.occurrence == 2
         if attrib.packed
             # write elements as a length delimited field
             iob = IOBuffer()
             if ptyp == :obj
-                for eachval in val
-                    eval(write_fn)(iob, convert(jtyp, eachval), meta, fill)
-                end
+                error("can not write object field $fld as packed")
             else
                 for eachval in val
                     eval(write_fn)(iob, convert(jtyp, eachval))
                 end
             end
-            n = _write_key(io, fld, WIRETYP_LENDELIM)
-            write_bytes(io, takebuf_array(iob))
+            n += _write_key(io, fld, WIRETYP_LENDELIM)
+            n += write_bytes(io, takebuf_array(iob))
         else
             # write each field separately
             if ptyp == :obj
+                # TODO: optimize IOBuffer creation
                 for eachval in val
-                    n = _write_key(io, fld, wiretyp)
-                    eval(write_fn)(io, convert(jtyp, eachval), meta, fill)
+                    iob = IOBuffer()
+                    eval(write_fn)(iob, convert(jtyp, eachval), meta, fill)
+                    n += _write_key(io, fld, WIRETYP_LENDELIM)
+                    n += write_bytes(io, takebuf_array(iob))
                 end
             else
                 for eachval in val
-                    n = _write_key(io, fld, wiretyp)
-                    eval(write_fn)(io, convert(jtyp, eachval))
+                    n += _write_key(io, fld, wiretyp)
+                    n += eval(write_fn)(io, convert(jtyp, eachval))
                 end
             end
         end
     else
-        n = _write_key(io, fld, wiretyp)
         if ptyp == :obj
-            eval(write_fn)(io, convert(jtyp, val), meta, fill)
+            iob = IOBuffer()
+            eval(write_fn)(iob, convert(jtyp, val), meta, fill)
+            n += _write_key(io, fld, WIRETYP_LENDELIM)
+            n += write_bytes(io, takebuf_array(iob))
         else
-            eval(write_fn)(io, convert(jtyp, val))
+            n += _write_key(io, fld, wiretyp)
+            n += eval(write_fn)(io, convert(jtyp, val))
         end
     end
+    n
 end
 
 function writeproto(io, obj, meta::ProtoMeta, fill=nothing)
+    n = 0
     for attrib in meta.ordered 
         fld = attrib.fld
         filled = (fill == nothing) ? nothing : get(fill.filled, fld, false)
         if isdefined(obj, fld) && (filled != false)
             val = getfield(obj, fld)
-            writeproto(io, val, attrib, filled)
+            n += writeproto(io, val, attrib, filled)
         elseif attrib.occurrence == 1
             error("missing required field $fld (#$(attrib.fldnum))")
         end
     end
+    n
 end
 
 
@@ -238,6 +246,7 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
             (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
             iob = IOBuffer(read_bytes(io))
             ofld = getfield(obj, fld)
+            filled = true
             while !eof(iob)
                 val = eval(read_fn)(iob, jtyp)
                 push!(ofld, val)
@@ -246,9 +255,10 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
             (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
 
             if ptyp == :obj
-                ofld = getfield(obj, fld)
-                filled = (fill == nothing) ? nothing : ProtoFill(typeof(ofld), Dict{Symbol, Union(Bool,ProtoFill)}())
-                val = eval(read_fn)(IOBuffer(read_bytes(io)), ofld, attrib.meta, filled)
+                val = getfield(obj, fld)
+                filled = (fill == nothing) ? nothing : ProtoFill(typeof(val), Dict{Symbol, Union(Bool,ProtoFill)}())
+                fld_buf = read_bytes(io)
+                eval(read_fn)(IOBuffer(fld_buf), val, attrib.meta, filled)
             else
                 filled = true
                 val = eval(read_fn)(io, jtyp)
@@ -256,7 +266,7 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
             isrepeat ? push!(getfield(obj, fld), val) : setfield!(obj, fld, val)
         end
 
-        (nothing != fill) && (fill.filled[fld] = true)
+        (nothing != fill) && (fill.filled[fld] = filled)
     end
 end
 
