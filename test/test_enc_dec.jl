@@ -13,6 +13,8 @@ print_hdr(tname) = println("testing $tname...")
 
 type TestType
     val::Any
+    TestType(val) = new(val)
+    TestType() = new(nothing)
 end
 
 type TestOptional
@@ -24,62 +26,63 @@ end
 type TestNested
     fld1::TestType
     fld2::TestOptional
+    fld3::Array{TestType}
 end
+
+meta(::Type{TestType}) = ProtoMeta(TestType,
+    ProtoMetaAttribs[
+        ProtoMetaAttribs(1,   :val,                  :string,        0, false, [], nothing)
+    ])
+
+meta(::Type{TestOptional}) = ProtoMeta(TestOptional,
+    ProtoMetaAttribs[
+        ProtoMetaAttribs(1,   :iVal1,                 :int64,        0, false, [], nothing),
+        ProtoMetaAttribs(2,   :sVal2,                 :string,       0, false, [], nothing),
+        ProtoMetaAttribs(3,   :iVal2,                 :int64,        2, true,  [], nothing)
+    ])
+
+meta(::Type{TestNested}) = ProtoMeta(TestNested,
+    ProtoMetaAttribs[
+        ProtoMetaAttribs(1,   :fld1,                 :obj,        0, false, [], meta(TestType)),
+        ProtoMetaAttribs(2,   :fld2,                 :obj,        0, false, [], meta(TestOptional)),
+        ProtoMetaAttribs(3,   :fld3,                 :obj,        2, false, [], meta(TestType))
+    ])
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
     (meta1,filled1) = mk_test_meta(1, :int64)
     (meta2, filled2) = mk_test_optional_meta(o21, o22)
 
-    filled = Dict{Symbol, Union(Bool,ProtoFill)}()
-    filled[:fld1] = o1 ? false : filled1
-    filled[:fld2] = o2 ? false : filled2
+    m = meta(TestNested)
+    m.symdict[:fld1].occurrence = o1 ? 0 : 1
+    m.symdict[:fld2].occurrence = o2 ? 0 : 1
+    m.symdict[:fld1].meta = meta1
+    m.symdict[:fld2].meta = meta2
 
-    attrib1 = ProtoMetaAttribs(1, :fld1, :obj, o1 ? 0 : 1, false, [], meta1)
-    attrib2 = ProtoMetaAttribs(2, :fld2, :obj, o2 ? 0 : 1, false, [], meta2)
-    symdict = Dict{Symbol,ProtoMetaAttribs}()
-    numdict = Dict{Int,ProtoMetaAttribs}()
-    attribarr = ProtoMetaAttribs[]
-    for (sym,fldnum,attrib) in [(:fld1,1,attrib1), (:fld2,2,attrib2)]
-        symdict[sym] = numdict[fldnum] = attrib
-        push!(attribarr, attrib)
-    end
+    f = ProtoFill(TestNested, Dict{Symbol, Union(Bool,ProtoFill)}({:fld1 => (o1 ? false : filled1), :fld2 => (o2 ? false : filled2), :fld3 => true}))
 
-    (ProtoMeta(TestNested, symdict, numdict, attribarr), ProtoFill(TestNested, filled))
+    (m, f)
 end
 
 function mk_test_optional_meta(opt1::Bool, opt2::Bool)
-    attrib1 = ProtoMetaAttribs(1, :iVal1, :int64, opt1 ? 0 : 1, false, [], nothing)
-    attrib2 = ProtoMetaAttribs(2, :sVal2, :string, opt2 ? 0 : 1, false, [], nothing)
-    attrib3 = ProtoMetaAttribs(3, :iVal2, :int64, 2, true, [], nothing)
+    m = meta(TestOptional)
+    m.symdict[:iVal1].occurrence = opt1 ? 0 : 1
+    m.symdict[:sVal2].occurrence = opt2 ? 0 : 1
 
-    symdict = Dict{Symbol,ProtoMetaAttribs}()
-    numdict = Dict{Int,ProtoMetaAttribs}()
-    attribarr = ProtoMetaAttribs[]
+    f = ProtoFill(TestOptional, Dict{Symbol, Union(Bool,ProtoFill)}({:iVal1 => (!opt1), :sVal2 => (!opt2), :iVal2 => true}))
 
-    for (sym,fldnum,attrib) in [(:iVal1,1,attrib1), (:sVal2,2,attrib2), (:iVal2,3,attrib3)]
-        symdict[sym] = numdict[fldnum] = attrib
-        push!(attribarr, attrib)
-    end
-
-    filled = Dict{Symbol, Union(Bool,ProtoFill)}()
-    filled[:iVal1] = !opt1
-    filled[:sVal2] = !opt2
-    filled[:iVal2] = true
-
-    (ProtoMeta(TestOptional, symdict, numdict, attribarr), ProtoFill(TestOptional, filled))
+    (m, f)
 end
 
 function mk_test_meta(fldnum::Int, ptyp::Symbol)
-    attrib = ProtoMetaAttribs(fldnum, :val, ptyp, 1, false, [], nothing)
-    symdict = Dict{Symbol,ProtoMetaAttribs}()
-    numdict = Dict{Int,ProtoMetaAttribs}()
-    symdict[:val] = attrib
-    numdict[fldnum] = attrib
+    m = meta(TestType)
+    attrib = m.symdict[:val]
+    attrib.fldnum = fldnum
+    attrib.ptyp = ptyp
+    m.numdict = Dict{Int,ProtoMetaAttribs}({fldnum => attrib})
 
-    filled = Dict{Symbol, Union(Bool,ProtoFill)}()
-    filled[:val] = true
+    f = ProtoFill(TestType, Dict{Symbol, Union(Bool,ProtoFill)}({:val => true}))
 
-    (ProtoMeta(TestType, symdict, numdict, [attrib]), ProtoFill(TestType, filled))
+    (m, f)
 end
 
 
@@ -196,8 +199,8 @@ function test_nested()
     readfld1 = TestType(0)
     testfld2 = TestOptional(1, "", Int64[1,2,3])
     readfld2 = TestOptional(1, "", Int64[])
-    testval = TestNested(testfld1, testfld2)
-    readval = TestNested(readfld1, readfld2)
+    testval = TestNested(testfld1, testfld2, [TestType("hello"), TestType("world")])
+    readval = TestNested(readfld1, readfld2, TestType[])
 
     for idx in 1:100
         testfld1.val = int64(rand() * 10^9)
@@ -210,14 +213,19 @@ function test_nested()
         writeproto(pb, testval, meta, fill)
         readfill = ProtoFill(TestNested, Dict{Symbol, Union(Bool,ProtoFill)}())
         readfld2.iVal2 = Int64[]
+        readval.fld3 = TestType[]
         readproto(pb, readval, meta, readfill)
 
         for fldfill in keys(fill.filled)
             fill2 = fill.filled[fldfill]
             if fill2 != false
                 readfill2 = readfill.filled[fldfill]
-                for fld in keys(fill2.filled)
-                    @assert fill2.filled[fld] == (fld in keys(readfill2.filled))
+                if fill2 == true
+                    @assert fill2 == readfill2
+                else
+                    for fld in keys(fill2.filled)
+                        @assert fill2.filled[fld] == (fld in keys(readfill2.filled))
+                    end
                 end
             end
         end

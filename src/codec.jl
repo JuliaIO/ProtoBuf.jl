@@ -10,6 +10,7 @@ const WIRETYP_GRPSTART = 3   # deprecated
 const WIRETYP_GRPEND   = 4   # deprecated
 const WIRETYP_32BIT    = 5
 
+# TODO: wiretypes should become julia types, so that methods can be parameterized on them
 const WIRETYPES = {
     :int32          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
     :int64          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int64),
@@ -25,10 +26,8 @@ const WIRETYPES = {
     :double         => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
 
     :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   String),
-    #:bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{Uint8,1}),
+    :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{Uint8,1}),
     :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
-    #:packed         => (WIRETYP_LENDELIM,   :write_packed,  :read_packed,   Array),
-    #embedded messages, packed repeated fields
 
     :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
     :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
@@ -157,6 +156,15 @@ type ProtoMeta
     symdict::Dict{Symbol,ProtoMetaAttribs}
     numdict::Dict{Int,ProtoMetaAttribs}
     ordered::Array{ProtoMetaAttribs,1}
+
+    function ProtoMeta(jtype::Type, ordered::Array{ProtoMetaAttribs,1})
+        symdict = Dict{Symbol,ProtoMetaAttribs}()
+        numdict = Dict{Int,ProtoMetaAttribs}()
+        for attrib in ordered
+            symdict[attrib.fld] = numdict[attrib.fldnum] = attrib
+        end
+        new(jtype, symdict, numdict, ordered)
+    end
 end
 
 type ProtoFill
@@ -190,7 +198,7 @@ function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
                 # TODO: optimize IOBuffer creation
                 for eachval in val
                     iob = IOBuffer()
-                    eval(write_fn)(iob, convert(jtyp, eachval), meta, fill)
+                    eval(write_fn)(iob, convert(jtyp, eachval), meta, nothing)
                     n += _write_key(io, fld, WIRETYP_LENDELIM)
                     n += write_bytes(io, takebuf_array(iob))
                 end
@@ -230,6 +238,20 @@ function writeproto(io, obj, meta::ProtoMeta, fill=nothing)
     n
 end
 
+function read_lendelim_packed(io, fld::Array, reader::Symbol, jtyp::Type)
+    iob = IOBuffer(read_bytes(io))
+    while !eof(iob)
+        val = eval(reader)(iob, jtyp)
+        push!(fld, val)
+    end
+    nothing
+end
+
+function read_lendelim_obj(io, val, meta::ProtoMeta, filled, reader::Symbol)
+    fld_buf = read_bytes(io)
+    eval(reader)(IOBuffer(fld_buf), val, meta, filled)
+    val
+end
 
 function readproto(io, obj, meta::ProtoMeta, fill=nothing)
     while !eof(io)
@@ -242,14 +264,17 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
         _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
         isrepeat = (attrib.occurrence == 2)
 
-        if isrepeat && attrib.packed
-            (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
-            iob = IOBuffer(read_bytes(io))
+        (ptyp == :obj) && (jtyp = attrib.meta.jtype)
+
+        if isrepeat 
             ofld = getfield(obj, fld)
-            filled = true
-            while !eof(iob)
-                val = eval(read_fn)(iob, jtyp)
-                push!(ofld, val)
+            if attrib.packed
+                (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
+                filled = true
+                read_lendelim_packed(io, ofld, read_fn, jtyp)
+            else
+                filled = true
+                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, eval(jtyp)(), attrib.meta, nothing, read_fn) : eval(read_fn)(io, jtyp))
             end
         else
             (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
@@ -257,13 +282,12 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
             if ptyp == :obj
                 val = getfield(obj, fld)
                 filled = (fill == nothing) ? nothing : ProtoFill(typeof(val), Dict{Symbol, Union(Bool,ProtoFill)}())
-                fld_buf = read_bytes(io)
-                eval(read_fn)(IOBuffer(fld_buf), val, attrib.meta, filled)
+                val = read_lendelim_obj(io, getfield(obj, fld), attrib.meta, filled, read_fn)
             else
                 filled = true
                 val = eval(read_fn)(io, jtyp)
             end
-            isrepeat ? push!(getfield(obj, fld), val) : setfield!(obj, fld, val)
+            setfield!(obj, fld, val)
         end
 
         (nothing != fill) && (fill.filled[fld] = filled)
