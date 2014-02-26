@@ -184,7 +184,10 @@ end
 
 type ProtoFill
     jtype::Type
-    filled::Dict{Symbol, Union(Bool,ProtoFill)}
+    fills::Dict{Symbol, Union(Bool,ProtoFill)}
+
+    ProtoFill(jtype::Type) = new(jtype, Dict{Symbol, Union(Bool,ProtoFill)}())
+    ProtoFill(jtype::Type, fills::Dict{Symbol, Union(Bool,ProtoFill)}) = new(jtype, fills)
 end
 
 function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
@@ -244,12 +247,12 @@ function writeproto(io, obj, meta::ProtoMeta, fill=nothing)
     n = 0
     for attrib in meta.ordered 
         fld = attrib.fld
-        filled = (fill == nothing) ? nothing : get(fill.filled, fld, false)
-        if isdefined(obj, fld) && (filled != false)
+        fldfill = filled(obj, fld, fill)
+        if false == fldfill
+            (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
+        else
             val = getfield(obj, fld)
-            n += writeproto(io, val, attrib, filled)
-        elseif attrib.occurrence == 1
-            error("missing required field $fld (#$(attrib.fldnum))")
+            n += writeproto(io, val, attrib, isa(fldfill, Bool) ? nothing : fldfill)
         end
     end
     n
@@ -264,9 +267,9 @@ function read_lendelim_packed(io, fld::Array, reader::Symbol, jtyp::Type)
     nothing
 end
 
-function read_lendelim_obj(io, val, meta::ProtoMeta, filled, reader::Symbol)
+function read_lendelim_obj(io, val, meta::ProtoMeta, fill, reader::Symbol)
     fld_buf = read_bytes(io)
-    eval(reader)(IOBuffer(fld_buf), val, meta, filled)
+    eval(reader)(IOBuffer(fld_buf), val, meta, fill)
     val
 end
 
@@ -289,10 +292,10 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
             ofld = getfield(obj, fld)
             if attrib.packed
                 (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
-                filled = true
+                efill = true
                 read_lendelim_packed(io, ofld, read_fn, jtyp)
             else
-                filled = true
+                efill = true
                 push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, eval(jtyp)(), attrib.meta, nothing, read_fn) : eval(read_fn)(io, jtyp))
             end
         else
@@ -300,16 +303,16 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
 
             if ptyp == :obj
                 val = getfield(obj, fld)
-                filled = (fill == nothing) ? nothing : ProtoFill(typeof(val), Dict{Symbol, Union(Bool,ProtoFill)}())
-                val = read_lendelim_obj(io, getfield(obj, fld), attrib.meta, filled, read_fn)
+                efill = (fill == nothing) ? nothing : ProtoFill(typeof(val))
+                val = read_lendelim_obj(io, getfield(obj, fld), attrib.meta, efill, read_fn)
             else
-                filled = true
+                efill = true
                 val = eval(read_fn)(io, jtyp)
             end
             setfield!(obj, fld, val)
         end
 
-        (nothing != fill) && (fill.filled[fld] = filled)
+        (nothing != fill) && (fill.fills[fld] = efill)
     end
 end
 
@@ -340,6 +343,24 @@ function meta(typ::Type, cache::Bool, required::Array{Symbol,1}, numbers::Array{
     end
     m = ProtoMeta(typ, attribs)
     cache ? (_metacache[typ] = m) : m
+end
+
+filled(obj, field::Symbol, fill::Nothing) = isdefined(obj, field)
+filled(obj, field::Symbol, fill::ProtoFill) = get(fill.fills, field, false)
+function filled(obj, field::Array{Symbol,1}, fill::Nothing)
+    for fld in field
+        !filled(obj, fld, nothing) && return false
+        obj = getfield(obj, fld)
+    end
+    true
+end
+function filled(obj, field::Array{Symbol,1}, fill::ProtoFill)
+    for fld in field
+        fill = filled(obj, fld, fill) 
+        (fill == false) && return false
+        obj = getfield(obj, fld)
+    end
+    fill
 end
 
 function show(io::IO, m::ProtoMeta)

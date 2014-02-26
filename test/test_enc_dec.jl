@@ -25,10 +25,17 @@ type TestOptional
     iVal2::Array{Int64,1}
 end
 
+type TestStr
+    val::String
+    TestStr(val) = new(val)
+    TestStr() = new("")
+end
+==(t1::TestStr, t2::TestStr) = (t1.val == t2.val)
+
 type TestNested
     fld1::TestType
     fld2::TestOptional
-    fld3::Array{TestType}
+    fld3::Array{TestStr}
 end
 
 # disable caching of meta since we manually modify them for the tests
@@ -73,6 +80,24 @@ function mk_test_meta(fldnum::Int, ptyp::Symbol)
     (m, f)
 end
 
+function assert_equal(val1, fill1, val2, fill2)
+    typ1 = typeof(val1)
+    typ2 = typeof(val2)
+    @assert typ1 == typ2
+    
+    for fld in names(typ1)
+        fldfill1 = filled(val1, fld, fill1)
+        fldfill2 = filled(val2, fld, fill2)
+        if isa(fldfill1, Bool)
+            @assert fldfill1 == fldfill2
+            if fldfill1
+                @assert getfield(val1, fld) == getfield(val2, fld)
+            end
+        else
+            assert_equal(getfield(val1, fld), fldfill1, getfield(val2, fld), fldfill2)
+        end
+    end
+end
 
 function test_types()
     pb = PipeBuffer()
@@ -83,7 +108,7 @@ function test_types()
         print_hdr(typ)
         for idx in 1:100
             testval.val = eval(typ)(rand() * 10^9)
-            (meta,filled) = mk_test_meta(int(rand() * 100) + 1, typ)
+            (meta,fills) = mk_test_meta(int(rand() * 100) + 1, typ)
             writeproto(pb, testval, meta) 
             readproto(pb, readval, meta)
             @assert testval.val == readval.val
@@ -94,7 +119,7 @@ function test_types()
         print_hdr(typ)
         for idx in 1:100
             testval.val = (typ != :float) ? eval(typ)(rand() * 10^9) : float32(rand() * 10^9)
-            (meta,filled) = mk_test_meta(int(rand() * 100) + 1, typ)
+            (meta,fills) = mk_test_meta(int(rand() * 100) + 1, typ)
             writeproto(pb, testval, meta) 
             readproto(pb, readval, meta)
             @assert testval.val == readval.val
@@ -104,7 +129,7 @@ function test_types()
     print_hdr("string")
     for idx in 1:100
         testval.val = randstring(50)
-        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :string)
+        (meta,fills) = mk_test_meta(int(rand() * 100) + 1, :string)
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
         @assert testval.val == readval.val
@@ -120,7 +145,7 @@ function test_repeats()
     for idx in 1:100
         testval.val = convert(Array{Int64,1}, randstring(50).data)
         readval.val = Int64[]
-        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :int64)
+        (meta,fills) = mk_test_meta(int(rand() * 100) + 1, :int64)
         meta.ordered[1].occurrence = 2
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
@@ -131,7 +156,7 @@ function test_repeats()
     for idx in 1:100
         testval.val = convert(Array{Int64,1}, randstring(50).data)
         readval.val = Int64[]
-        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :int64)
+        (meta,fills) = mk_test_meta(int(rand() * 100) + 1, :int64)
         meta.ordered[1].occurrence = 2
         meta.ordered[1].packed = true
         writeproto(pb, testval, meta) 
@@ -143,7 +168,7 @@ function test_repeats()
     for idx in 1:100
         testval.val = [randstring(5) for i in 1:10] 
         readval.val = String[]
-        (meta,filled) = mk_test_meta(int(rand() * 100) + 1, :string)
+        (meta,fills) = mk_test_meta(int(rand() * 100) + 1, :string)
         meta.ordered[1].occurrence = 2
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
@@ -168,14 +193,7 @@ function test_optional()
         readval.iVal2 = Int64[]
         readproto(pb, readval, meta, readfill)
 
-        for fld in keys(fill.filled)
-            @assert fill.filled[fld] == (fld in keys(readfill.filled))
-        end
-        for fld in [:iVal1, :sVal2, :iVal2]
-            if fill.filled[fld] == true
-                @assert getfield(testval, fld) == getfield(readval, fld)
-            end
-        end
+        assert_equal(testval, fill, readval, readfill)
     end
 end
 
@@ -187,8 +205,8 @@ function test_nested()
     readfld1 = TestType(0)
     testfld2 = TestOptional(1, "", Int64[1,2,3])
     readfld2 = TestOptional(1, "", Int64[])
-    testval = TestNested(testfld1, testfld2, [TestType("hello"), TestType("world")])
-    readval = TestNested(readfld1, readfld2, TestType[])
+    testval = TestNested(testfld1, testfld2, [TestStr("hello"), TestStr("world")])
+    readval = TestNested(readfld1, readfld2, TestStr[])
 
     for idx in 1:100
         testfld1.val = int64(rand() * 10^9)
@@ -204,34 +222,7 @@ function test_nested()
         readval.fld3 = TestType[]
         readproto(pb, readval, meta, readfill)
 
-        for fldfill in keys(fill.filled)
-            fill2 = fill.filled[fldfill]
-            if fill2 != false
-                readfill2 = readfill.filled[fldfill]
-                if fill2 == true
-                    @assert fill2 == readfill2
-                else
-                    for fld in keys(fill2.filled)
-                        @assert fill2.filled[fld] == (fld in keys(readfill2.filled))
-                    end
-                end
-            end
-        end
-
-        fill2 = fill.filled[:fld1]
-        if fill2 != false
-            if fill2.filled[:val] == true
-                @assert getfield(testval.fld1, :val) == getfield(readval.fld1, :val)
-            end
-        end
-        fill2 = fill.filled[:fld2]
-        if fill2 != false
-            for fld in [:iVal1, :sVal2, :iVal2]
-                if fill2.filled[fld] == true
-                    @assert getfield(testval.fld2, fld) == getfield(readval.fld2, fld)
-                end
-            end
-        end
+        assert_equal(testval, fill, readval, readfill)
     end
 
 end
