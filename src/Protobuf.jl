@@ -1,6 +1,8 @@
 module Protobuf
 
-export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, ProtoFill
+import Base.show
+
+export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, ProtoFill, wiretype, wiretypes, meta, show
 
 include("codec.jl")
 

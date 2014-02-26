@@ -19,7 +19,7 @@ const WIRETYPES = {
     :sint32         => (WIRETYP_VARINT,     :write_svarint, :read_svarint,  Int32),
     :sint64         => (WIRETYP_VARINT,     :write_svarint, :read_svarint,  Int64),
     :bool           => (WIRETYP_VARINT,     :write_bool,    :read_bool,     Bool),
-    :enum           => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int),
+    :enum           => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
 
     :fixed64        => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
     :sfixed64       => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
@@ -33,6 +33,21 @@ const WIRETYPES = {
     :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
     :float          => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32)
 }
+
+
+wiretypes(::Type{Int32})            = [:int32, :sint32, :enum]
+wiretypes(::Type{Int64})            = [:int64, :sint64]
+wiretypes(::Type{Uint32})           = [:uint32]
+wiretypes(::Type{Uint64})           = [:uint64]
+wiretypes(::Type{Bool})             = [:bool]
+wiretypes(::Type{Float64})          = [:double, :fixed, :sfixed64]
+wiretypes(::Type{Float32})          = [:float, :fixed32, :sfixed32]
+wiretypes{T<:String}(::Type{T})     = [:string]
+wiretypes(::Type{Array{Uint8,1}})   = [:bytes]
+wiretypes(::Type)                   = [:obj]
+
+wiretype(t::Type) = wiretypes(t)[1]
+
 
 function _write_uleb{T <: Integer}(io, x::T)
     nw = 0
@@ -223,6 +238,8 @@ function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
     n
 end
 
+writeproto(io, obj) = writeproto(io, obj, meta(typeof(obj)))
+writeproto(io, obj, fill::ProtoFill) = writeproto(io, obj, meta(typeof(obj)), fill)
 function writeproto(io, obj, meta::ProtoMeta, fill=nothing)
     n = 0
     for attrib in meta.ordered 
@@ -253,6 +270,8 @@ function read_lendelim_obj(io, val, meta::ProtoMeta, filled, reader::Symbol)
     val
 end
 
+readproto(io, obj) = readproto(io, obj, meta(typeof(obj)))
+readproto(io, obj, fill::ProtoFill) = readproto(io, obj, meta(typeof(obj)), fill)
 function readproto(io, obj, meta::ProtoMeta, fill=nothing)
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
@@ -292,5 +311,39 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
 
         (nothing != fill) && (fill.filled[fld] = filled)
     end
+end
+
+
+##
+# helpers
+const _metacache = Dict{Type, ProtoMeta}()
+
+meta(typ::Type) = meta(typ, true, Symbol[], Int[], Dict{Symbol,Any}())
+function meta(typ::Type, cache::Bool, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any})
+    haskey(_metacache, typ) && return _metacache[typ]
+
+    attribs = ProtoMetaAttribs[]
+    names = typ.names
+    types = typ.types
+    for fldidx in 1:length(names)
+        fldtyp = types[fldidx]
+        fldname = names[fldidx]
+        fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
+        isarr = (fldtyp.name === Array.name) && !(fldtyp === Array{Uint8,1})
+        repeat = isarr ? 2 : (fldname in required) ? 1 : 0
+        elemtyp = isarr ? fldtyp.parameters[1] : fldtyp
+        wtyp = wiretype(elemtyp)
+        packed = (isarr && issubtype(elemtyp, Number))
+        default = get(defaults, fldname, [])
+
+        push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))
+    end
+    m = ProtoMeta(typ, attribs)
+    cache ? (_metacache[typ] = m) : m
+end
+
+function show(io::IO, m::ProtoMeta)
+    println(io, "ProtoMeta for $(m.jtype)")
+    println(io, m.ordered)
 end
 

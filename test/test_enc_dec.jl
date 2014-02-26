@@ -1,5 +1,7 @@
 using Protobuf
 
+import Protobuf.meta
+
 enum(x) = int(x)
 sint32(x) = int32(x)
 sint64(x) = int64(x)
@@ -29,24 +31,10 @@ type TestNested
     fld3::Array{TestType}
 end
 
-meta(::Type{TestType}) = ProtoMeta(TestType,
-    ProtoMetaAttribs[
-        ProtoMetaAttribs(1,   :val,                  :string,        0, false, [], nothing)
-    ])
-
-meta(::Type{TestOptional}) = ProtoMeta(TestOptional,
-    ProtoMetaAttribs[
-        ProtoMetaAttribs(1,   :iVal1,                 :int64,        0, false, [], nothing),
-        ProtoMetaAttribs(2,   :sVal2,                 :string,       0, false, [], nothing),
-        ProtoMetaAttribs(3,   :iVal2,                 :int64,        2, true,  [], nothing)
-    ])
-
-meta(::Type{TestNested}) = ProtoMeta(TestNested,
-    ProtoMetaAttribs[
-        ProtoMetaAttribs(1,   :fld1,                 :obj,        0, false, [], meta(TestType)),
-        ProtoMetaAttribs(2,   :fld2,                 :obj,        0, false, [], meta(TestOptional)),
-        ProtoMetaAttribs(3,   :fld3,                 :obj,        2, false, [], meta(TestType))
-    ])
+# disable caching of meta since we manually modify them for the tests
+meta(t::Type{TestType}) = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
+meta(t::Type{TestOptional}) = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
+meta(t::Type{TestNested}) = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
     (meta1,filled1) = mk_test_meta(1, :int64)

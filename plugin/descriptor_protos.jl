@@ -16,6 +16,7 @@ type NamePart
     name_part::String                       # required string name_part = 1;
     is_extension::Bool                      # required bool is_extension = 2;
 end
+meta(t::Type{NamePart}) = meta(t, true, [:name_part, is_extension], Int[], Dict{Symbol,Any}())
 
 type UninterpretedOption
     # The name of the uninterpreted option.  Each string represents a segment in
@@ -34,24 +35,29 @@ type UninterpretedOption
     string_value::Array{Uint8,1}            # optional bytes string_value = 7;
     aggregate_value::String                 # optional string aggregate_value = 8;
 end
+meta(t::Type{UninterpretedOption}) = meta(t, true, Symbol[], [2:8], Dict{Symbol,Any}())
 
 type MethodOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
+meta(t::Type{MethodOptions}) = meta(t, true, Symbol[], [999], Dict{Symbol,Any}())
 
 type ServiceOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
+meta(t::Type{ServiceOptions}) = meta(t, true, Symbol[], [999], Dict{Symbol,Any}())
 
 type EnumValueOptions
-    uninterpreted_option::Array{UninterpretedOption,1}      #repeated UninterpretedOption uninterpreted_option = 999;
+    uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
+meta(t::Type{EnumValueOptions}) = meta(t, true, Symbol[], [999], Dict{Symbol,Any}())
 
 type EnumOptions
     # Set this option to false to disallow mapping different tag names to a same value.
-    allow_alias::Bool                                       #optional bool allow_alias = 2 [default=true];
-    uninterpreted_option::Array{UninterpretedOption,1}      #repeated UninterpretedOption uninterpreted_option = 999;
+    allow_alias::Bool                                       # optional bool allow_alias = 2 [default=true];
+    uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
+meta(t::Type{EnumOptions}) = meta(t, true, Symbol[], [2,999], Dict{Symbol,Any}(:allow_alias => true))
 
 #@enum CType STRING CORD STRING_PIECE
 type FieldOptions
@@ -61,14 +67,16 @@ type FieldOptions
     deprecated::Bool                                        # optional bool deprecated = 3 [default=false];
     experimental_map_key::String                            # optional string experimental_map_key = 9;
     weak::Bool                                              # optional bool weak = 10 [default=false];
-    uninterpreted_option::Array{UninterpretedOption,1}      #repeated UninterpretedOption uninterpreted_option = 999;
+    uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
+meta(t::Type{FieldOptions}) = meta(t, true, Symbol[], [1,2,5,3,9,10,999], Dict{Symbol,Any}(:ctype => 1, :lazy => false, :deprecated => false, :weak => false))
 
 type MessageOptions 
     message_set_wire_format::Bool                           # optional bool message_set_wire_format = 1 [default=false];
     no_standard_descriptor_accessor::Bool                   # optional bool no_standard_descriptor_accessor = 2 [default=false];
-    uninterpreted_option::Array{UninterpretedOption,1}      #repeated UninterpretedOption uninterpreted_option = 999;
+    uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
+meta(t::Type{MessageOptions}) = meta(t, true, Symbol[], [1,2,999], Dict{Symbol,Any}(:message_set_wire_format => false, :no_standard_descriptor_accessor => false))
 
 #@enum OptimizeMode unused SPEED CODE_SIZE LITE_RUNTIME
 type FileOptions
@@ -84,8 +92,16 @@ type FileOptions
     java_generic_services::Bool                             # optional bool java_generic_services = 17 [default=false];
     py_generic_services::Bool                               # optional bool py_generic_services = 18 [default=false];
 
-    uninterpreted_option::Array{UninterpretedOption,1}      #repeated UninterpretedOption uninterpreted_option = 999;
+    uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
+meta(t::Type{FileOptions}) = meta(t, true, Symbol[], [1,8,10,20,9,11,16,17,18,999], 
+                                    Dict{Symbol,Any}(
+                                        :java_multiple_files => false, 
+                                        :java_generate_equals_and_hash => false,
+                                        :optimize_for => 2,
+                                        :cc_generic_services => false,
+                                        :java_generic_services => false,
+                                        :py_generic_services => false))
 
 #========================================
 # END OPTIONS
@@ -154,6 +170,7 @@ type FieldDescriptorProto
     default_value::String                       # optional string default_value = 7;
     options::FieldOptions                       # optional FieldOptions options = 8;
 end
+meta(t::Type{FieldDescriptorProto}) = meta(t, true, Symbol[], [1,3,4,5,6,2,7,8], Dict{Symbol,Any}())
 
 
 type ExtensionRange
@@ -171,6 +188,7 @@ type DescriptorProto
     extension_range::Array{ExtensionRange,1}    # repeated ExtensionRange extension_range = 5;
     options::MessageOptions                     # optional MessageOptions options = 7;
 end
+meta(t::Type{DescriptorProto}) = meta(t, true, Symbol[], [1,2,6,3,4,5,7], Dict{Symbol,Any}())
 
 type FileDescriptorProto
     name::String                                # optional string name = 1;
@@ -189,6 +207,7 @@ type FileDescriptorProto
     options::FileOptions                        # optional FileOptions options = 8;
     source_code_info::SourceCodeInfo            # optional SourceCodeInfo source_code_info = 9;
 end
+meta(t::Type{FileDescriptorProto}) = meta(t, true, Symbol[], [1,2,3,10,11,4,5,6,7,8,9], Dict{Symbol,Any}())
 
 type FileDescriptorSet
     file::FileDescriptorProto       # repeated FileDescriptorProto file = 1;
