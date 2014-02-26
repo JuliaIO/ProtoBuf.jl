@@ -38,10 +38,19 @@ type TestNested
     fld3::Array{TestStr}
 end
 
+type TestDefaults
+    iVal1::Int64
+    sVal2::String
+    iVal2::Array{Int64,1}
+    TestDefaults(f1,f2,f3) = TestDefaults(f1,f2,f3)
+    TestDefaults() = new()
+end
+
 # disable caching of meta since we manually modify them for the tests
 meta(t::Type{TestType}) = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
 meta(t::Type{TestOptional}) = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
 meta(t::Type{TestNested}) = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
+meta(t::Type{TestDefaults}) = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}({:iVal1 => 10, :iVal2 => [1,2,3]}))
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
     (meta1,filled1) = mk_test_meta(1, :int64)
@@ -189,7 +198,7 @@ function test_optional()
         (meta, fill) = mk_test_optional_meta(randbool(), randbool())
 
         writeproto(pb, testval, meta, fill)
-        readfill = ProtoFill(TestOptional, Dict{Symbol, Union(Bool,ProtoFill)}())
+        readfill = ProtoFill(TestOptional)
         readval.iVal2 = Int64[]
         readproto(pb, readval, meta, readfill)
 
@@ -217,7 +226,7 @@ function test_nested()
         (meta, fill) = mk_test_nested_meta(randbool(), randbool(), randbool(), randbool())
 
         writeproto(pb, testval, meta, fill)
-        readfill = ProtoFill(TestNested, Dict{Symbol, Union(Bool,ProtoFill)}())
+        readfill = ProtoFill(TestNested)
         readfld2.iVal2 = Int64[]
         readval.fld3 = TestType[]
         readproto(pb, readval, meta, readfill)
@@ -227,8 +236,28 @@ function test_nested()
 
 end
 
+function test_defaults()
+    print_hdr("testing default values")
+    pb = PipeBuffer()
+
+    testval = TestDefaults()
+    readval = TestDefaults()
+    testval.iVal1 = int(rand() * 100)
+    writeproto(pb, testval)
+    readfill = ProtoFill(TestDefaults)
+    readproto(pb, readval, readfill)
+
+    @assert filled(readval, :iVal1, readfill)
+    @assert !filled(readval, :sVal2, readfill)
+    @assert filled(readval, :iVal2, readfill)
+
+    @assert readval.iVal1 == testval.iVal1
+    @assert readval.iVal2 == [1,2,3]
+end
+
 test_types()
 test_repeats()
 test_optional()
 test_nested()
+test_defaults()
 

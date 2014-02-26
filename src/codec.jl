@@ -35,16 +35,17 @@ const WIRETYPES = {
 }
 
 
-wiretypes(::Type{Int32})            = [:int32, :sint32, :enum]
-wiretypes(::Type{Int64})            = [:int64, :sint64]
-wiretypes(::Type{Uint32})           = [:uint32]
-wiretypes(::Type{Uint64})           = [:uint64]
-wiretypes(::Type{Bool})             = [:bool]
-wiretypes(::Type{Float64})          = [:double, :fixed, :sfixed64]
-wiretypes(::Type{Float32})          = [:float, :fixed32, :sfixed32]
-wiretypes{T<:String}(::Type{T})     = [:string]
-wiretypes(::Type{Array{Uint8,1}})   = [:bytes]
-wiretypes(::Type)                   = [:obj]
+wiretypes(::Type{Int32})                    = [:int32, :sint32, :enum]
+wiretypes(::Type{Int64})                    = [:int64, :sint64]
+wiretypes(::Type{Uint32})                   = [:uint32]
+wiretypes(::Type{Uint64})                   = [:uint64]
+wiretypes(::Type{Bool})                     = [:bool]
+wiretypes(::Type{Float64})                  = [:double, :fixed, :sfixed64]
+wiretypes(::Type{Float32})                  = [:float, :fixed32, :sfixed32]
+wiretypes{T<:String}(::Type{T})             = [:string]
+wiretypes(::Type{Array{Uint8,1}})           = [:bytes]
+wiretypes(::Type)                           = [:obj]
+wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
 
 wiretype(t::Type) = wiretypes(t)[1]
 
@@ -267,15 +268,14 @@ function read_lendelim_packed(io, fld::Array, reader::Symbol, jtyp::Type)
     nothing
 end
 
-function read_lendelim_obj(io, val, meta::ProtoMeta, fill, reader::Symbol)
+function read_lendelim_obj(io, val, meta::ProtoMeta, fill::ProtoFill, reader::Symbol)
     fld_buf = read_bytes(io)
     eval(reader)(IOBuffer(fld_buf), val, meta, fill)
     val
 end
 
-readproto(io, obj) = readproto(io, obj, meta(typeof(obj)))
 readproto(io, obj, fill::ProtoFill) = readproto(io, obj, meta(typeof(obj)), fill)
-function readproto(io, obj, meta::ProtoMeta, fill=nothing)
+function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)), fill::ProtoFill=ProtoFill(typeof(obj)))
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
 
@@ -296,14 +296,14 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
                 read_lendelim_packed(io, ofld, read_fn, jtyp)
             else
                 efill = true
-                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, eval(jtyp)(), attrib.meta, nothing, read_fn) : eval(read_fn)(io, jtyp))
+                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, eval(jtyp)(), attrib.meta, ProtoFill(jtyp), read_fn) : eval(read_fn)(io, jtyp))
             end
         else
             (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
 
             if ptyp == :obj
                 val = getfield(obj, fld)
-                efill = (fill == nothing) ? nothing : ProtoFill(typeof(val))
+                efill = ProtoFill(typeof(val))
                 val = read_lendelim_obj(io, getfield(obj, fld), attrib.meta, efill, read_fn)
             else
                 efill = true
@@ -312,7 +312,17 @@ function readproto(io, obj, meta::ProtoMeta, fill=nothing)
             setfield!(obj, fld, val)
         end
 
-        (nothing != fill) && (fill.fills[fld] = efill)
+        fill.fills[fld] = efill
+    end
+
+    # populate defaults
+    for attrib in meta.ordered
+        fld = attrib.fld
+        if (false == filled(obj, fld, fill)) && (length(attrib.default) > 0)
+            default = attrib.default[1]
+            setfield!(obj, fld, default)
+            fill.fills[fld] = (:obj == wiretype(typeof(default))) ? filled(default) : true
+        end
     end
 end
 
@@ -337,12 +347,28 @@ function meta(typ::Type, cache::Bool, required::Array{Symbol,1}, numbers::Array{
         elemtyp = isarr ? fldtyp.parameters[1] : fldtyp
         wtyp = wiretype(elemtyp)
         packed = (isarr && issubtype(elemtyp, Number))
-        default = get(defaults, fldname, [])
+        default = haskey(defaults, fldname) ? {defaults[fldname]} : []
 
         push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))
     end
     m = ProtoMeta(typ, attribs)
     cache ? (_metacache[typ] = m) : m
+end
+
+function filled(obj)
+    typ = typeof(obj)
+    fill = ProtoFill(typ)
+
+    names = typ.names
+    types = typ.types
+    for fldidx in 1:length(names)
+        fldname = names[fldidx]
+        if isdefined(obj, fldname)
+            fldtyp = types[fldidx]
+            fill.fills[fldname] = (:obj == wiretype(fldtyp)) ? filled(getfield(obj, fldname)) : true
+        end
+    end
+    fill
 end
 
 filled(obj, field::Symbol, fill::Nothing) = isdefined(obj, field)
