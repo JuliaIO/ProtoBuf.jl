@@ -12,15 +12,20 @@ logmsg(s) = debug(s)
 include("descriptor_protos.jl")
 include("plugin_protos.jl")
 
+const _packages = Dict{String,String}()
+
+
 type Scope
     name::String
     syms::Array{String,1}
     parent::Scope
+    is_module::Bool
 
     function Scope(name::String) 
         s = new()
         s.name = name
         s.syms = String[]
+        s.is_module = false
         s
     end
     function Scope(name::String, parent::Scope)
@@ -28,13 +33,14 @@ type Scope
         s.name = name
         s.syms = String[]
         s.parent = parent
+        s.is_module = false
         s
     end
 end
 
 function qualify(name::String, scope::Scope) 
     if name in scope.syms
-        return pfx(name, scope.name) 
+        return pfx(name, scope) 
     elseif isdefined(scope, parent) 
         return qualify(name, scope.parent) 
     else
@@ -48,10 +54,25 @@ function readreq(srcio::IO)
     req
 end
 
-pfx(name::String, pfx::String) = isempty(pfx) ? name : (pfx * "_" * name)
+pfx(name::String, scope::Scope) = isempty(scope.name) ? name : (scope.name * (scope.is_module ? "." : "_") * name)
+splitmodule(name::String) = split(name, '.')
+function findmodule(name::String)
+    name = replace(name[2:end], '.', '_')
+    mlen = 0
+    mpkg = ""
+    for pkg in values(_packages)
+        if (length(pkg) > mlen) && beginswith(name, pkg)
+            mlen = length(pkg)
+            mpkg = pkg
+        end
+    end
+    (mpkg, (0 == mlen) ? name : name[(mlen+2):end])
+end
 
 function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope)
-    enumname = pfx(enumtype.name, scope.name)
+    enumname = pfx(enumtype.name, scope)
+    sm = splitmodule(enumname)
+    (length(sm) > 1) && (enumname = sm[2])
     push!(scope.syms, enumtype.name)
 
     logmsg("begin enum $(enumname)")
@@ -69,7 +90,9 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
 end
 
 function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
-    dtypename = pfx(dtype.name, scope.name)
+    dtypename = pfx(dtype.name, scope)
+    sm = splitmodule(dtypename)
+    modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
     logmsg("begin type $(dtypename)")
 
     scope = Scope(dtypename, scope)
@@ -104,9 +127,12 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
         if field.typ == TYPE_MESSAGE
             typ_name = field.typ_name
             if beginswith(typ_name, '.')
-                typ_name = replace(typ_name[2:end], '.', '_')
+                (m,t) = findmodule(typ_name)
+                typ_name = (m == modul) ? t : "$(m).$(t)"
             else
                 typ_name = qualify(typ_name, scope)
+                m,t = splitmodule(typ_name)
+                (m == modul) && (typ_name = t)
             end
         else
             typ_name = "$(JTYPES[field.typ])"
@@ -154,11 +180,36 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
 end
 
 function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
-    logmsg("generate begin for $(protofile.name)")
+    logmsg("generate begin for $(protofile.name), package $(protofile.package)")
 
     scope = Scope("")
+    for pkgpart in split(protofile.package, '.')
+        scope = Scope(isempty(scope.name) ? pkgpart : "$(scope.name)_$(pkgpart)", scope)
+    end
+    logmsg("generated scope for $(protofile.name), package $(protofile.package)")
+
+    # generate module begin
+    if !isempty(scope.name)
+        scope.is_module = true
+        println(io, "module $(scope.name)")
+        println(io, "")
+        _packages[protofile.name] = scope.name
+    end
+
+    logmsg("generating imports")
+    # generate imports
+    if filled(protofile, :dependency) && !isempty(protofile.dependency)
+        for dependency in protofile.dependency
+            println(io, "using $(_packages[dependency])")
+        end
+    end
+    println(io, "")
+    println(io, "using Protobuf")
+    println(io, "import Protobuf.meta")
+    println(io, "")
 
     # generate top level enums
+    logmsg("generating enums")
     if filled(protofile, :enum_type)
         for enum_type in protofile.enum_type
             generate(io, errio, enum_type, scope)
@@ -167,11 +218,17 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate message types
+    logmsg("generating types")
     if filled(protofile, :message_type)
         for message_type in protofile.message_type
             generate(io, errio, message_type, scope)
             (errio.size > 0) && return 
         end
+    end
+
+    # generate module end
+    if !isempty(scope.name)
+        println(io, "end # module $(scope.name)")
     end
 
     logmsg("generate end for $(protofile.name)")
@@ -213,9 +270,6 @@ function generate(srcio::IO)
 
         for protofile in req.proto_file
             io = IOBuffer()
-            println(io, "using Protobuf")
-            println(io, "import Protobuf.meta")
-            println(io, "")
             generate(io, errio, protofile)
             (errio.size > 0) && return err_response(errio)
             append_response(resp, protofile, io)
