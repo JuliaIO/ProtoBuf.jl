@@ -49,6 +49,12 @@ wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
 
 wiretype(t::Type) = wiretypes(t)[1]
 
+defaultval{T<:Number}(::Type{T})            = [0]
+defaultval{T<:String}(::Type{T})            = [""]
+defaultval(::Type{Bool})                    = [false]
+defaultval{T}(::Type{Array{T,1}})           = [T[]]
+defaultval(::Type)                          = []
+
 
 function _write_uleb{T <: Integer}(io, x::T)
     nw = 0
@@ -173,25 +179,24 @@ type ProtoMeta
     numdict::Dict{Int,ProtoMetaAttribs}
     ordered::Array{ProtoMetaAttribs,1}
 
-    function ProtoMeta(jtype::Type, ordered::Array{ProtoMetaAttribs,1})
-        symdict = Dict{Symbol,ProtoMetaAttribs}()
-        numdict = Dict{Int,ProtoMetaAttribs}()
-        for attrib in ordered
-            symdict[attrib.fld] = numdict[attrib.fldnum] = attrib
-        end
-        new(jtype, symdict, numdict, ordered)
+    ProtoMeta(jtype::Type, ordered::Array{ProtoMetaAttribs,1}) = _setmeta(new(), jtype, ordered)
+end
+
+function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,1})
+    symdict = Dict{Symbol,ProtoMetaAttribs}()
+    numdict = Dict{Int,ProtoMetaAttribs}()
+    for attrib in ordered
+        symdict[attrib.fld] = numdict[attrib.fldnum] = attrib
     end
+    meta.jtype = jtype
+    meta.symdict = symdict
+    meta.numdict = numdict
+    meta.ordered = ordered
+    meta
 end
 
-type ProtoFill
-    jtype::Type
-    fills::Dict{Symbol, Union(Bool,ProtoFill)}
-
-    ProtoFill(jtype::Type) = new(jtype, Dict{Symbol, Union(Bool,ProtoFill)}())
-    ProtoFill(jtype::Type, fills::Dict{Symbol, Union(Bool,ProtoFill)}) = new(jtype, fills)
-end
-
-function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
+# TODO: do not write default values
+function writeproto(io, val, attrib::ProtoMetaAttribs)
     fld = attrib.fldnum
     meta = attrib.meta
     ptyp = attrib.ptyp
@@ -217,7 +222,7 @@ function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
                 # TODO: optimize IOBuffer creation
                 for eachval in val
                     iob = IOBuffer()
-                    eval(write_fn)(iob, convert(jtyp, eachval), meta, nothing)
+                    eval(write_fn)(iob, convert(jtyp, eachval), meta)
                     n += _write_key(io, fld, WIRETYP_LENDELIM)
                     n += write_bytes(io, takebuf_array(iob))
                 end
@@ -231,7 +236,7 @@ function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
     else
         if ptyp == :obj
             iob = IOBuffer()
-            eval(write_fn)(iob, convert(jtyp, val), meta, fill)
+            eval(write_fn)(iob, convert(jtyp, val), meta)
             n += _write_key(io, fld, WIRETYP_LENDELIM)
             n += write_bytes(io, takebuf_array(iob))
         else
@@ -242,18 +247,14 @@ function writeproto(io, val, attrib::ProtoMetaAttribs, fill)
     n
 end
 
-writeproto(io, obj) = writeproto(io, obj, meta(typeof(obj)))
-writeproto(io, obj, fill::ProtoFill) = writeproto(io, obj, meta(typeof(obj)), fill)
-function writeproto(io, obj, meta::ProtoMeta, fill=nothing)
+function writeproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
     n = 0
     for attrib in meta.ordered 
         fld = attrib.fld
-        fldfill = filled(obj, fld, fill)
-        if false == fldfill
-            (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
+        if filled(obj, fld)
+            n += writeproto(io, getfield(obj, fld), attrib)
         else
-            val = getfield(obj, fld)
-            n += writeproto(io, val, attrib, isa(fldfill, Bool) ? nothing : fldfill)
+            (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
         end
     end
     n
@@ -268,20 +269,24 @@ function read_lendelim_packed(io, fld::Array, reader::Symbol, jtyp::Type)
     nothing
 end
 
-function read_lendelim_obj(io, val, meta::ProtoMeta, fill::ProtoFill, reader::Symbol)
+function read_lendelim_obj(io, val, meta::ProtoMeta, reader::Symbol)
     fld_buf = read_bytes(io)
-    eval(reader)(IOBuffer(fld_buf), val, meta, fill)
+    eval(reader)(IOBuffer(fld_buf), val, meta)
     val
 end
 
-readproto(io, obj, fill::ProtoFill) = readproto(io, obj, meta(typeof(obj)), fill)
-function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)), fill::ProtoFill=ProtoFill(typeof(obj)))
+function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
+    logmsg("readproto begin: $(typeof(obj))")
+    fillunset(obj)
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
+        #logmsg("reading fldnum: $(typeof(obj)).$fldnum")
 
         attrib = meta.numdict[int(fldnum)]
         ptyp = attrib.ptyp
         fld = attrib.fld
+        fillset(obj, fld)
+        #logmsg("readproto fld: $(typeof(obj)).$fld")
 
         _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
         isrepeat = (attrib.occurrence == 2)
@@ -289,51 +294,57 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)), fill::ProtoFill=P
         (ptyp == :obj) && (jtyp = attrib.meta.jtype)
 
         if isrepeat 
-            ofld = getfield(obj, fld)
+            ofld = isdefined(obj, fld) ? getfield(obj, fld) : jtyp[]
             if attrib.packed
                 (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
-                efill = true
                 read_lendelim_packed(io, ofld, read_fn, jtyp)
             else
-                efill = true
-                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, eval(jtyp)(), attrib.meta, ProtoFill(jtyp), read_fn) : eval(read_fn)(io, jtyp))
+                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, eval(jtyp)(), attrib.meta, read_fn) : eval(read_fn)(io, jtyp))
             end
+            setfield!(obj, fld, ofld)
+            logmsg("readproto set repeated: $(typeof(obj)).$fld = $ofld")
         else
             (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
 
             if ptyp == :obj
-                val = getfield(obj, fld)
-                efill = ProtoFill(typeof(val))
-                val = read_lendelim_obj(io, getfield(obj, fld), attrib.meta, efill, read_fn)
+                val = isdefined(obj, fld) ? getfield(obj, fld) : jtyp()
+                val = read_lendelim_obj(io, val, attrib.meta, read_fn)
             else
-                efill = true
                 val = eval(read_fn)(io, jtyp)
             end
+            logmsg("readproto set: $(typeof(obj)).$fld = $val")
             setfield!(obj, fld, val)
         end
-
-        fill.fills[fld] = efill
     end
 
     # populate defaults
     for attrib in meta.ordered
         fld = attrib.fld
-        if (false == filled(obj, fld, fill)) && (length(attrib.default) > 0)
+        if !filled(obj, fld) && (length(attrib.default) > 0)
             default = attrib.default[1]
             setfield!(obj, fld, default)
-            fill.fills[fld] = (:obj == wiretype(typeof(default))) ? filled(default) : true
+            fillset(obj, fld)
         end
     end
+    logmsg("readproto end: $(typeof(obj))")
 end
 
 
 ##
 # helpers
 const _metacache = Dict{Type, ProtoMeta}()
+const _fillcache = Dict{Uint, Array{Symbol,1}}()
+
+#const _pending = Type[]
 
 meta(typ::Type) = meta(typ, true, Symbol[], Int[], Dict{Symbol,Any}())
 function meta(typ::Type, cache::Bool, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any})
+    #(typ in _pending) && logmsg("Circular dependency for $typ.\nType chain:\n$_pending")
     haskey(_metacache, typ) && return _metacache[typ]
+
+    #push!(_pending, typ)
+    m = ProtoMeta(typ, ProtoMetaAttribs[])
+    cache ? (_metacache[typ] = m) : m
 
     attribs = ProtoMetaAttribs[]
     names = typ.names
@@ -347,47 +358,47 @@ function meta(typ::Type, cache::Bool, required::Array{Symbol,1}, numbers::Array{
         elemtyp = isarr ? fldtyp.parameters[1] : fldtyp
         wtyp = wiretype(elemtyp)
         packed = (isarr && issubtype(elemtyp, Number))
-        default = haskey(defaults, fldname) ? {defaults[fldname]} : []
+        default = haskey(defaults, fldname) ? {defaults[fldname]} : defaultval(fldtyp)
 
         push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))
     end
-    m = ProtoMeta(typ, attribs)
-    cache ? (_metacache[typ] = m) : m
+    _setmeta(m, typ, attribs)
+    #splice!(_pending, findfirst(_pending, typ))
+    m
+end
+
+fillunset(obj) = (empty!(filled(obj)); nothing)
+function fillunset(obj, fld::Symbol)
+    fill = filled(obj)
+    idx = findfirst(fill, fld)
+    (idx > 0) && splice!(fill, idx)
+    nothing
+end
+
+function fillset(obj, fld::Symbol)
+    fill = filled(obj)
+    idx = findfirst(fill, fld)
+    (idx > 0) && return
+    push!(fill, fld)
+    nothing
 end
 
 function filled(obj)
-    typ = typeof(obj)
-    fill = ProtoFill(typ)
+    oid = object_id(obj)
+    haskey(_fillcache, oid) && return _fillcache[oid]
 
-    names = typ.names
-    types = typ.types
-    for fldidx in 1:length(names)
-        fldname = names[fldidx]
-        if isdefined(obj, fldname)
-            fldtyp = types[fldidx]
-            fill.fills[fldname] = (:obj == wiretype(fldtyp)) ? filled(getfield(obj, fldname)) : true
-        end
+    fill = Symbol[]
+    for fldname in names(typeof(obj))
+        isdefined(obj, fldname) && push!(fill, fldname)
+    end
+    if !isimmutable(obj)
+        _fillcache[oid] = fill
+        finalizer(obj, obj->delete!(_fillcache, object_id(obj)))
     end
     fill
 end
 
-filled(obj, field::Symbol, fill::Nothing) = isdefined(obj, field)
-filled(obj, field::Symbol, fill::ProtoFill) = get(fill.fills, field, false)
-function filled(obj, field::Array{Symbol,1}, fill::Nothing)
-    for fld in field
-        !filled(obj, fld, nothing) && return false
-        obj = getfield(obj, fld)
-    end
-    true
-end
-function filled(obj, field::Array{Symbol,1}, fill::ProtoFill)
-    for fld in field
-        fill = filled(obj, fld, fill) 
-        (fill == false) && return false
-        obj = getfield(obj, fld)
-    end
-    fill
-end
+filled(obj, fld::Symbol) = (fld in filled(obj))
 
 function show(io::IO, m::ProtoMeta)
     println(io, "ProtoMeta for $(m.jtype)")
