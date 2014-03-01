@@ -327,6 +327,7 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
         end
     end
     logmsg("readproto end: $(typeof(obj))")
+    obj
 end
 
 

@@ -6,18 +6,114 @@
 
 **ProtoBuf.jl** is a Julia implementation for protocol buffers.
 
-**Features:**
-
-- Can serialize and deserialize simple Julia types automatically, without the need of defining metadata. 
-- Provides an easy way to create protocol buffer metadata for Julia types. 
-- Includes a `protoc` code generator for `.proto` files.
 
 ## Getting Started
-TODO
+
+Reading and writing data structures using ProtoBuf is similar to serialization and deserialization. Methods `writeproto` and `readproto` can write and read Julia types from IO streams respectively.
+
+````
+julia> using ProtoBuf
+
+julia> type MyType                          # here's a Julia composite type
+         intval::Int
+         strval::ASCIIString
+         MyType() = new()
+         MyType(i,s) = new(i,s)
+       end
+
+julia> iob = PipeBuffer();
+
+julia> writeproto(iob, MyType(10, "hello world"));   # write an instance of it
+
+julia> readproto(iob, MyType())  # read it back into another instance
+MyType(10,"hello world")
+````
+
+## Protocol Buffer Metadata
+
+ProtoBuf serialization can be customized for a type by defining a `meta` method on it. The `meta` method provides an instance of `ProtoMeta` that allows specification of mandatory fields, field numbers, and default values for fields for a type. Defining a specialized `meta` is done simply as below:
+
+````
+import ProtoBuf.meta
+
+meta(t::Type{MyType}) = meta(t,  # the type which this is for
+        # keep this information cached
+        # true, unless you are doing something funny that needs a dynamic metadata)
+		true,
+		# required fields
+		Symbol[:intval],
+		# the field numbers
+		Int[8, 10], 
+		# default values
+		Dict{Symbol,Any}({:strval = "default value"}))
+````
+
+Without any specialied `meta` method:
+
+- All fields are marked as optional (or repeating for arrays)
+- Numeric fields have zero as default value
+- String fields have `""` as default value
+- Field numbers are assigned serially starting from 1, in the order of their declaration.
+
+For the things where the default is what you need, just passing empty values would do. E.g., if you just want to specify the field numbers, this would do:
+
+````
+meta(t::Type{MyType}) = meta(t, true, Symbol[], Int[8,10], Dict{Symbol,Any}())
+````
+
+## Checking Valid Fields
+
+With fields set as optional, it is quite likely that some field in the instance you just read may not be present. For a freshly constructed object, it may suffice to check if the member is defined (`isdefined(obj, fld)`). But if an object is being reused, the field may have been populated during an earlier read. 
+
+The `filled` method comes handy in such cases. It returns `true` only if the field was populated the last time it was read using `readproto`.
+
+````
+julia> using ProtoBuf
+
+julia> type MyType                # here's a Julia composite type
+           intval::Int
+           MyType() = new()
+           MyType(i) = new(i)
+       end
+
+julia> 
+
+julia> type OptType               # and another one to contain it
+           opt::MyType
+           OptType() = new()
+           OptType(o) = new(o)
+       end
+
+julia> iob = PipeBuffer();
+
+julia> writeproto(iob, OptType(MyType(10)));
+
+julia> readval = readproto(iob, OptType());
+
+julia> filled(readval, :opt)       # valid this time
+true
+
+julia> 
+
+julia> writeproto(iob, OptType());
+
+julia> readval = readproto(iob, OptType());
+
+julia> filled(readval, :opt)       # but not valid now
+false
+````
+
 
 ## Generating Code (from .proto files)
-TODO
+The Julia code generator plugs in to the `protoc` compiler. It is implemented as `ProtoBuf.Gen`, a sub-module of `ProtoBuf`. The callable program (as required by `protoc`)is provided as the script `plugin/protoc-gen-julia`.
 
+To generate Julia code from `.proto` files, add the above mentioned `plugin` folder to the `PATH`, so that `protoc` can find the `protoc-gen-julia` executable. Then invoke `protoc` with the `--julia_out` option. 
+
+E.g. to generate Julia code from `plugin.proto`, run the command below which will  create a corresponding file `jlout/plugin.jl`.
+
+````
+protoc -I proto proto/plugin.proto --julia_out jlout
+````
 
 
 ### Julia Type Mapping
@@ -41,29 +137,13 @@ string      | ByteString        | A string must always contain UTF-8 encoded or 
 bytes       | Array{Uint8,1}    | May contain any arbitrary sequence of bytes.
 
 
-### Code Generation
+## Caveats &amp; TODOs
 
-All message types in `<protoname>.proto` file map on to Julia types and are generated into a `<protoname>_messages.jl` file. Each message type has corresponding `serialize` and `deserialize` methods that implement the wire protocol.
-
-Enumerations in `<protoname>.proto` file map on to modules with `const` enum values and an enum method for validation. All enumerations are generated in a `<protoname>_enums.jl` file which is included and referred to in the generated `messages.jl` file.
-
-RPC methods defined for the message types are generated into a `<protoname>_rpc.jl` file.
-
-Julia code using protobuf RPC on a message type `foo` would roughly look like:
-
-````
-using ProtoBuf                # import the protobuf framework methods
-
-include("foo-messages.jl")    # include the generated message types
-include("foo-enums.jl")       # include the generated enumerations (if any)
-include("foo-rpc.jl")         # include the generated rpc methods (if any)
-
-# plain protobuf serialize/deserialize
-serproto(s, foo1)
-foo2 = deserproto(s, foo)
-
-# call a rpc method foofn
-foo2 = foofn("hello world", foo1)
-````
+- Extensions are not supported yet.
+- Services are not supported yet.
+- Gropus are not supported. They are deprecated anyway.
+- To be able to use a Julia type in protobuf, it must have an empty constructor. This is to enable the deserializer create an instance of the type on its own. (This restriction should go away soon.)
+- Generated code translates package name specified into Julia modules, but uses only one level of module. So a package name of `com.foo.bar` will get translated to a Julia module `com_foo_bar`. This may become better in the future with special `module` directive for Julia.
+- Julia does not have `enum` types. In generated code, enums are declared as `Int32` types, but a separate Julia type is generated with fields same as the enum values which can be used for validation.
 
 
