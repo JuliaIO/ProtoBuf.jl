@@ -1,4 +1,4 @@
-module Protobuf
+module ProtoBuf
 
 import Base.show
 

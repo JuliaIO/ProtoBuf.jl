@@ -1,6 +1,6 @@
-using Protobuf
+using ProtoBuf
 
-import Protobuf.meta
+import ProtoBuf.meta
 
 enum(x) = int(x)
 sint32(x) = int32(x)
@@ -274,8 +274,8 @@ test_optional()
 test_nested()
 test_defaults()
 gc()
-println("_metacache has $(length(Protobuf._metacache)) items")
-println(Protobuf._metacache)
-println("_fillcache has $(length(Protobuf._fillcache)) items")
-println(Protobuf._fillcache)
+println("_metacache has $(length(ProtoBuf._metacache)) items")
+println(ProtoBuf._metacache)
+println("_fillcache has $(length(ProtoBuf._fillcache)) items")
+println(ProtoBuf._fillcache)
 

@@ -1,1 +1,1 @@
-julia -e 'using Protobuf; using Protobuf.Gen; gen()'
+julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'

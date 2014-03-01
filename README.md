@@ -1,10 +1,10 @@
 # ProtoBuf.jl
 
-[![Build Status](https://travis-ci.org/tanmaykm/Protobuf.jl.png)](https://travis-ci.org/tanmaykm/Protobuf.jl)
+[![Build Status](https://travis-ci.org/tanmaykm/ProtoBuf.jl.png)](https://travis-ci.org/tanmaykm/ProtoBuf.jl)
 
 [**Protocol buffers**](https://developers.google.com/protocol-buffers/docs/overview) are a language-neutral, platform-neutral, extensible way of serializing structured data for use in communications protocols, data storage, and more.
 
-**ProtoBuf.jl** is a Julia Protobuf implementation for protocol buffers.
+**ProtoBuf.jl** is a Julia implementation for protocol buffers.
 
 **Features:**
 
@@ -52,7 +52,7 @@ RPC methods defined for the message types are generated into a `<protoname>_rpc.
 Julia code using protobuf RPC on a message type `foo` would roughly look like:
 
 ````
-using Protobuf                # import the protobuf framework methods
+using ProtoBuf                # import the protobuf framework methods
 
 include("foo-messages.jl")    # include the generated message types
 include("foo-enums.jl")       # include the generated enumerations (if any)

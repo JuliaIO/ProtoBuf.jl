@@ -1,8 +1,8 @@
 module Gen
 
-using Protobuf
+using ProtoBuf
 
-import Protobuf.meta, Protobuf.logmsg
+import ProtoBuf.meta, ProtoBuf.logmsg
 
 export gen
 
@@ -201,8 +201,8 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         end
     end
     println(io, "")
-    println(io, "using Protobuf")
-    println(io, "import Protobuf.meta")
+    println(io, "using ProtoBuf")
+    println(io, "import ProtoBuf.meta")
     println(io, "")
 
     # generate top level enums

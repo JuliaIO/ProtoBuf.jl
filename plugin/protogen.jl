@@ -1,3 +1,3 @@
-using Protobuf
-using Protobuf.Gen
+using ProtoBuf
+using ProtoBuf.Gen
 gen()
