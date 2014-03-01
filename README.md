@@ -1,6 +1,23 @@
-# Protobuf (WIP)
+# ProtoBuf.jl
 
 [![Build Status](https://travis-ci.org/tanmaykm/Protobuf.jl.png)](https://travis-ci.org/tanmaykm/Protobuf.jl)
+
+[**Protocol buffers**](https://developers.google.com/protocol-buffers/docs/overview) are a language-neutral, platform-neutral, extensible way of serializing structured data for use in communications protocols, data storage, and more.
+
+**ProtoBuf.jl** is a Julia Protobuf implementation for protocol buffers.
+
+**Features:**
+
+- Can serialize and deserialize simple Julia types automatically, without the need of defining metadata. 
+- Provides an easy way to create protocol buffer metadata for Julia types. 
+- Includes a `protoc` code generator for `.proto` files.
+
+## Getting Started
+TODO
+
+## Generating Code (from .proto files)
+TODO
+
 
 
 ### Julia Type Mapping
