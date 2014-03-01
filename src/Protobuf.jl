@@ -2,7 +2,7 @@ module Protobuf
 
 import Base.show
 
-export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, wiretype, wiretypes, meta, show, filled, fillset, fillunset
+export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, show, filled, fillset, fillunset
 
 # enable logging only during debugging
 using Logging
@@ -11,6 +11,7 @@ logmsg(s) = debug(s)
 #logmsg(s) = nothing
 
 include("codec.jl")
+include("gen.jl")
 
 end # module
 
