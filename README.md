@@ -102,16 +102,15 @@ false
 
 
 ## Generating Code (from .proto files)
-The Julia code generator plugs in to the `protoc` compiler. It is implemented as `ProtoBuf.Gen`, a sub-module of `ProtoBuf`. The callable program (as required by `protoc`)is provided as the script `plugin/protoc-gen-julia`.
+The Julia code generator plugs in to the `protoc` compiler. It is implemented as `ProtoBuf.Gen`, a sub-module of `ProtoBuf`. The callable program (as required by `protoc`) is provided as the script `ProtoBuf/plugin/protoc-gen-julia`.
 
-To generate Julia code from `.proto` files, add the above mentioned `plugin` folder to the `PATH`, so that `protoc` can find the `protoc-gen-julia` executable. Then invoke `protoc` with the `--julia_out` option. 
+To generate Julia code from `.proto` files, add the above mentioned `plugin` folder to the system `PATH` environment variable, so that `protoc` can find the `protoc-gen-julia` executable. Then invoke `protoc` with the `--julia_out` option. 
 
-E.g. to generate Julia code from `plugin.proto`, run the command below which will  create a corresponding file `jlout/plugin.jl`.
+E.g. to generate Julia code from `proto/plugin.proto`, run the command below which will create a corresponding file `jlout/plugin.jl`.
 
-````
-protoc -I proto proto/plugin.proto --julia_out jlout
-````
+`protoc -I=proto --julia_out=jlout proto/plugin.proto`
 
+Each `.proto` file results in a corresponding `.jl` file, including one each for other included `.proto` files. If the `.proto` file declares any `package`, the resulting Julia code would be placed under a module named similar to the package name but with `_` replaced for any `.`s in the name. It is envisaged that typically these generated modules would be used as sub-modules of the larger Julia module that uses them.
 
 ### Julia Type Mapping
 

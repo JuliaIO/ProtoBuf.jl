@@ -237,7 +237,11 @@ end
 function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorProto, io::IOBuffer)
     jfile = CodeGenFile()
 
-    jfile.name = join([splitext(protofile.name)[1],"jl"], '.')
+    outdir = dirname(protofile.name)
+    filename = splitext(basename(protofile.name))[1]
+    filename = replace(filename, '.', '_')
+    filename = join([filename, "jl"], '.')
+    jfile.name = joinpath(outdir, filename)
     jfile.content = takebuf_string(io)
 
     !isdefined(resp, :file) && (resp.file = CodeGenFile[])
