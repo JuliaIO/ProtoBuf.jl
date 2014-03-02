@@ -55,10 +55,10 @@ type TestDefaults
 end
 
 # disable caching of meta since we manually modify them for the tests
-meta(t::Type{TestType})         = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
-meta(t::Type{TestOptional})     = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
-meta(t::Type{TestNested})       = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}())
-meta(t::Type{TestDefaults})     = meta(t, false, Symbol[], Int[], Dict{Symbol,Any}({:iVal1 => 10, :iVal2 => [1,2,3]}))
+meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
+meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
+meta(t::Type{TestNested})       = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
+meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], {:iVal1 => 10, :iVal2 => [1,2,3]}, false)
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
     meta1 = mk_test_meta(1, :int64)
@@ -84,7 +84,8 @@ function mk_test_meta(fldnum::Int, ptyp::Symbol)
     attrib = m.symdict[:val]
     attrib.fldnum = fldnum
     attrib.ptyp = ptyp
-    m.numdict = Dict{Int,ProtoMetaAttribs}({fldnum => attrib})
+    m.numdict = Dict{Int,ProtoMetaAttribs}()
+    m.numdict[fldnum] = attrib
     m
 end
 

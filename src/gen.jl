@@ -121,7 +121,7 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
             return
         end
 
-        if field.typ == TYPE_MESSAGE
+        if (field.typ == TYPE_MESSAGE) || (field.typ == TYPE_ENUM)
             typ_name = field.typ_name
             if beginswith(typ_name, '.')
                 (m,t) = findmodule(typ_name)
@@ -131,9 +131,9 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
                 m,t = splitmodule(typ_name)
                 (m == modul) && (typ_name = t)
             end
-        else
-            typ_name = "$(JTYPES[field.typ])"
         end
+        enum_typ_name = (field.typ == TYPE_ENUM) ? typ_name : ""
+        (field.typ != TYPE_MESSAGE) && (typ_name = "$(JTYPES[field.typ])")
 
         push!(fldnums, field.number)
         (LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
@@ -148,7 +148,8 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
                 println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                 return
             else
-                push!(defvals, ":$fldname => $(field.default_value)")
+                defval = (field.typ == TYPE_ENUM) ? "$(enum_typ_name).$(field.default_value)" : "$(field.default_value)"
+                push!(defvals, ":$fldname => $defval")
             end
         end
 
@@ -161,15 +162,17 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
     # generate the meta for this type if required
     if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)])
         logmsg("generating meta for type $(dtypename)")
-        print(io, "meta(t::Type{$dtypename}) = meta(t, true, Symbol[")
+        print(io, "meta(t::Type{$dtypename}) = meta(t, Symbol[")
         !isempty(reqflds) && print(io, join(reqflds, ','))
         print(io, "], Int[")
         (fldnums != [1:length(fldnums)]) && print(io, join(fldnums, ','))
-        print(io, "], Dict{Symbol,Any}(")
+        print(io, "], ")
         if !isempty(defvals)
-            print(io, "{" * join(defvals, ',') * "}")
+            print(io, "[" * join(defvals, ',') * "]")
+        else
+            print(io, "Dict{Symbol,Any}()")
         end
-        println(io, "))")
+        println(io, ")")
     end
 
     println(io, "")

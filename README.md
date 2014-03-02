@@ -37,15 +37,12 @@ ProtoBuf serialization can be customized for a type by defining a `meta` method 
 import ProtoBuf.meta
 
 meta(t::Type{MyType}) = meta(t,  # the type which this is for
-        # keep this information cached
-        # true, unless you are doing something funny that needs a dynamic metadata)
-		true,
 		# required fields
 		Symbol[:intval],
 		# the field numbers
 		Int[8, 10], 
 		# default values
-		Dict{Symbol,Any}({:strval = "default value"}))
+		Dict{Symbol,Any}({:strval => "default value"}))
 ````
 
 Without any specialied `meta` method:
@@ -58,7 +55,7 @@ Without any specialied `meta` method:
 For the things where the default is what you need, just passing empty values would do. E.g., if you just want to specify the field numbers, this would do:
 
 ````
-meta(t::Type{MyType}) = meta(t, true, Symbol[], Int[8,10], Dict{Symbol,Any}())
+meta(t::Type{MyType}) = meta(t, [], [8,10], Dict())
 ````
 
 ## Checking Valid Fields

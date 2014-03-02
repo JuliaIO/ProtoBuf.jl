@@ -336,14 +336,17 @@ end
 const _metacache = Dict{Type, ProtoMeta}()
 const _fillcache = Dict{Uint, Array{Symbol,1}}()
 
-#const _pending = Type[]
-
-meta(typ::Type) = meta(typ, true, Symbol[], Int[], Dict{Symbol,Any}())
-function meta(typ::Type, cache::Bool, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any})
-    #(typ in _pending) && logmsg("Circular dependency for $typ.\nType chain:\n$_pending")
+meta(typ::Type) = meta(typ, Symbol[], Int[], Dict{Symbol,Any}())
+function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true) 
+    d = Dict{Symbol,Any}()
+    for (k,v) in defaults
+        d[k] = v
+    end
+    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, cache)
+end
+function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, cache::Bool=true)
     haskey(_metacache, typ) && return _metacache[typ]
 
-    #push!(_pending, typ)
     m = ProtoMeta(typ, ProtoMetaAttribs[])
     cache ? (_metacache[typ] = m) : m
 
@@ -364,7 +367,6 @@ function meta(typ::Type, cache::Bool, required::Array{Symbol,1}, numbers::Array{
         push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))
     end
     _setmeta(m, typ, attribs)
-    #splice!(_pending, findfirst(_pending, typ))
     m
 end
 
