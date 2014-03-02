@@ -66,7 +66,7 @@ function findmodule(name::String)
     (mpkg, (0 == mlen) ? name : name[(mlen+2):end])
 end
 
-function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope)
+function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Array{String,1})
     enumname = pfx(enumtype.name, scope)
     sm = splitmodule(enumname)
     (length(sm) > 1) && (enumname = sm[2])
@@ -83,10 +83,11 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     println(io, "end #type __enum_$(enumname)")
     println(io, "const $(enumname) = __enum_$(enumname)()")
     println(io, "")
+    push!(exports, enumname)
     logmsg("end enum $(enumname)")
 end
 
-function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
+function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{String,1})
     dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
     modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
@@ -96,7 +97,7 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
     # generate enums
     if filled(dtype, :enum_type)
         for enum_type in dtype.enum_type
-            generate(io, errio, enum_type, scope)
+            generate(io, errio, enum_type, scope, exports)
             (errio.size > 0) && return 
         end
     end
@@ -104,7 +105,7 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
     # generate nested types
     if filled(dtype, :nested_type)
         for nested_type::DescriptorProto in dtype.nested_type
-            generate(io, errio, nested_type, scope)
+            generate(io, errio, nested_type, scope, exports)
             (errio.size > 0) && return 
         end
     end
@@ -176,6 +177,7 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope)
     end
 
     println(io, "")
+    push!(exports, dtypename)
     logmsg("end type $(dtypename)")
 end
 
@@ -208,11 +210,13 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     println(io, "import ProtoBuf.meta")
     println(io, "")
 
+    exports = String[]
+
     # generate top level enums
     logmsg("generating enums")
     if filled(protofile, :enum_type)
         for enum_type in protofile.enum_type
-            generate(io, errio, enum_type, scope)
+            generate(io, errio, enum_type, scope, exports)
             (errio.size > 0) && return 
         end
     end
@@ -221,10 +225,14 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     logmsg("generating types")
     if filled(protofile, :message_type)
         for message_type in protofile.message_type
-            generate(io, errio, message_type, scope)
+            generate(io, errio, message_type, scope, exports)
             (errio.size > 0) && return 
         end
     end
+
+    # generate exports
+    !isempty(exports) && println(io, "export " * join(exports, ", "))
+    println(io, "export meta")
 
     # generate module end
     if !isempty(scope.name)
