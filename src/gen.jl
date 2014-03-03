@@ -23,12 +23,13 @@ function defer(name::String, iob::IOBuffer, depends::String)
         !(depends in depsnow) && push!(depsnow, depends)
         return
     end
-    _deferred[name] = DeferredWrite(iob, [depends])
+    _deferred[name] = DeferredWrite(iob, String[depends])
     nothing
 end
 
 isdeferred(name::String) = haskey(_deferred, name)
 function isresolved(dtypename::String, referenced_name::String, exports::Array{String,1})
+    (dtypename == referenced_name) && return true
     for jtype in JTYPES
         (referenced_name == string(jtype)) && return true
     end
