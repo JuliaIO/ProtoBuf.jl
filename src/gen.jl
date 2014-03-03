@@ -11,6 +11,51 @@ include("gen_plugin_protos.jl")
 
 const _packages = Dict{String,String}()
 
+type DeferredWrite
+    iob::IOBuffer
+    depends::Array{String,1}
+end
+const _deferred = Dict{String,DeferredWrite}()
+
+function defer(name::String, iob::IOBuffer, depends::String)
+    if isdeferred(name)
+        depsnow = _deferred[name].depends
+        !(depends in depsnow) && push!(depsnow, depends)
+        return
+    end
+    _deferred[name] = DeferredWrite(iob, [depends])
+    nothing
+end
+
+isdeferred(name::String) = haskey(_deferred, name)
+function isresolved(dtypename::String, referenced_name::String, exports::Array{String,1})
+    for jtype in JTYPES
+        (referenced_name == string(jtype)) && return true
+    end
+    ('.' in referenced_name) || (referenced_name in exports)
+end
+
+function resolve(iob::IOBuffer, name::String)
+    fully_resolved = String[]
+    for (typ,dw) in _deferred
+        idx = findfirst(dw.depends, name)
+        (idx == 0) && continue
+        splice!(dw.depends, idx)
+        isempty(dw.depends) && push!(fully_resolved, typ)
+    end
+
+    # write all fully resolved entities
+    for typ in fully_resolved
+        logmsg("resolved $typ")
+        print(iob, takebuf_string(_deferred[typ].iob))
+        delete!(_deferred, typ)
+    end
+
+    # mark them resolved as well
+    for typ in fully_resolved
+        resolve(iob, typ)
+    end
+end
 
 type Scope
     name::String
@@ -87,7 +132,8 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     logmsg("end enum $(enumname)")
 end
 
-function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{String,1})
+function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{String,1})
+    io = IOBuffer()
     dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
     modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
@@ -154,6 +200,8 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope, expor
             end
         end
 
+        !isresolved(dtypename, typ_name, exports) && defer(dtypename, io, typ_name)
+
         (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
         println(io, "    $(field.name)::$typ_name")
     end
@@ -178,6 +226,13 @@ function generate(io::IO, errio::IO, dtype::DescriptorProto, scope::Scope, expor
 
     println(io, "")
     push!(exports, dtypename)
+
+    if !isdeferred(dtypename)
+        logmsg("resolved $dtypename")
+        print(outio, takebuf_string(io))
+        resolve(outio, dtypename)
+    end
+    
     logmsg("end type $(dtypename)")
 end
 
@@ -228,6 +283,15 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
             generate(io, errio, message_type, scope, exports)
             (errio.size > 0) && return 
         end
+    end
+
+    # check if everything is resolved
+    if !isempty(_deferred)
+        println(errio, "All types could not be fully resolved:")
+        for (k,v) in _deferred
+            println(errio, "$k depends on $(join(v.depends, ','))")
+        end
+        return
     end
 
     # generate exports
