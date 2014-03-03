@@ -6,21 +6,15 @@ type Location
     span::Array{Int32,1}                    # repeated int32 span = 2 [packed=true];
     leading_comments::String                # optional string leading_comments = 3;
     trailing_comments::String               # optional string trailing_comments = 4;
-
-    Location() = new()
 end
 
 type SourceCodeInfo
     location::Array{Location,1}             # repeated Location location = 1;
-
-    SourceCodeInfo() = new()
 end
 
 type NamePart
     name_part::String                       # required string name_part = 1;
     is_extension::Bool                      # required bool is_extension = 2;
-
-    NamePart() = new()
 end
 meta(t::Type{NamePart}) = meta(t, [:name_part, :is_extension], Int[], Dict{Symbol,Any}())
 
@@ -40,29 +34,21 @@ type UninterpretedOption
     double_value::Float64                   # optional double double_value = 6;
     string_value::Array{Uint8,1}            # optional bytes string_value = 7;
     aggregate_value::String                 # optional string aggregate_value = 8;
-
-    UninterpretedOption() = new()
 end
 meta(t::Type{UninterpretedOption}) = meta(t, Symbol[], [2:8], Dict{Symbol,Any}())
 
 type MethodOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
-
-    MethodOptions() = new()
 end
 meta(t::Type{MethodOptions}) = meta(t, Symbol[], [999], Dict{Symbol,Any}())
 
 type ServiceOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
-
-    ServiceOptions() = new()
 end
 meta(t::Type{ServiceOptions}) = meta(t, Symbol[], [999], Dict{Symbol,Any}())
 
 type EnumValueOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
-
-    EnumValueOptions() = new()
 end
 meta(t::Type{EnumValueOptions}) = meta(t, Symbol[], [999], Dict{Symbol,Any}())
 
@@ -70,8 +56,6 @@ type EnumOptions
     # Set this option to false to disallow mapping different tag names to a same value.
     allow_alias::Bool                                       # optional bool allow_alias = 2 [default=true];
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
-
-    EnumOptions() = new()
 end
 meta(t::Type{EnumOptions}) = meta(t, Symbol[], [2,999], [:allow_alias => true])
 
@@ -84,8 +68,6 @@ type FieldOptions
     experimental_map_key::String                            # optional string experimental_map_key = 9;
     weak::Bool                                              # optional bool weak = 10 [default=false];
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
-
-    FieldOptions() = new()
 end
 meta(t::Type{FieldOptions}) = meta(t, Symbol[], [1,2,5,3,9,10,999], [:ctype => 1, :lazy => false, :deprecated => false, :weak => false])
 
@@ -93,8 +75,6 @@ type MessageOptions
     message_set_wire_format::Bool                           # optional bool message_set_wire_format = 1 [default=false];
     no_standard_descriptor_accessor::Bool                   # optional bool no_standard_descriptor_accessor = 2 [default=false];
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
-
-    MessageOptions() = new()
 end
 meta(t::Type{MessageOptions}) = meta(t, Symbol[], [1,2,999], [:message_set_wire_format => false, :no_standard_descriptor_accessor => false])
 
@@ -113,8 +93,6 @@ type FileOptions
     py_generic_services::Bool                               # optional bool py_generic_services = 18 [default=false];
 
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
-
-    FileOptions() = new()
 end
 meta(t::Type{FileOptions}) = meta(t, Symbol[], [1,8,10,20,9,11,16,17,18,999], 
                                         [:java_multiple_files => false, 
@@ -138,32 +116,24 @@ type MethodDescriptorProto
     input_type::String                      # optional string input_type = 2;
     output_type::String                     # optional string output_type = 3;
     options::MethodOptions                  # optional MethodOptions options = 4;
-
-    MethodDescriptorProto() = new()
 end
 
 type ServiceDescriptorProto 
     name::String                              # optional string name = 1;
     method::Array{MethodDescriptorProto,1}    # repeated MethodDescriptorProto method = 2;
     options::ServiceOptions                   # optional ServiceOptions options = 3;
-
-    ServiceDescriptorProto() = new()
 end
 
 type EnumValueDescriptorProto
     name::String                                # optional string name = 1;
     number::Int32                               # optional int32 number = 2;
     options::EnumValueOptions                   # optional EnumValueOptions options = 3;
-
-    EnumValueDescriptorProto() = new()
 end
 
 type EnumDescriptorProto
     name::String                                # optional string name = 1;
     value::Array{EnumValueDescriptorProto,1}    # repeated EnumValueDescriptorProto value = 2;
     options::EnumOptions                        # optional EnumOptions options = 3;
-
-    EnumDescriptorProto() = new()
 end
 
 const TYPE_DOUBLE         = 1
@@ -201,8 +171,6 @@ type FieldDescriptorProto
     extendee::String                            # optional string extendee = 2;
     default_value::String                       # optional string default_value = 7;
     options::FieldOptions                       # optional FieldOptions options = 8;
-
-    FieldDescriptorProto() = new()
 end
 meta(t::Type{FieldDescriptorProto}) = meta(t, Symbol[], [1,3,4,5,6,2,7,8], Dict{Symbol,Any}())
 
@@ -210,8 +178,6 @@ meta(t::Type{FieldDescriptorProto}) = meta(t, Symbol[], [1,3,4,5,6,2,7,8], Dict{
 type ExtensionRange
     extn_start::Int32                            # optional int32 start = 1;
     extn_end::Int32                              # optional int32 end = 2;
-
-    ExtensionRange() = new()
 end
 
 
@@ -223,8 +189,6 @@ type DescriptorProto
     enum_type::Array{EnumDescriptorProto,1}     # repeated EnumDescriptorProto enum_type = 4;
     extension_range::Array{ExtensionRange,1}    # repeated ExtensionRange extension_range = 5;
     options::MessageOptions                     # optional MessageOptions options = 7;
-
-    DescriptorProto() = new()
 end
 meta(t::Type{DescriptorProto}) = meta(t, Symbol[], [1,2,6,3,4,5,7], Dict{Symbol,Any}())
 
@@ -244,15 +208,11 @@ type FileDescriptorProto
 
     options::FileOptions                        # optional FileOptions options = 8;
     source_code_info::SourceCodeInfo            # optional SourceCodeInfo source_code_info = 9;
-
-    FileDescriptorProto() = new()
 end
 meta(t::Type{FileDescriptorProto}) = meta(t, Symbol[], [1,2,3,10,11,4,5,6,7,8,9], Dict{Symbol,Any}())
 
 type FileDescriptorSet
     file::FileDescriptorProto       # repeated FileDescriptorProto file = 1;
-
-    FileDescriptorSet() = new()
 end
 #========================================
 # END DEFINITIONS

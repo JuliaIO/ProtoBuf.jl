@@ -64,21 +64,14 @@ type Scope
     parent::Scope
     is_module::Bool
 
-    function Scope(name::String) 
+    function Scope(name::String)
         s = new()
         s.name = name
         s.syms = String[]
         s.is_module = false
         s
     end
-    function Scope(name::String, parent::Scope)
-        s = new()
-        s.name = name
-        s.syms = String[]
-        s.parent = parent
-        s.is_module = false
-        s
-    end
+    Scope(name::String, parent::Scope) = new(name, String[], parent, false)
 end
 
 function qualify(name::String, scope::Scope) 
@@ -92,7 +85,7 @@ function qualify(name::String, scope::Scope)
 end
 
 function readreq(srcio::IO)
-    req = CodeGeneratorRequest()
+    req = ProtoBuf.instantiate(CodeGeneratorRequest)
     readproto(srcio, req)
     req
 end
@@ -206,7 +199,6 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
         (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
         println(io, "    $(field.name)::$typ_name")
     end
-    println(io, "    $(dtypename)() = new()")
     println(io, "end #type $(dtypename)")
 
     # generate the meta for this type if required
@@ -308,7 +300,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
 end
 
 function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorProto, io::IOBuffer)
-    jfile = CodeGenFile()
+    jfile = ProtoBuf.instantiate(CodeGenFile)
 
     outdir = dirname(protofile.name)
     filename = splitext(basename(protofile.name))[1]
@@ -323,14 +315,14 @@ function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorP
 end
 
 function err_response(errio::IOBuffer)
-    resp = CodeGeneratorResponse()
+    resp = ProtoBuf.instantiate(CodeGeneratorResponse)
     resp.error = takebuf_string(errio)
     resp
 end
 
 function generate(srcio::IO)
     errio = IOBuffer()
-    resp = CodeGeneratorResponse()
+    resp = ProtoBuf.instantiate(CodeGeneratorResponse)
     logmsg("generate begin")
     while !eof(srcio)
         req = readreq(srcio)

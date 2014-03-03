@@ -15,15 +15,10 @@ print_hdr(tname) = println("testing $tname...")
 
 type TestType
     val::Any
-    TestType(val) = new(val)
-    TestType() = new(nothing)
 end
 
 type TestStr
     val::String
-
-    TestStr(val) = new(val)
-    TestStr() = new("")
 end
 ==(t1::TestStr, t2::TestStr) = (t1.val == t2.val)
 
@@ -31,18 +26,12 @@ type TestOptional
     sVal1::TestStr
     sVal2::TestStr
     iVal2::Array{Int64,1}
-
-    TestOptional(f1,f2,f3) = new(f1,f2,f3)
-    TestOptional() = new()
 end
 
 type TestNested
     fld1::TestType
     fld2::TestOptional
     fld3::Array{TestStr}
-
-    TestNested(f1,f2,f3) = new(f1,f2,f3)
-    TestNested() = new()
 end
 
 type TestDefaults

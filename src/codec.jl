@@ -275,6 +275,8 @@ function read_lendelim_obj(io, val, meta::ProtoMeta, reader::Symbol)
     val
 end
 
+instantiate(t::Type) = ccall(:jl_new_struct_uninit, Any, (Any,Any...), t)
+
 function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
     logmsg("readproto begin: $(typeof(obj))")
     fillunset(obj)
@@ -299,7 +301,7 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
                 (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
                 read_lendelim_packed(io, ofld, read_fn, jtyp)
             else
-                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, eval(jtyp)(), attrib.meta, read_fn) : eval(read_fn)(io, jtyp))
+                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, instantiate(jtyp), attrib.meta, read_fn) : eval(read_fn)(io, jtyp))
             end
             setfield!(obj, fld, ofld)
             logmsg("readproto set repeated: $(typeof(obj)).$fld = $ofld")
@@ -307,7 +309,7 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
             (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
 
             if ptyp == :obj
-                val = isdefined(obj, fld) ? getfield(obj, fld) : jtyp()
+                val = isdefined(obj, fld) ? getfield(obj, fld) : instantiate(jtyp)
                 val = read_lendelim_obj(io, val, attrib.meta, read_fn)
             else
                 val = eval(read_fn)(io, jtyp)

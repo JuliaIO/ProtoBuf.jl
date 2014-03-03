@@ -136,9 +136,8 @@ bytes       | Array{Uint8,1}    | May contain any arbitrary sequence of bytes.
 ## Caveats &amp; TODOs
 
 - Extensions are not supported yet.
-- Services are not supported yet.
+- Services are not supported. Generic services are deprecated in protocol buffers. Specific implementations may exist separately.
 - Groups are not supported. They are deprecated anyway.
-- To be able to use a Julia type in protobuf, it must have an empty constructor. This is to enable the deserializer create an instance of the type on its own. (This restriction should go away soon.)
 - Generated code translates package name specified into Julia modules, but uses only one level of module. So a package name of `com.foo.bar` will get translated to a Julia module `com_foo_bar`. This may become better in the future with special `module` directive for Julia.
 - Julia does not have `enum` types. In generated code, enums are declared as `Int32` types, but a separate Julia type is generated with fields same as the enum values which can be used for validation.
 
