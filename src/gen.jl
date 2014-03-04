@@ -135,7 +135,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
 
     scope = Scope(dtypename, scope)
     # generate enums
-    if filled(dtype, :enum_type)
+    if isfilled(dtype, :enum_type)
         for enum_type in dtype.enum_type
             generate(io, errio, enum_type, scope, exports)
             (errio.size > 0) && return 
@@ -143,7 +143,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     end
 
     # generate nested types
-    if filled(dtype, :nested_type)
+    if isfilled(dtype, :nested_type)
         for nested_type::DescriptorProto in dtype.nested_type
             generate(io, errio, nested_type, scope, exports)
             (errio.size > 0) && return 
@@ -179,7 +179,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
         push!(fldnums, field.number)
         (LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
 
-        if filled(field, :default_value) && !isempty(field.default_value)
+        if isfilled(field, :default_value) && !isempty(field.default_value)
             if field.typ == TYPE_STRING
                 push!(defvals, ":$fldname => \"$(escape_string(field.default_value))\"")
             elseif field.typ == TYPE_MESSAGE
@@ -248,7 +248,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
 
     logmsg("generating imports")
     # generate imports
-    if filled(protofile, :dependency) && !isempty(protofile.dependency)
+    if isfilled(protofile, :dependency) && !isempty(protofile.dependency)
         for dependency in protofile.dependency
             println(io, "using $(_packages[dependency])")
         end
@@ -262,7 +262,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
 
     # generate top level enums
     logmsg("generating enums")
-    if filled(protofile, :enum_type)
+    if isfilled(protofile, :enum_type)
         for enum_type in protofile.enum_type
             generate(io, errio, enum_type, scope, exports)
             (errio.size > 0) && return 
@@ -271,7 +271,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
 
     # generate message types
     logmsg("generating types")
-    if filled(protofile, :message_type)
+    if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
             generate(io, errio, message_type, scope, exports)
             (errio.size > 0) && return 
@@ -327,7 +327,7 @@ function generate(srcio::IO)
     while !eof(srcio)
         req = readreq(srcio)
 
-        if !filled(req, :file_to_generate)
+        if !isfilled(req, :file_to_generate)
             logmsg("no files to generate!!")
             continue
         end
@@ -335,7 +335,7 @@ function generate(srcio::IO)
         logmsg("generate request for $(length(req.file_to_generate)) proto files")
         logmsg("$(req.file_to_generate)")
 
-        filled(req, :parameter) && logmsg("parameter $(req.parameter)")
+        isfilled(req, :parameter) && logmsg("parameter $(req.parameter)")
 
         for protofile in req.proto_file
             io = IOBuffer()

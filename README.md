@@ -62,7 +62,7 @@ meta(t::Type{MyType}) = meta(t, [], [8,10], Dict())
 
 With fields set as optional, it is quite likely that some field in the instance you just read may not be present. For a freshly constructed object, it may suffice to check if the member is defined (`isdefined(obj, fld)`). But if an object is being reused, the field may have been populated during an earlier read. 
 
-The `filled` method comes handy in such cases. It returns `true` only if the field was populated the last time it was read using `readproto`.
+The `isfilled` method comes handy in such cases. It returns `true` only if the field was populated the last time it was read using `readproto`.
 
 ````
 julia> using ProtoBuf
@@ -87,7 +87,7 @@ julia> writeproto(iob, OptType(MyType(10)));
 
 julia> readval = readproto(iob, OptType());
 
-julia> filled(readval, :opt)       # valid this time
+julia> isfilled(readval, :opt)       # valid this time
 true
 
 julia> 
@@ -96,9 +96,56 @@ julia> writeproto(iob, OptType());
 
 julia> readval = readproto(iob, OptType());
 
-julia> filled(readval, :opt)       # but not valid now
+julia> isfilled(readval, :opt)       # but not valid now
 false
 ````
+
+The `isfilled` method without specifying any particular field checks whether all mandatory fields are set. This can be used as a check before sending an object, to avoid getting an exception from within the write method.
+
+````
+julia> using ProtoBuf
+
+julia> import ProtoBuf.meta
+
+julia> 
+
+julia> type TestType
+           val::Any
+       end
+
+julia> 
+
+julia> type TestFilled
+           fld1::TestType
+           fld2::TestType
+           TestFilled() = new()
+       end
+
+julia> meta(t::Type{TestFilled}) = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}())
+meta (generic function with 21 methods)
+
+julia> 
+
+julia> tf = TestFilled()
+TestFilled(#undef,#undef)
+
+julia> isfilled(tf)      # false, since fld1 is not set
+false
+
+julia> 
+
+julia> tf.fld1 = TestType("")
+TestType("")
+
+julia> isfilled(tf)# true, even though fld2 is not set
+false
+````
+
+## Other Methods
+- `copy!(to::Any, from::Any)` : shallow copy of objects
+- `fillset(obj::Any, fld::Symbol)` : mark field fld of object obj as set
+- `fillunset(obj::Any)` : mark all fields of this object as not set
+- `fillunset(obj::Any, fld::Symbol)` : mark field fld of object obj as not set
 
 
 ## Generating Code (from .proto files)

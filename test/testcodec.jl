@@ -43,11 +43,18 @@ type TestDefaults
     TestDefaults() = new()
 end
 
+type TestFilled
+    fld1::TestType
+    fld2::TestType
+    TestFilled() = new()
+end
+
 # disable caching of meta since we manually modify them for the tests
 meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestNested})       = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], {:iVal1 => 10, :iVal2 => [1,2,3]}, false)
+meta(t::Type{TestFilled})       = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}())
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
     meta1 = mk_test_meta(1, :int64)
@@ -93,8 +100,8 @@ function assert_equal(val1, val2)
     n = typ1.names
     t = typ1.types 
     for fld in n
-        fldfill1 = filled(val1, fld)
-        fldfill2 = filled(val2, fld)
+        fldfill1 = isfilled(val1, fld)
+        fldfill2 = isfilled(val2, fld)
         @assert fldfill1 == fldfill2
         fldfill1 && assert_equal(getfield(val1, fld), getfield(val2, fld))
     end
@@ -258,11 +265,26 @@ function test_defaults()
     assert_equal(TestDefaults(testval.iVal1, "", [1,2,3]), readval)
 end
 
+function test_misc()
+    print_hdr("testing misc functionality")
+    testfld = TestOptional(TestStr("1"), TestStr(""), Int64[1,2,3])
+    readfld = TestOptional(TestStr(""), TestStr("1"), Int64[])
+    copy!(readfld, testfld)
+    assert_equal(readfld, testfld)
+
+    tf = TestFilled()
+    @assert !isfilled(tf)
+    tf.fld1 = TestType("")
+    fillset(tf, :fld1)
+    @assert isfilled(tf)
+end
+
 test_types()
 test_repeats()
 test_optional()
 test_nested()
 test_defaults()
+test_misc()
 gc()
 println("_metacache has $(length(ProtoBuf._metacache)) items")
 println(ProtoBuf._metacache)

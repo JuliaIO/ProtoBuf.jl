@@ -195,18 +195,18 @@ function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,
     meta
 end
 
-# TODO: do not write default values
 function writeproto(io, val, attrib::ProtoMetaAttribs)
+    !isempty(attrib.default) && isequal(val, attrib.default[1]) && (return 0)
     fld = attrib.fldnum
     meta = attrib.meta
     ptyp = attrib.ptyp
     wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+    iob = IOBuffer()
 
     n = 0
     if attrib.occurrence == 2
         if attrib.packed
             # write elements as a length delimited field
-            iob = IOBuffer()
             if ptyp == :obj
                 error("can not write object field $fld as packed")
             else
@@ -217,11 +217,9 @@ function writeproto(io, val, attrib::ProtoMetaAttribs)
             n += _write_key(io, fld, WIRETYP_LENDELIM)
             n += write_bytes(io, takebuf_array(iob))
         else
-            # write each field separately
+            # write each element separately
             if ptyp == :obj
-                # TODO: optimize IOBuffer creation
                 for eachval in val
-                    iob = IOBuffer()
                     eval(write_fn)(iob, convert(jtyp, eachval), meta)
                     n += _write_key(io, fld, WIRETYP_LENDELIM)
                     n += write_bytes(io, takebuf_array(iob))
@@ -235,7 +233,6 @@ function writeproto(io, val, attrib::ProtoMetaAttribs)
         end
     else
         if ptyp == :obj
-            iob = IOBuffer()
             eval(write_fn)(iob, convert(jtyp, val), meta)
             n += _write_key(io, fld, WIRETYP_LENDELIM)
             n += write_bytes(io, takebuf_array(iob))
@@ -251,7 +248,7 @@ function writeproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
     n = 0
     for attrib in meta.ordered 
         fld = attrib.fld
-        if filled(obj, fld)
+        if isfilled(obj, fld)
             n += writeproto(io, getfield(obj, fld), attrib)
         else
             (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
@@ -322,7 +319,7 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
     # populate defaults
     for attrib in meta.ordered
         fld = attrib.fld
-        if !filled(obj, fld) && (length(attrib.default) > 0)
+        if !isfilled(obj, fld) && (length(attrib.default) > 0)
             default = attrib.default[1]
             setfield!(obj, fld, default)
             fillset(obj, fld)
@@ -403,7 +400,14 @@ function filled(obj)
     fill
 end
 
-filled(obj, fld::Symbol) = (fld in filled(obj))
+isfilled(obj, fld::Symbol) = (fld in filled(obj))
+function isfilled(obj)
+    fill = filled(obj)
+    for fld in meta(typeof(obj)).ordered
+        (fld.occurrence == 1) && !(fld.fld in fill) && (return false)
+    end
+    true
+end
 
 function show(io::IO, m::ProtoMeta)
     println(io, "ProtoMeta for $(m.jtype)")
