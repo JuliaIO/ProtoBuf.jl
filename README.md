@@ -36,13 +36,10 @@ ProtoBuf serialization can be customized for a type by defining a `meta` method 
 ````
 import ProtoBuf.meta
 
-meta(t::Type{MyType}) = meta(t,  # the type which this is for
-		# required fields
-		Symbol[:intval],
-		# the field numbers
-		Int[8, 10], 
-		# default values
-		Dict{Symbol,Any}({:strval => "default value"}))
+meta(t::Type{MyType}) = meta(t,                          # the type which this is for
+		Symbol[:intval],                                 # required fields
+		Int[8, 10],                                      # field numbers
+		Dict{Symbol,Any}({:strval => "default value"}))  # default values
 ````
 
 Without any specialied `meta` method:
@@ -62,7 +59,7 @@ meta(t::Type{MyType}) = meta(t, [], [8,10], Dict())
 
 With fields set as optional, it is quite likely that some field in the instance you just read may not be present. For a freshly constructed object, it may suffice to check if the member is defined (`isdefined(obj, fld)`). But if an object is being reused, the field may have been populated during an earlier read. 
 
-The `isfilled` method comes handy in such cases. It returns `true` only if the field was populated the last time it was read using `readproto`.
+The `isfilled(obj::Any, fld::Symbol)` method comes handy in such cases. It returns `true` only if the field was populated the last time it was read using `readproto`.
 
 ````
 julia> using ProtoBuf
@@ -72,8 +69,6 @@ julia> type MyType                # here's a Julia composite type
            MyType() = new()
            MyType(i) = new(i)
        end
-
-julia> 
 
 julia> type OptType               # and another one to contain it
            opt::MyType
@@ -90,8 +85,6 @@ julia> readval = readproto(iob, OptType());
 julia> isfilled(readval, :opt)       # valid this time
 true
 
-julia> 
-
 julia> writeproto(iob, OptType());
 
 julia> readval = readproto(iob, OptType());
@@ -100,20 +93,16 @@ julia> isfilled(readval, :opt)       # but not valid now
 false
 ````
 
-The `isfilled` method without specifying any particular field checks whether all mandatory fields are set. This can be used as a check before sending an object, to avoid getting an exception from within the write method.
+The `isfilled(obj::Any)` method (without any particular field specified) checks whether all mandatory fields are set. It is useful to check objects using this method before sending them. Otherwise `writeproto` results in an exception.
 
 ````
 julia> using ProtoBuf
 
 julia> import ProtoBuf.meta
 
-julia> 
-
 julia> type TestType
            val::Any
        end
-
-julia> 
 
 julia> type TestFilled
            fld1::TestType
@@ -121,10 +110,7 @@ julia> type TestFilled
            TestFilled() = new()
        end
 
-julia> meta(t::Type{TestFilled}) = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}())
-meta (generic function with 21 methods)
-
-julia> 
+julia> meta(t::Type{TestFilled}) = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}());
 
 julia> tf = TestFilled()
 TestFilled(#undef,#undef)
@@ -132,13 +118,13 @@ TestFilled(#undef,#undef)
 julia> isfilled(tf)      # false, since fld1 is not set
 false
 
-julia> 
-
 julia> tf.fld1 = TestType("")
 TestType("")
 
-julia> isfilled(tf)# true, even though fld2 is not set
-false
+julia> fillset(tf, :fld1)
+
+julia> isfilled(tf)      # true, even though fld2 is not set yet
+true
 ````
 
 ## Other Methods

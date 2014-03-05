@@ -404,7 +404,10 @@ isfilled(obj, fld::Symbol) = (fld in filled(obj))
 function isfilled(obj)
     fill = filled(obj)
     for fld in meta(typeof(obj)).ordered
-        (fld.occurrence == 1) && !(fld.fld in fill) && (return false)
+        if fld.occurrence == 1
+            !(fld.fld in fill) && (return false)
+            (fld.meta != nothing) && !isfilled(getfield(obj, fld.fld)) && (return false)
+        end
     end
     true
 end
