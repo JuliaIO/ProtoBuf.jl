@@ -199,6 +199,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
         (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
         println(io, "    $(field.name)::$typ_name")
     end
+    println(io, "    $(dtypename)() = new()")
     println(io, "end #type $(dtypename)")
 
     # generate the meta for this type if required
