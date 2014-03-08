@@ -1,8 +1,10 @@
 module ProtoBuf
 
 import Base.show, Base.copy!
+#, Base.get, Base.has, Base.add
 
-export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfilled, fillset, fillunset, show, copy!
+export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfilled, fillset, fillunset, show
+export copy!, set_field, get_field, clear, add_field, has_field, isinitialized
 
 # Julia 0.2 compatibility patch
 if isless(Base.VERSION, v"0.3.0-")
@@ -18,6 +20,7 @@ logmsg(s) = nothing
 include("codec.jl")
 include("gen.jl")
 
+# utility methods
 function copy!(to::Any, from::Any)
     totype = typeof(to)
     fromtype = typeof(from)
@@ -29,6 +32,26 @@ function copy!(to::Any, from::Any)
             fillset(to, name)
         end
     end
+    nothing
+end
+
+isinitialized(obj::Any) = isfilled(obj)
+set_field(obj::Any, fld::Symbol, val) = (setfield!(obj, fld, val); fillset(obj, fld); nothing)
+get_field(obj::Any, fld::Symbol) = isfilled(obj, fld) ? getfield(obj, fld) : error("uninitialized field $fld")
+clear = fillunset
+has_field(obj::Any, fld::Symbol) = isfilled(obj, fld)
+
+function add_field(obj::Any, fld::Symbol, val)
+    typ = typeof(obj)
+    attrib = meta(typ).symdict[fld]
+    (attrib.repeat != 2) && error("$(typ).$(fld) is not a repeating field")
+
+    ptyp = attrib.ptyp
+    jtyp = WIRETYPES[ptyp][4]
+    (ptyp == :obj) && (jtyp = attrib.meta.jtype)
+
+    !isdefined(obj, fld) && setfield(obj, fld, jtyp[])
+    push!(getfield(obj, fld), val)
     nothing
 end
 

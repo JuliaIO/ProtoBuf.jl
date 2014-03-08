@@ -1,3 +1,4 @@
+module ProtoBufTestCodec
 using ProtoBuf
 
 import ProtoBuf.meta
@@ -278,13 +279,14 @@ function test_misc()
     fillset(tf, :fld1)
     @assert isfilled(tf)
 end
+end # module ProtoBufTestCodec
 
-test_types()
-test_repeats()
-test_optional()
-test_nested()
-test_defaults()
-test_misc()
+ProtoBufTestCodec.test_types()
+ProtoBufTestCodec.test_repeats()
+ProtoBufTestCodec.test_optional()
+ProtoBufTestCodec.test_nested()
+ProtoBufTestCodec.test_defaults()
+ProtoBufTestCodec.test_misc()
 gc()
 println("_metacache has $(length(ProtoBuf._metacache)) items")
 println(ProtoBuf._metacache)
