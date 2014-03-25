@@ -155,6 +155,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     reqflds = String[]
     fldnums = Int[]
     defvals = String[]
+    try
     for field::FieldDescriptorProto in dtype.field
         # If we find that the field name is type change it to _type, this could
         # probably be done for other field names that are also keywords in
@@ -204,6 +205,11 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
 
         (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
         println(io, "    $(field.name)::$typ_name")
+    end
+    catch ex
+        if typeof(ex) != UndefRefError
+            rethrow(ex)
+        end
     end
     println(io, "    $(dtypename)() = (o=new(); fillunset(o); o)")
     println(io, "end #type $(dtypename)")
