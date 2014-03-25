@@ -352,7 +352,7 @@ end
 
 ##
 # the main read - write method
-function gen(instream, outstream, errstream)
+function gen()
     try
         writeproto(STDOUT, generate(STDIN))
     catch ex
@@ -361,7 +361,6 @@ function gen(instream, outstream, errstream)
         exit(-1)
     end
 end
-gen()=gen(STDIN, STDOUT, STDERR)
 
 end # module Gen
 
