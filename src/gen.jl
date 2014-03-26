@@ -156,6 +156,12 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     fldnums = Int[]
     defvals = String[]
     for field::FieldDescriptorProto in dtype.field
+        # If we find that the field name is type change it to _type, this could
+        # probably be done for other field names that are also keywords in
+        # Julia.
+        if field.name == "type"
+            field.name = "_type"
+        end
         fldname = field.name
         if field.typ == TYPE_GROUP
             println(errio, "Groups are not supported")
