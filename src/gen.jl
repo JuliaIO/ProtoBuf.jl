@@ -155,60 +155,57 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     reqflds = String[]
     fldnums = Int[]
     defvals = String[]
-    try
-    for field::FieldDescriptorProto in dtype.field
-        # If we find that the field name is type change it to _type, this could
-        # probably be done for other field names that are also keywords in
-        # Julia.
-        if field.name == "type"
-            field.name = "_type"
-        end
-        fldname = field.name
-        if field.typ == TYPE_GROUP
-            println(errio, "Groups are not supported")
-            return
-        end
 
-        if (field.typ == TYPE_MESSAGE) || (field.typ == TYPE_ENUM)
-            typ_name = field.typ_name
-            if beginswith(typ_name, '.')
-                (m,t) = findmodule(typ_name)
-                typ_name = (m == modul) ? t : "$(m).$(t)"
-            else
-                typ_name = qualify(typ_name, scope)
-                m,t = splitmodule(typ_name)
-                (m == modul) && (typ_name = t)
+    if isfilled(dtype, :field)
+        for field::FieldDescriptorProto in dtype.field
+            # If we find that the field name is type change it to _type, this could
+            # probably be done for other field names that are also keywords in
+            # Julia.
+            if field.name == "type"
+                field.name = "_type"
             end
-        end
-        enum_typ_name = (field.typ == TYPE_ENUM) ? typ_name : ""
-        (field.typ != TYPE_MESSAGE) && (typ_name = "$(JTYPES[field.typ])")
-
-        push!(fldnums, field.number)
-        (LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
-
-        if isfilled(field, :default_value) && !isempty(field.default_value)
-            if field.typ == TYPE_STRING
-                push!(defvals, ":$fldname => \"$(escape_string(field.default_value))\"")
-            elseif field.typ == TYPE_MESSAGE
-                println(errio, "Default values for message types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
+            fldname = field.name
+            if field.typ == TYPE_GROUP
+                println(errio, "Groups are not supported")
                 return
-            elseif field.typ == TYPE_BYTES
-                println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
-                return
-            else
-                defval = (field.typ == TYPE_ENUM) ? "$(enum_typ_name).$(field.default_value)" : "$(field.default_value)"
-                push!(defvals, ":$fldname => $defval")
             end
-        end
 
-        !isresolved(dtypename, typ_name, exports) && defer(dtypename, io, typ_name)
+            if (field.typ == TYPE_MESSAGE) || (field.typ == TYPE_ENUM)
+                typ_name = field.typ_name
+                if beginswith(typ_name, '.')
+                    (m,t) = findmodule(typ_name)
+                    typ_name = (m == modul) ? t : "$(m).$(t)"
+                else
+                    typ_name = qualify(typ_name, scope)
+                    m,t = splitmodule(typ_name)
+                    (m == modul) && (typ_name = t)
+                end
+            end
+            enum_typ_name = (field.typ == TYPE_ENUM) ? typ_name : ""
+            (field.typ != TYPE_MESSAGE) && (typ_name = "$(JTYPES[field.typ])")
 
-        (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
-        println(io, "    $(field.name)::$typ_name")
-    end
-    catch ex
-        if typeof(ex) != UndefRefError
-            rethrow(ex)
+            push!(fldnums, field.number)
+            (LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
+
+            if isfilled(field, :default_value) && !isempty(field.default_value)
+                if field.typ == TYPE_STRING
+                    push!(defvals, ":$fldname => \"$(escape_string(field.default_value))\"")
+                elseif field.typ == TYPE_MESSAGE
+                    println(errio, "Default values for message types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
+                    return
+                elseif field.typ == TYPE_BYTES
+                    println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
+                    return
+                else
+                    defval = (field.typ == TYPE_ENUM) ? "$(enum_typ_name).$(field.default_value)" : "$(field.default_value)"
+                    push!(defvals, ":$fldname => $defval")
+                end
+            end
+
+            !isresolved(dtypename, typ_name, exports) && defer(dtypename, io, typ_name)
+
+            (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
+            println(io, "    $(field.name)::$typ_name")
         end
     end
     println(io, "    $(dtypename)() = (o=new(); fillunset(o); o)")
