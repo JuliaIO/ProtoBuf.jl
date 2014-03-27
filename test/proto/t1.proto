@@ -6,10 +6,10 @@ enum TestEnum {
     NEWS = 4;
     PRODUCTS = 5;
     VIDEO = 6;
-  }
+}
 
 message Test1 {
-  optional int32 a = 1;
+    optional int32 a = 1;
 }
 
 message Test2 {
@@ -40,3 +40,31 @@ message Test4 {
     repeated int32 arr = 5;
 }
 
+message Test5 {
+    enum Enum3 {
+        LOCAL = 5;
+        VIDEO = 7;
+    };
+}
+
+message Test6 {
+}
+
+message Test7 {
+    message Test8 {
+        required int32 a = 1;
+        required int32 b = 2;
+    }
+}
+
+message Test9 {
+    enum Enum3 {
+        LOCAL = 5;
+        VIDEO = 7;
+    };
+
+    message Test8 {
+        required int32 a = 1;
+        required int32 b = 2;
+    }
+}
