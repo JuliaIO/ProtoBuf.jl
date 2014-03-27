@@ -42,7 +42,7 @@ meta(t::Type{MyType}) = meta(t,                          # the type which this i
 		Dict{Symbol,Any}({:strval => "default value"}))  # default values
 ````
 
-Without any specialied `meta` method:
+Without any specialized `meta` method:
 
 - All fields are marked as optional (or repeating for arrays)
 - Numeric fields have zero as default value

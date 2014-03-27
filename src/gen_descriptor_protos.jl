@@ -1,6 +1,6 @@
-#========================================
+# ========================================
 # BEGIN OPTIONS
-#========================================
+# ========================================
 type Location
     path::Array{Int32,1}                    # repeated int32 path = 1 [packed=true];
     span::Array{Int32,1}                    # repeated int32 span = 2 [packed=true];
@@ -102,14 +102,14 @@ meta(t::Type{FileOptions}) = meta(t, Symbol[], [1,8,10,20,9,11,16,17,18,999],
                                         :java_generic_services => false,
                                         :py_generic_services => false])
 
-#========================================
+# ========================================
 # END OPTIONS
-#========================================
+# ========================================
 
 
-#========================================
+# ========================================
 # BEGIN DEFINITIONS
-#========================================
+# ========================================
 
 type MethodDescriptorProto
     name::String                            # optional string name = 1;
@@ -214,7 +214,7 @@ meta(t::Type{FileDescriptorProto}) = meta(t, Symbol[], [1,2,3,10,11,4,5,6,7,8,9]
 type FileDescriptorSet
     file::FileDescriptorProto       # repeated FileDescriptorProto file = 1;
 end
-#========================================
+# ========================================
 # END DEFINITIONS
-#========================================
+# ========================================
 

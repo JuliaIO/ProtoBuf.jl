@@ -148,7 +148,7 @@ end
 function read_bytes(io)
     n = _read_uleb(io, Uint64)
     data = Array(Uint8, n)
-    read(io, data)
+    read!(io, data)
     data
 end
 read_bytes(io, ::Type{Array{Uint8,1}}) = read_bytes(io)
