@@ -417,3 +417,15 @@ function show(io::IO, m::ProtoMeta)
     println(io, m.ordered)
 end
 
+
+##
+# Enum Lookup
+
+abstract ProtoEnum
+
+function lookup(en::ProtoEnum, val::Integer)
+    for name in typeof(en).names
+        (val == getfield(en, name)) && return name
+    end
+    error("Enum $(typeof(en)) has no value: $val")
+end

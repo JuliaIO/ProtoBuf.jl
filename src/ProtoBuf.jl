@@ -5,6 +5,7 @@ import Base.show, Base.copy!
 
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfilled, fillset, fillunset, show
 export copy!, set_field, get_field, clear, add_field, has_field, isinitialized
+export ProtoEnum, lookup
 
 # Julia 0.2 compatibility patch
 if isless(Base.VERSION, v"0.3.0-")
