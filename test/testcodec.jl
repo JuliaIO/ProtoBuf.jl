@@ -50,6 +50,18 @@ type TestFilled
     TestFilled() = new()
 end
 
+type __enum_TestEnum <: ProtoEnum
+    UNIVERSAL::Int32
+    WEB::Int32
+    IMAGES::Int32
+    LOCAL::Int32
+    NEWS::Int32
+    PRODUCTS::Int32
+    VIDEO::Int32
+    __enum_TestEnum() = new(0,1,2,3,4,5,6)
+end
+const TestEnum = __enum_TestEnum()
+
 # disable caching of meta since we manually modify them for the tests
 meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
@@ -279,6 +291,18 @@ function test_misc()
     fillset(tf, :fld1)
     @assert isfilled(tf)
 end
+
+function test_enums()
+    print_hdr("testing enums")
+    @assert getfield(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
+    @assert getfield(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
+    @assert getfield(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
+    @assert getfield(TestEnum, lookup(TestEnum, 3)) == TestEnum.LOCAL
+    @assert getfield(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
+    @assert getfield(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
+    @assert getfield(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
+end
+
 end # module ProtoBufTestCodec
 
 ProtoBufTestCodec.test_types()
@@ -287,6 +311,7 @@ ProtoBufTestCodec.test_optional()
 ProtoBufTestCodec.test_nested()
 ProtoBufTestCodec.test_defaults()
 ProtoBufTestCodec.test_misc()
+ProtoBufTestCodec.test_enums()
 gc()
 println("_metacache has $(length(ProtoBuf._metacache)) items")
 println(ProtoBuf._metacache)
