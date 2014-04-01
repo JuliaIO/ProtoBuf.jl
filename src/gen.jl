@@ -112,7 +112,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     push!(scope.syms, enumtype.name)
 
     logmsg("begin enum $(enumname)")
-    println(io, "type __enum_$(enumname)")
+    println(io, "type __enum_$(enumname) <: ProtoEnum")
     values = Int32[]
     for value::EnumValueDescriptorProto in enumtype.value
         println(io, "    $(value.name)::Int32")
