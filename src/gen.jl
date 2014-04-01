@@ -10,6 +10,13 @@ include("gen_descriptor_protos.jl")
 include("gen_plugin_protos.jl")
 
 const _packages = Dict{String,String}()
+const _keywords = [
+    "if", "else", "elseif", "while", "for", "begin", "end", "quote", 
+    "try", "catch", "return", "local", "abstract", "function", "macro",
+    "ccall", "finally", "typealias", "break", "continue", "type", 
+    "global", "module", "using", "import", "export", "const", "let", 
+    "bitstype", "do", "baremodule", "importall", "immutable"
+]
 
 type DeferredWrite
     iob::IOBuffer
@@ -57,6 +64,8 @@ function resolve(iob::IOBuffer, name::String)
         resolve(iob, typ)
     end
 end
+
+chk_keyword(name::String) = (name in _keywords) ? string('_', name) : name
 
 type Scope
     name::String
@@ -115,7 +124,9 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     println(io, "type __enum_$(enumname) <: ProtoEnum")
     values = Int32[]
     for value::EnumValueDescriptorProto in enumtype.value
-        println(io, "    $(value.name)::Int32")
+        # If we find that the field name is a keyword prepend it with _type
+        fldname = chk_keyword(value.name)
+        println(io, "    $(fldname)::Int32")
         push!(values, value.number)
     end
     println(io, "    __enum_$(enumname)() = new($(join(values,',')))")
@@ -158,13 +169,8 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
 
     if isfilled(dtype, :field)
         for field::FieldDescriptorProto in dtype.field
-            # If we find that the field name is type change it to _type, this could
-            # probably be done for other field names that are also keywords in
-            # Julia.
-            if field.name == "type"
-                field.name = "_type"
-            end
-            fldname = field.name
+            # If we find that the field name is a keyword prepend it with _type
+            fldname = chk_keyword(field.name)
             if field.typ == TYPE_GROUP
                 println(errio, "Groups are not supported")
                 return
@@ -205,7 +211,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
             !isresolved(dtypename, typ_name, exports) && defer(dtypename, io, typ_name)
 
             (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
-            println(io, "    $(field.name)::$typ_name")
+            println(io, "    $(fldname)::$typ_name")
         end
     end
     println(io, "    $(dtypename)() = (o=new(); fillunset(o); o)")

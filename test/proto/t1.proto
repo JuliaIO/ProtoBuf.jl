@@ -68,3 +68,13 @@ message Test9 {
         required int32 b = 2;
     }
 }
+
+message Test10 {
+    enum Enum1 {
+        type = 1;
+        for = 2;
+    };
+    required int64 while = 1;
+    optional int64 try = 2;
+}
+
