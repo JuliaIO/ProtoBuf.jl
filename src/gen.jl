@@ -321,6 +321,7 @@ function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorP
     outdir = dirname(protofile.name)
     filename = splitext(basename(protofile.name))[1]
     filename = replace(filename, '.', '_')
+    filename = string(filename, "_pb")
     filename = join([filename, "jl"], '.')
     jfile.name = joinpath(outdir, filename)
     jfile.content = takebuf_string(io)
