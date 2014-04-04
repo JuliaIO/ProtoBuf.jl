@@ -56,7 +56,7 @@ defaultval{T}(::Type{Array{T,1}})           = [T[]]
 defaultval(::Type)                          = []
 
 
-function _write_uleb{T <: Integer}(io, x::T)
+function _write_uleb{T <: Integer}(io::IO, x::T)
     nw = 0
     cont = true
     while cont
@@ -71,7 +71,7 @@ function _write_uleb{T <: Integer}(io, x::T)
     nw
 end
 
-function _read_uleb{T <: Integer}(io, typ::Type{T})
+function _read_uleb{T <: Integer}(io::IO, typ::Type{T})
     res = convert(typ, 0) 
     n = 0
     byte = uint8(MSB)
@@ -83,13 +83,13 @@ function _read_uleb{T <: Integer}(io, typ::Type{T})
     res
 end
 
-function _write_zigzag{T <: Integer}(io, x::T)
+function _write_zigzag{T <: Integer}(io::IO, x::T)
     nbits = 8*sizeof(x)
     zx = (x << 1) $ (x >> (nbits-1))
     _write_uleb(io, zx)
 end
 
-function _read_zigzag{T <: Integer}(io, typ::Type{T})
+function _read_zigzag{T <: Integer}(io::IO, typ::Type{T})
     zx = _read_uleb(io, Uint64)
     # result is positive if zx is even
     convert(typ, iseven(zx) ? (zx >>> 1) : -((zx+1) >>> 1))
@@ -98,8 +98,8 @@ end
 
 ##
 # read and write field keys
-_write_key(io, fld::Int, wiretyp::Int) = _write_uleb(io, (fld << 3) | wiretyp)
-function _read_key(io)
+_write_key(io::IO, fld::Int, wiretyp::Int) = _write_uleb(io, (fld << 3) | wiretyp)
+function _read_key(io::IO)
     key = _read_uleb(io, Uint64)
     wiretyp = key & MASK3
     fld = key >>> 3
@@ -109,18 +109,18 @@ end
 
 ##
 # read and write field values
-write_varint{T <: Integer}(io, x::T) = _write_uleb(io, x)
-write_bool(io, x::Bool) = _write_uleb(io, x ? 1 : 0)
-write_svarint{T <: Integer}(io, x::T) = _write_zigzag(io, x)
+write_varint{T <: Integer}(io::IO, x::T) = _write_uleb(io, x)
+write_bool(io::IO, x::Bool) = _write_uleb(io, x ? 1 : 0)
+write_svarint{T <: Integer}(io::IO, x::T) = _write_zigzag(io, x)
 
-read_varint{T <: Integer}(io, typ::Type{T}) = _read_uleb(io, typ)
-read_bool(io) = bool(_read_uleb(io, Uint64))
-read_bool(io, ::Type{Bool}) = read_bool(io)
-read_svarint{T <: Integer}(io, typ::Type{T}) = _read_zigzag(io, typ)
+read_varint{T <: Integer}(io::IO, typ::Type{T}) = _read_uleb(io, typ)
+read_bool(io::IO) = bool(_read_uleb(io, Uint64))
+read_bool(io::IO, ::Type{Bool}) = read_bool(io)
+read_svarint{T <: Integer}(io::IO, typ::Type{T}) = _read_zigzag(io, typ)
 
-write_fixed(io, x::Float32) = _write_fixed(io, reinterpret(Uint32, x))
-write_fixed(io, x::Float64) = _write_fixed(io, reinterpret(Uint64, x))
-function _write_fixed{T <: Unsigned}(io, ux::T)
+write_fixed(io::IO, x::Float32) = _write_fixed(io, reinterpret(Uint32, x))
+write_fixed(io::IO, x::Float64) = _write_fixed(io, reinterpret(Uint64, x))
+function _write_fixed{T <: Unsigned}(io::IO, ux::T)
     N = sizeof(ux)
     for n in 1:N
         write(io, uint8(ux & MASK8))
@@ -129,9 +129,9 @@ function _write_fixed{T <: Unsigned}(io, ux::T)
     N
 end
 
-read_fixed(io, typ::Type{Float32}) = reinterpret(Float32, _read_fixed(io, uint32(0), 4))
-read_fixed(io, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, uint64(0), 8))
-function _read_fixed{T <: Unsigned}(io, ret::T, N::Int)
+read_fixed(io::IO, typ::Type{Float32}) = reinterpret(Float32, _read_fixed(io, uint32(0), 4))
+read_fixed(io::IO, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, uint64(0), 8))
+function _read_fixed{T <: Unsigned}(io::IO, ret::T, N::Int)
     for n in 0:(N-1)
         byte = convert(T, read(io, Uint8))
         ret |= (byte << 8*n)
@@ -139,26 +139,26 @@ function _read_fixed{T <: Unsigned}(io, ret::T, N::Int)
     ret
 end
 
-function write_bytes(io, data::Array{Uint8,1})
+function write_bytes(io::IO, data::Array{Uint8,1})
     n = _write_uleb(io, sizeof(data))
     n += write(io, data)
     n
 end
 
-function read_bytes(io)
+function read_bytes(io::IO)
     n = _read_uleb(io, Uint64)
     data = Array(Uint8, n)
     read!(io, data)
     data
 end
-read_bytes(io, ::Type{Array{Uint8,1}}) = read_bytes(io)
+read_bytes(io::IO, ::Type{Array{Uint8,1}}) = read_bytes(io)
 
-write_string(io, x::String) = write_string(io, bytestring(x))
-write_string(io, x::ByteString) = write_bytes(io, x.data)
+write_string(io::IO, x::String) = write_string(io, bytestring(x))
+write_string(io::IO, x::ByteString) = write_bytes(io, x.data)
 
-read_string(io) = bytestring(read_bytes(io))
-read_string(io, ::Type{String}) = read_string(io)
-read_string{T <: ByteString}(io, ::Type{T}) = convert(T, read_string(io))
+read_string(io::IO) = bytestring(read_bytes(io))
+read_string(io::IO, ::Type{String}) = read_string(io)
+read_string{T <: ByteString}(io::IO, ::Type{T}) = convert(T, read_string(io))
 
 ##
 # read and write protobuf structures
@@ -195,13 +195,14 @@ function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,
     meta
 end
 
-function writeproto(io, val, attrib::ProtoMetaAttribs)
+function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
     !isempty(attrib.default) && isequal(val, attrib.default[1]) && (return 0)
     fld = attrib.fldnum
     meta = attrib.meta
     ptyp = attrib.ptyp
     wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
     iob = IOBuffer()
+    wfn = eval(write_fn)
 
     n = 0
     if attrib.occurrence == 2
@@ -211,7 +212,7 @@ function writeproto(io, val, attrib::ProtoMetaAttribs)
                 error("can not write object field $fld as packed")
             else
                 for eachval in val
-                    eval(write_fn)(iob, convert(jtyp, eachval))
+                    wfn(iob, convert(jtyp, eachval))
                 end
             end
             n += _write_key(io, fld, WIRETYP_LENDELIM)
@@ -220,31 +221,31 @@ function writeproto(io, val, attrib::ProtoMetaAttribs)
             # write each element separately
             if ptyp == :obj
                 for eachval in val
-                    eval(write_fn)(iob, convert(jtyp, eachval), meta)
+                    wfn(iob, convert(jtyp, eachval), meta)
                     n += _write_key(io, fld, WIRETYP_LENDELIM)
                     n += write_bytes(io, takebuf_array(iob))
                 end
             else
                 for eachval in val
                     n += _write_key(io, fld, wiretyp)
-                    n += eval(write_fn)(io, convert(jtyp, eachval))
+                    n += wfn(io, convert(jtyp, eachval))
                 end
             end
         end
     else
         if ptyp == :obj
-            eval(write_fn)(iob, convert(jtyp, val), meta)
+            wfn(iob, convert(jtyp, val), meta)
             n += _write_key(io, fld, WIRETYP_LENDELIM)
             n += write_bytes(io, takebuf_array(iob))
         else
             n += _write_key(io, fld, wiretyp)
-            n += eval(write_fn)(io, convert(jtyp, val))
+            n += wfn(io, convert(jtyp, val))
         end
     end
     n
 end
 
-function writeproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
+function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n = 0
     for attrib in meta.ordered 
         fld = attrib.fld
@@ -257,16 +258,17 @@ function writeproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
     n
 end
 
-function read_lendelim_packed(io, fld::Array, reader::Symbol, jtyp::Type)
+function read_lendelim_packed(io::IO, fld::Array, reader::Symbol, jtyp::Type)
     iob = IOBuffer(read_bytes(io))
+    rfn = eval(reader)
     while !eof(iob)
-        val = eval(reader)(iob, jtyp)
+        val = rfn(iob, jtyp)
         push!(fld, val)
     end
     nothing
 end
 
-function read_lendelim_obj(io, val, meta::ProtoMeta, reader::Symbol)
+function read_lendelim_obj(io::IO, val, meta::ProtoMeta, reader::Symbol)
     fld_buf = read_bytes(io)
     eval(reader)(IOBuffer(fld_buf), val, meta)
     val
@@ -274,8 +276,8 @@ end
 
 instantiate(t::Type) = ccall(:jl_new_struct_uninit, Any, (Any,Any...), t)
 
-function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
-    logmsg("readproto begin: $(typeof(obj))")
+function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
+    #logmsg("readproto begin: $(typeof(obj))")
     fillunset(obj)
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
@@ -288,6 +290,7 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
         #logmsg("readproto fld: $(typeof(obj)).$fld")
 
         _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+        rfn = eval(read_fn)
         isrepeat = (attrib.occurrence == 2)
 
         (ptyp == :obj) && (jtyp = attrib.meta.jtype)
@@ -298,10 +301,10 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
                 (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
                 read_lendelim_packed(io, ofld, read_fn, jtyp)
             else
-                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, instantiate(jtyp), attrib.meta, read_fn) : eval(read_fn)(io, jtyp))
+                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, instantiate(jtyp), attrib.meta, read_fn) : rfn(io, jtyp))
             end
             setfield!(obj, fld, ofld)
-            logmsg("readproto set repeated: $(typeof(obj)).$fld = $ofld")
+            #logmsg("readproto set repeated: $(typeof(obj)).$fld = $ofld")
         else
             (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
 
@@ -309,9 +312,9 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
                 val = isdefined(obj, fld) ? getfield(obj, fld) : instantiate(jtyp)
                 val = read_lendelim_obj(io, val, attrib.meta, read_fn)
             else
-                val = eval(read_fn)(io, jtyp)
+                val = rfn(io, jtyp)
             end
-            logmsg("readproto set: $(typeof(obj)).$fld = $val")
+            #logmsg("readproto set: $(typeof(obj)).$fld = $val")
             setfield!(obj, fld, val)
         end
     end
@@ -325,18 +328,19 @@ function readproto(io, obj, meta::ProtoMeta=meta(typeof(obj)))
             fillset(obj, fld)
         end
     end
-    logmsg("readproto end: $(typeof(obj))")
+    #logmsg("readproto end: $(typeof(obj))")
     obj
 end
 
 
 ##
 # helpers
-const _metacache = Dict{Type, ProtoMeta}()
+const _metacache = ObjectIdDict() #Dict{Type, ProtoMeta}()
 const _fillcache = Dict{Uint, Array{Symbol,1}}()
 
-meta(typ::Type) = meta(typ, Symbol[], Int[], Dict{Symbol,Any}())
+meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, Symbol[], Int[], Dict{Symbol,Any}())
 function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true) 
+    haskey(_metacache, typ) && return _metacache[typ]
     d = Dict{Symbol,Any}()
     for (k,v) in defaults
         d[k] = v
