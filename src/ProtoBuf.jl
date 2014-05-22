@@ -46,7 +46,7 @@ has_field(obj::Any, fld::Symbol) = isfilled(obj, fld)
 function add_field(obj::Any, fld::Symbol, val)
     typ = typeof(obj)
     attrib = meta(typ).symdict[fld]
-    (attrib.repeat != 2) && error("$(typ).$(fld) is not a repeating field")
+    (attrib.occurrence != 2) && error("$(typ).$(fld) is not a repeating field")
 
     ptyp = attrib.ptyp
     jtyp = WIRETYPES[ptyp][4]
