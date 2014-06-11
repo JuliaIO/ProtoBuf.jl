@@ -52,7 +52,7 @@ function add_field(obj::Any, fld::Symbol, val)
     jtyp = WIRETYPES[ptyp][4]
     (ptyp == :obj) && (jtyp = attrib.meta.jtype)
 
-    !isdefined(obj, fld) && setfield(obj, fld, jtyp[])
+    !isdefined(obj, fld) && setfield!(obj, fld, jtyp[])
     push!(getfield(obj, fld), val)
     nothing
 end
