@@ -49,8 +49,8 @@ wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
 
 wiretype(t::Type) = wiretypes(t)[1]
 
-defaultval{T<:Number}(::Type{T})            = [0]
-defaultval{T<:String}(::Type{T})            = [""]
+defaultval{T<:Number}(::Type{T})            = [convert(T,0)]
+defaultval{T<:String}(::Type{T})            = [convert(T,"")]
 defaultval(::Type{Bool})                    = [false]
 defaultval{T}(::Type{Array{T,1}})           = [T[]]
 defaultval(::Type)                          = []
