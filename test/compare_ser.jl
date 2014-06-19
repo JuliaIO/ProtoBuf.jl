@@ -48,6 +48,9 @@ type TestType
             )
     end
 end # type TestType
+const __pack_TestType = Symbol[:ab, :ai32, :ai64, :af32, :af64]
+meta(t::Type{TestType}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, __pack_TestType)
+
 
 function julia_ser(t::TestType, n::Int)
     iob = PipeBuffer()
