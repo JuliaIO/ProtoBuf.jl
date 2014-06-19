@@ -338,16 +338,16 @@ end
 const _metacache = ObjectIdDict() #Dict{Type, ProtoMeta}()
 const _fillcache = Dict{Uint, Array{Symbol,1}}()
 
-meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, Symbol[], Int[], Dict{Symbol,Any}())
-function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true) 
+meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, Symbol[], Int[], Dict{Symbol,Any}(), Symbol[])
+function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, not_packed::Array=[], cache::Bool=true) 
     haskey(_metacache, typ) && return _metacache[typ]
     d = Dict{Symbol,Any}()
     for (k,v) in defaults
         d[k] = v
     end
-    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, cache)
+    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, convert(Array{Symbol,1}, not_packed), cache)
 end
-function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, cache::Bool=true)
+function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, not_packed::Array{Symbol,1}, cache::Bool=true)
     haskey(_metacache, typ) && return _metacache[typ]
 
     m = ProtoMeta(typ, ProtoMetaAttribs[])
@@ -364,7 +364,7 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
         elemtyp = isarr ? fldtyp.parameters[1] : fldtyp
         wtyp = wiretype(elemtyp)
-        packed = (isarr && issubtype(elemtyp, Number))
+        packed = (isarr && issubtype(elemtyp, Number) && !(fldname in not_packed))
         default = haskey(defaults, fldname) ? {defaults[fldname]} : defaultval(fldtyp)
 
         push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))

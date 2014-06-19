@@ -166,6 +166,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     reqflds = String[]
     fldnums = Int[]
     defvals = String[]
+    npkflds = String[]
 
     if isfilled(dtype, :field)
         for field::FieldDescriptorProto in dtype.field
@@ -208,6 +209,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                 end
             end
 
+            (isfilled(field, :options) && isfilled(field.options, :packed) && !field.options.packed) && push!(npkflds, ":"*fldname)
             !isresolved(dtypename, typ_name, exports) && defer(dtypename, io, typ_name)
 
             (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
@@ -218,7 +220,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     println(io, "end #type $(dtypename)")
 
     # generate the meta for this type if required
-    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)])
+    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)]) || !isempty(npkflds)
         #logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, Symbol[")
         !isempty(reqflds) && print(io, join(reqflds, ','))
@@ -226,9 +228,14 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
         (fldnums != [1:length(fldnums)]) && print(io, join(fldnums, ','))
         print(io, "], ")
         if !isempty(defvals)
-            print(io, "[" * join(defvals, ',') * "]")
+            print(io, "[" * join(defvals, ',') * "], ")
         else
-            print(io, "Dict{Symbol,Any}()")
+            print(io, "Dict{Symbol,Any}(), ")
+        end
+        if !isempty(npkflds)
+            print(io, "Symbol[" * join(npkflds, ',') * "]")
+        else
+            print(io, "Symbol[]")
         end
         println(io, ")")
     end
