@@ -1,0 +1,9 @@
+
+import "a.proto";
+
+package B;
+
+message obj {
+    required A.Description description = 1;
+    repeated string parameters = 2;
+}

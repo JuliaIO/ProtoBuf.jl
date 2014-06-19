@@ -266,7 +266,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     # generate imports
     if isfilled(protofile, :dependency) && !isempty(protofile.dependency)
         for dependency in protofile.dependency
-            println(io, "using $(_packages[dependency])")
+            println(io, "using ..$(_packages[dependency])")
         end
     end
     println(io, "")
