@@ -2,7 +2,7 @@ module Gen
 
 using ProtoBuf
 
-import ProtoBuf.meta, ProtoBuf.logmsg
+import ProtoBuf: meta, logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
@@ -164,6 +164,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     # generate this type
     println(io, "type $(dtypename)")
     reqflds = String[]
+    packedflds = String[]
     fldnums = Int[]
     defvals = String[]
 
@@ -208,6 +209,8 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                 end
             end
 
+            isfilled(field, :options) && field.options.packed && push!(packedflds, ":"*fldname)
+
             !isresolved(dtypename, typ_name, exports) && defer(dtypename, io, typ_name)
 
             (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
@@ -218,18 +221,19 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     println(io, "end #type $(dtypename)")
 
     # generate the meta for this type if required
-    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)])
+    _d_fldnums = [1:length(fldnums)]
+    !isempty(reqflds) && println(io, "const __req_$(dtypename) = Symbol[$(join(reqflds, ','))]")
+    !isempty(defvals) && println(io, "const __val_$(dtypename) = [$(join(defvals, ", "))]")
+    (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
+    !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
+    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)]) || !isempty(packedflds)
         #logmsg("generating meta for type $(dtypename)")
-        print(io, "meta(t::Type{$dtypename}) = meta(t, Symbol[")
-        !isempty(reqflds) && print(io, join(reqflds, ','))
-        print(io, "], Int[")
-        (fldnums != [1:length(fldnums)]) && print(io, join(fldnums, ','))
-        print(io, "], ")
-        if !isempty(defvals)
-            print(io, "[" * join(defvals, ',') * "]")
-        else
-            print(io, "Dict{Symbol,Any}()")
-        end
+        print(io, "meta(t::Type{$dtypename}) = meta(t, ")
+        print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
+        print(io, (fldnums == _d_fldnums) ? "ProtoBuf.DEF_FNUM, " : "__fnum_$(dtypename), ")
+        print(io, isempty(defvals) ? "ProtoBuf.DEF_VAL, " : "__val_$(dtypename), ")
+        print(io, "true, ")
+        print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK" : "__pack_$(dtypename)")
         println(io, ")")
     end
 

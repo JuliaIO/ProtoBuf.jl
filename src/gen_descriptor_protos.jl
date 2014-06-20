@@ -7,6 +7,9 @@ type Location
     leading_comments::String                # optional string leading_comments = 3;
     trailing_comments::String               # optional string trailing_comments = 4;
 end
+const __pack_Location = [:path,:span]
+meta(t::Type{Location}) = meta(t, DEF_REQ, DEF_FNUM, DEF_VAL, true, __pack_Location)
+
 
 type SourceCodeInfo
     location::Array{Location,1}             # repeated Location location = 1;
@@ -16,7 +19,8 @@ type NamePart
     name_part::String                       # required string name_part = 1;
     is_extension::Bool                      # required bool is_extension = 2;
 end
-meta(t::Type{NamePart}) = meta(t, [:name_part, :is_extension], Int[], Dict{Symbol,Any}())
+const __req_NamePart = [:name_part, :is_extension]
+meta(t::Type{NamePart}) = meta(t, __req_NamePart, DEF_FNUM, DEF_VAL)
 
 type UninterpretedOption
     # The name of the uninterpreted option.  Each string represents a segment in
@@ -35,29 +39,35 @@ type UninterpretedOption
     string_value::Array{Uint8,1}            # optional bytes string_value = 7;
     aggregate_value::String                 # optional string aggregate_value = 8;
 end
-meta(t::Type{UninterpretedOption}) = meta(t, Symbol[], [2:8], Dict{Symbol,Any}())
+const __fnum_UninterpretedOption = [2:8]
+meta(t::Type{UninterpretedOption}) = meta(t, DEF_REQ, __fnum_UninterpretedOption, DEF_VAL)
 
 type MethodOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
-meta(t::Type{MethodOptions}) = meta(t, Symbol[], [999], Dict{Symbol,Any}())
+const __fnum_MethodOptions = [999]
+meta(t::Type{MethodOptions}) = meta(t, DEF_REQ, __fnum_MethodOptions, DEF_VAL)
 
 type ServiceOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
-meta(t::Type{ServiceOptions}) = meta(t, Symbol[], [999], Dict{Symbol,Any}())
+const __fnum_ServiceOptions = [999]
+meta(t::Type{ServiceOptions}) = meta(t, DEF_REQ, __fnum_ServiceOptions, DEF_VAL)
 
 type EnumValueOptions
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
-meta(t::Type{EnumValueOptions}) = meta(t, Symbol[], [999], Dict{Symbol,Any}())
+const __fnum_EnumValueOptions = [999]
+meta(t::Type{EnumValueOptions}) = meta(t, DEF_REQ, __fnum_EnumValueOptions, DEF_VAL)
 
 type EnumOptions
     # Set this option to false to disallow mapping different tag names to a same value.
     allow_alias::Bool                                       # optional bool allow_alias = 2 [default=true];
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
-meta(t::Type{EnumOptions}) = meta(t, Symbol[], [2,999], [:allow_alias => true])
+const __fnum_EnumOptions = [2,999]
+const __val_EnumOptions = [:allow_alias => true]
+meta(t::Type{EnumOptions}) = meta(t, DEF_REQ, __fnum_EnumOptions, __val_EnumOptions)
 
 #@enum CType STRING CORD STRING_PIECE
 type FieldOptions
@@ -69,14 +79,18 @@ type FieldOptions
     weak::Bool                                              # optional bool weak = 10 [default=false];
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
-meta(t::Type{FieldOptions}) = meta(t, Symbol[], [1,2,5,3,9,10,999], [:ctype => 1, :lazy => false, :deprecated => false, :weak => false])
+const __fnum_FieldOptions = [1,2,5,3,9,10,999]
+const __val_FieldOptions = [:ctype => 1, :lazy => false, :deprecated => false, :weak => false]
+meta(t::Type{FieldOptions}) = meta(t, DEF_REQ, __fnum_FieldOptions, __val_FieldOptions)
 
 type MessageOptions 
     message_set_wire_format::Bool                           # optional bool message_set_wire_format = 1 [default=false];
     no_standard_descriptor_accessor::Bool                   # optional bool no_standard_descriptor_accessor = 2 [default=false];
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
-meta(t::Type{MessageOptions}) = meta(t, Symbol[], [1,2,999], [:message_set_wire_format => false, :no_standard_descriptor_accessor => false])
+const __fnum_MessageOptions = [1,2,999]
+const __val_MessageOptions = [:message_set_wire_format => false, :no_standard_descriptor_accessor => false]
+meta(t::Type{MessageOptions}) = meta(t, DEF_REQ, __fnum_MessageOptions, __val_MessageOptions)
 
 #@enum OptimizeMode unused SPEED CODE_SIZE LITE_RUNTIME
 type FileOptions
@@ -94,13 +108,14 @@ type FileOptions
 
     uninterpreted_option::Array{UninterpretedOption,1}      # repeated UninterpretedOption uninterpreted_option = 999;
 end
-meta(t::Type{FileOptions}) = meta(t, Symbol[], [1,8,10,20,9,11,16,17,18,999], 
-                                        [:java_multiple_files => false, 
+const __fnum_FileOptions = [1,8,10,20,9,11,16,17,18,999]
+const __val_FileOptions = [:java_multiple_files => false,
                                         :java_generate_equals_and_hash => false,
                                         :optimize_for => 2,
                                         :cc_generic_services => false,
                                         :java_generic_services => false,
-                                        :py_generic_services => false])
+                                        :py_generic_services => false]
+meta(t::Type{FileOptions}) = meta(t, DEF_REQ, __fnum_FileOptions, __val_FileOptions)
 
 # ========================================
 # END OPTIONS
@@ -172,7 +187,8 @@ type FieldDescriptorProto
     default_value::String                       # optional string default_value = 7;
     options::FieldOptions                       # optional FieldOptions options = 8;
 end
-meta(t::Type{FieldDescriptorProto}) = meta(t, Symbol[], [1,3,4,5,6,2,7,8], Dict{Symbol,Any}())
+const __fnum_FieldDescriptorProto = [1,3,4,5,6,2,7,8]
+meta(t::Type{FieldDescriptorProto}) = meta(t, DEF_REQ, __fnum_FieldDescriptorProto, DEF_VAL)
 
 
 type ExtensionRange
@@ -190,7 +206,8 @@ type DescriptorProto
     extension_range::Array{ExtensionRange,1}    # repeated ExtensionRange extension_range = 5;
     options::MessageOptions                     # optional MessageOptions options = 7;
 end
-meta(t::Type{DescriptorProto}) = meta(t, Symbol[], [1,2,6,3,4,5,7], Dict{Symbol,Any}())
+const __fnum_DescriptorProto = [1,2,6,3,4,5,7]
+meta(t::Type{DescriptorProto}) = meta(t, DEF_REQ, __fnum_DescriptorProto, DEF_VAL)
 
 type FileDescriptorProto
     name::String                                # optional string name = 1;
@@ -209,7 +226,8 @@ type FileDescriptorProto
     options::FileOptions                        # optional FileOptions options = 8;
     source_code_info::SourceCodeInfo            # optional SourceCodeInfo source_code_info = 9;
 end
-meta(t::Type{FileDescriptorProto}) = meta(t, Symbol[], [1,2,3,10,11,4,5,6,7,8,9], Dict{Symbol,Any}())
+const __fnum_FileDescriptorProto = [1,2,3,10,11,4,5,6,7,8,9]
+meta(t::Type{FileDescriptorProto}) = meta(t, DEF_REQ, __fnum_FileDescriptorProto, DEF_VAL)
 
 type FileDescriptorSet
     file::FileDescriptorProto       # repeated FileDescriptorProto file = 1;
