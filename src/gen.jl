@@ -167,6 +167,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     packedflds = String[]
     fldnums = Int[]
     defvals = String[]
+    wtypes = String[]
 
     if isfilled(dtype, :field)
         for field::FieldDescriptorProto in dtype.field
@@ -187,6 +188,10 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                     m,t = splitmodule(typ_name)
                     (m == modul) && (typ_name = t)
                 end
+            elseif field.typ == TYPE_SINT32
+                push!(wtypes, ":$fldname => :sint32")
+            elseif field.typ == TYPE_SINT64
+                push!(wtypes, ":$fldname => :sint64")
             end
             enum_typ_name = (field.typ == TYPE_ENUM) ? typ_name : ""
             (field.typ != TYPE_MESSAGE) && (typ_name = "$(JTYPES[field.typ])")
@@ -226,14 +231,16 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     !isempty(defvals) && println(io, "const __val_$(dtypename) = [$(join(defvals, ", "))]")
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
-    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)]) || !isempty(packedflds)
+    !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = [$(join(wtypes, ", "))]")
+    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)]) || !isempty(packedflds) || !isempty(wtypes)
         #logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
         print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
         print(io, (fldnums == _d_fldnums) ? "ProtoBuf.DEF_FNUM, " : "__fnum_$(dtypename), ")
         print(io, isempty(defvals) ? "ProtoBuf.DEF_VAL, " : "__val_$(dtypename), ")
         print(io, "true, ")
-        print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK" : "__pack_$(dtypename)")
+        print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK" : "__pack_$(dtypename), ")
+        print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES, " : "__wtype_$(dtypename)")
         println(io, ")")
     end
 

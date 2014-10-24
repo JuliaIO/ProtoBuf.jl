@@ -66,7 +66,7 @@ const TestEnum = __enum_TestEnum()
 meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestNested})       = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
-meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], {:iVal1 => 10, :iVal2 => [1,2,3]}, false)
+meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}([:iVal1 => 10, :iVal2 => [1,2,3]]), false)
 meta(t::Type{TestFilled})       = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}())
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)

@@ -11,7 +11,7 @@ const WIRETYP_GRPEND   = 4   # deprecated
 const WIRETYP_32BIT    = 5
 
 # TODO: wiretypes should become julia types, so that methods can be parameterized on them
-const WIRETYPES = {
+const WIRETYPES = Dict{Symbol,Tuple}([
     :int32          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
     :int64          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int64),
     :uint32         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Uint32),
@@ -32,7 +32,7 @@ const WIRETYPES = {
     :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
     :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
     :float          => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32)
-}
+])
 
 
 wiretypes(::Type{Int32})                    = [:int32, :sint32, :enum]
@@ -342,17 +342,18 @@ const DEF_REQ = Symbol[]
 const DEF_FNUM = Int[]
 const DEF_VAL = Dict{Symbol,Any}()
 const DEF_PACK = Symbol[]
+const DEF_WTYPES = Dict{Symbol,Symbol}()
 
-meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, DEF_REQ, DEF_FNUM, DEF_VAL, true, DEF_PACK)
-function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true, pack::Array=DEF_PACK) 
+meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, DEF_REQ, DEF_FNUM, DEF_VAL, true, DEF_PACK, DEF_WTYPES)
+function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true, pack::Array=DEF_PACK, wtypes::Dict=DEF_WTYPES) 
     haskey(_metacache, typ) && return _metacache[typ]
     d = Dict{Symbol,Any}()
     for (k,v) in defaults
         d[k] = v
     end
-    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, cache, convert(Array{Symbol,1}, pack))
+    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, cache, convert(Array{Symbol,1}, pack), wtypes)
 end
-function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Array{Symbol,1}=DEF_PACK)
+function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Array{Symbol,1}=DEF_PACK, wtypes::Dict=DEF_WTYPES)
     haskey(_metacache, typ) && return _metacache[typ]
 
     m = ProtoMeta(typ, ProtoMetaAttribs[])
@@ -368,9 +369,9 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
         isarr = (fldtyp.name === Array.name) && !(fldtyp === Array{Uint8,1})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
         elemtyp = isarr ? fldtyp.parameters[1] : fldtyp
-        wtyp = wiretype(elemtyp)
+        wtyp = get(wtypes, fldname, wiretype(elemtyp))
         packed = (isarr && (fldname in pack))
-        default = haskey(defaults, fldname) ? {defaults[fldname]} : defaultval(fldtyp)
+        default = haskey(defaults, fldname) ? Any[defaults[fldname]] : defaultval(fldtyp)
 
         push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))
     end
