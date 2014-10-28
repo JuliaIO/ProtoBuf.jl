@@ -207,7 +207,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                 typ_name = field.typ_name
                 if beginswith(typ_name, '.')
                     (m,t) = findmodule(typ_name[2:end])
-                    full_typ_name = "$(m).$(t)"
+                    full_typ_name = m=="" ? t : "$(m).$(t)"
                     typ_name = (m == modul) ? t : full_typ_name
                 else
                     full_typ_name = qualify(typ_name, scope)
@@ -314,7 +314,11 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     # generate imports
     if isfilled(protofile, :dependency) && !isempty(protofile.dependency)
         for dependency in protofile.dependency
-            println(io, "using $(_packages[dependency])")
+            if haskey(_packages, dependency)
+                println(io, "using $(_packages[dependency])")
+            else
+                # maybe include() `dependency` file?
+            end
         end
     end
     println(io, "using ProtoBuf")
