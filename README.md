@@ -151,7 +151,7 @@ E.g. to generate Julia code from `proto/plugin.proto`, run the command below whi
 
 `protoc -I=proto --julia_out=jlout proto/plugin.proto`
 
-Each `.proto` file results in a corresponding `.jl` file, including one each for other included `.proto` files. If the `.proto` file declares any `package`, the resulting Julia code would be placed under a module named similar to the package name but with `_` replaced for any `.`s in the name. It is envisaged that typically these generated modules would be used as sub-modules of the larger Julia module that uses them.
+Each `.proto` file results in a corresponding `.jl` file, including one each for other included `.proto` files. Separate `.jl` files are generated with modules corresponding to each top level package.
 
 If a field name in a message or enum matches a Julia keyword, it is prepended with an `_` character during code generation.
 
@@ -181,7 +181,6 @@ bytes       | Array{Uint8,1}    | May contain any arbitrary sequence of bytes.
 - Extensions are not supported yet.
 - Services are not supported. Generic services are deprecated in protocol buffers. Specific implementations may exist separately.
 - Groups are not supported. They are deprecated anyway.
-- Generated code translates package name specified into Julia modules, but uses only one level of module. So a package name of `com.foo.bar` will get translated to a Julia module `com_foo_bar`. This may become better in the future with special `module` directive for Julia.
 - Julia does not have `enum` types. In generated code, enums are declared as `Int32` types, but a separate Julia type is generated with fields same as the enum values which can be used for validation. The types representing enums extend from the abstract type `ProtoEnum` and the `lookup` method can be used to verify valid values.
 
 
