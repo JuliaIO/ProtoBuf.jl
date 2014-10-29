@@ -125,7 +125,7 @@ function readreq(srcio::IO)
 end
 
 pfx(name::String, scope::Scope) = isempty(scope.name) ? name : (fullname(scope) * (scope.is_module ? "." : "_") * name)
-splitmodule(name::String) = rsplit(name, '.', 2)
+splitmodule(name::String) = rsplit(name, '.'; limit=2)
 function findmodule(name::String)
     mlen = 0
     mpkg = ""
