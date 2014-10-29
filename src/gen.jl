@@ -95,7 +95,7 @@ function fullname(s::Scope)
 end
 
 const top_scope = Scope("")
-top_scope.is_module = true
+top_scope.is_module = false
 
 function get_module_scope(parent::Scope, newname::String)
     for s in parent.children
@@ -297,8 +297,10 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     #logmsg("generate begin for $(protofile.name), package $(protofile.package)")
 
     scope = top_scope
-    for pkgname in split(protofile.package, '.')
-        scope = get_module_scope(scope, pkgname)
+    if !isempty(protofile.package)
+        for pkgname in split(protofile.package, '.')
+            scope = get_module_scope(scope, pkgname)
+        end
     end
 
     push!(scope.files, protofile.name)
@@ -361,12 +363,17 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
 end
 
 function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorProto, io::IOBuffer)
-    jfile = ProtoBuf.instantiate(CodeGenFile)
-
     outdir = dirname(protofile.name)
     filename = protofile_name_to_module_name(protofile.name)
     filename = string(filename, ".jl")
-    jfile.name = joinpath(outdir, filename)
+
+    append_response(resp, filename, io)
+end
+
+function append_response(resp::CodeGeneratorResponse, filename::String, io::IOBuffer)
+    jfile = ProtoBuf.instantiate(CodeGenFile)
+
+    jfile.name = filename
     jfile.content = takebuf_string(io)
 
     !isdefined(resp, :file) && (resp.file = CodeGenFile[])
@@ -421,9 +428,9 @@ function generate(srcio::IO)
     if !isempty(top_scope.children)
         for pkg in top_scope.children
             if pkg.is_module
-                pf = open("$(pkg.name).jl", "w")
-                print_package(pf, pkg)
-                close(pf)
+                io = IOBuffer()
+                print_package(io, pkg)
+                append_response(resp, "$(pkg.name).jl", io)
             end
         end
     end
