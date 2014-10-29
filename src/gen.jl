@@ -161,7 +161,17 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     #logmsg("end enum $(enumname)")
 end
 
-function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{String,1})
+function short_type_name(full_type_name::String, depends::Array{String,1})
+    comps = split(full_type_name, '.')
+    type_name = pop!(comps)
+    while !isempty(comps) && !(join(comps, '.') in depends)
+        type_name = (pop!(comps) * "." * type_name)
+    end
+    #logmsg("check $full_type_name against $depends || found $type_name")
+    return type_name
+end
+
+function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{String,1}, depends::Array{String,1})
     io = IOBuffer()
     full_dtypename = dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
@@ -180,7 +190,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     # generate nested types
     if isfilled(dtype, :nested_type)
         for nested_type::DescriptorProto in dtype.nested_type
-            generate(io, errio, nested_type, scope, exports)
+            generate(io, errio, nested_type, scope, exports, depends)
             (errio.size > 0) && return
         end
     end
@@ -247,6 +257,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                 defer(dtypename, io, typ_name)
             end
 
+            typ_name = short_type_name(typ_name, depends)
             (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
             println(io, "    $(fldname)::$typ_name")
         end
@@ -268,8 +279,8 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
         print(io, (fldnums == _d_fldnums) ? "ProtoBuf.DEF_FNUM, " : "__fnum_$(dtypename), ")
         print(io, isempty(defvals) ? "ProtoBuf.DEF_VAL, " : "__val_$(dtypename), ")
         print(io, "true, ")
-        print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK" : "__pack_$(dtypename), ")
-        print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES, " : "__wtype_$(dtypename)")
+        print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK, " : "__pack_$(dtypename), ")
+        print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES" : "__wtype_$(dtypename)")
         println(io, ")")
     end
 
@@ -312,12 +323,14 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         _packages[protofile.name] = fullname(scope)
     end
 
+    depends = String[]
     #logmsg("generating imports")
     # generate imports
     if isfilled(protofile, :dependency) && !isempty(protofile.dependency)
         for dependency in protofile.dependency
             if haskey(_packages, dependency)
                 println(io, "using $(_packages[dependency])")
+                push!(depends, _packages[dependency])
             else
                 # maybe include() `dependency` file?
             end
@@ -342,7 +355,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     #logmsg("generating types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
-            generate(io, errio, message_type, scope, exports)
+            generate(io, errio, message_type, scope, exports, depends)
             (errio.size > 0) && return 
         end
     end
