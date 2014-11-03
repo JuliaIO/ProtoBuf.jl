@@ -44,7 +44,7 @@ function isresolved(dtypename::String, referenced_name::String, exports::Array{S
     for jtype in JTYPES
         (referenced_name == string(jtype)) && return true
     end
-    ('.' in referenced_name) || (referenced_name in exports)
+    (('.' in referenced_name) || (referenced_name in exports)) && !haskey(_deferred, referenced_name)
 end
 
 function resolve(iob::IOBuffer, name::String)
