@@ -12,6 +12,9 @@ include("gen_plugin_protos.jl")
 # maps protofile name to package name
 const _packages = Dict{String,String}()
 
+# maps protofile name to array of imported protofiles
+const protofile_imports = Dict()
+
 const _keywords = [
     "if", "else", "elseif", "while", "for", "begin", "end", "quote", 
     "try", "catch", "return", "local", "abstract", "function", "macro",
@@ -326,13 +329,12 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     depends = String[]
     #logmsg("generating imports")
     # generate imports
-    if isfilled(protofile, :dependency) && !isempty(protofile.dependency)
+    if isfilled(protofile, :dependency)
+        protofile_imports[protofile.name] = protofile.dependency
         for dependency in protofile.dependency
             if haskey(_packages, dependency)
                 println(io, "using $(_packages[dependency])")
                 push!(depends, _packages[dependency])
-            else
-                # maybe include() `dependency` file?
             end
         end
     end
@@ -400,15 +402,30 @@ function err_response(errio::IOBuffer)
     resp
 end
 
+scope_has_file(s::Scope, f::String) = (f in s.files || any(x->scope_has_file(x,f), s.children))
+
 function print_package(io::IO, s::Scope, indent="")
     s.is_module || return
     println(io, "$(indent)module $(s.name)")
     nested = indent*"  "
+    children = Set(s.children)
     for f in s.files
+        if haskey(protofile_imports,f)
+            deps = protofile_imports[f]
+            # if the file we're about to `include` depends on any of our child modules,
+            # generate those first.
+            for d in deps
+                for c in filter(c->scope_has_file(c,d), children)
+                    delete!(children, c)
+                    print_package(io, c, nested)
+                end
+            end
+        end
+
         fname = string(protofile_name_to_module_name(f), ".jl")
         println(io, "$(nested)include(\"$fname\")")
     end
-    for c in s.children
+    for c in children
         print_package(io, c, nested)
     end
     println(io, "$(indent)end")
