@@ -13,6 +13,10 @@
 module ProtoBufCompareSer
 using ProtoBuf
 
+if isless(Base.VERSION, v"0.4.0-")
+typealias AbstractString String
+end
+
 import ProtoBuf.meta
 
 type TestType
@@ -30,7 +34,7 @@ type TestType
     ai64::Array{Int64,1}
     af32::Array{Float32,1}
     af64::Array{Float64,1}
-    as::Array{String,1}
+    as::Array{AbstractString,1}
     
     function TestType(fill=false)
         !fill && (return new())

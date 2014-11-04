@@ -1,16 +1,21 @@
 module Gen
 
 using ProtoBuf
+using Compat
 
 import ProtoBuf: meta, logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
+if isless(Base.VERSION, v"0.4.0-")
+typealias AbstractString String
+end
+
 include("gen_descriptor_protos.jl")
 include("gen_plugin_protos.jl")
 
 # maps protofile name to package name
-const _packages = Dict{String,String}()
+const _packages = Dict{AbstractString,AbstractString}()
 
 # maps protofile name to array of imported protofiles
 const protofile_imports = Dict()
@@ -25,24 +30,24 @@ const _keywords = [
 
 type DeferredWrite
     iob::IOBuffer
-    depends::Array{String,1}
+    depends::Array{AbstractString,1}
 end
-const _deferred = Dict{String,DeferredWrite}()
+const _deferred = Dict{AbstractString,DeferredWrite}()
 # set of fully-qualified names we've resolved, to handle dependencies in other files
-const _all_resolved = Set{String}()
+const _all_resolved = Set{AbstractString}()
 
-function defer(name::String, iob::IOBuffer, depends::String)
+function defer(name::AbstractString, iob::IOBuffer, depends::AbstractString)
     if isdeferred(name)
         depsnow = _deferred[name].depends
         !(depends in depsnow) && push!(depsnow, depends)
         return
     end
-    _deferred[name] = DeferredWrite(iob, String[depends])
+    _deferred[name] = DeferredWrite(iob, AbstractString[depends])
     nothing
 end
 
-isdeferred(name::String) = haskey(_deferred, name)
-function isresolved(dtypename::String, referenced_name::String, exports::Array{String,1})
+isdeferred(name::AbstractString) = haskey(_deferred, name)
+function isresolved(dtypename::AbstractString, referenced_name::AbstractString, exports::Array{AbstractString,1})
     (dtypename == referenced_name) && return true
     for jtype in JTYPES
         (referenced_name == string(jtype)) && return true
@@ -50,8 +55,8 @@ function isresolved(dtypename::String, referenced_name::String, exports::Array{S
     (('.' in referenced_name) || (referenced_name in exports)) && !haskey(_deferred, referenced_name)
 end
 
-function resolve(iob::IOBuffer, name::String)
-    fully_resolved = String[]
+function resolve(iob::IOBuffer, name::AbstractString)
+    fully_resolved = AbstractString[]
     for (typ,dw) in _deferred
         idx = findfirst(dw.depends, name)
         (idx == 0) && continue
@@ -72,19 +77,19 @@ function resolve(iob::IOBuffer, name::String)
     end
 end
 
-chk_keyword(name::String) = (name in _keywords) ? string('_', name) : name
+chk_keyword(name::AbstractString) = (name in _keywords) ? string('_', name) : name
 
 type Scope
-    name::String
-    syms::Array{String,1}
-    files::Array{String,1}
+    name::AbstractString
+    syms::Array{AbstractString,1}
+    files::Array{AbstractString,1}
     is_module::Bool
     children::Array{Scope,1}
     parent::Scope
 
-    Scope(name::String) = new(name, String[], String[], false, Scope[])
-    function Scope(name::String, parent::Scope)
-        s = new(name, String[], String[], false, Scope[], parent)
+    Scope(name::AbstractString) = new(name, AbstractString[], AbstractString[], false, Scope[])
+    function Scope(name::AbstractString, parent::Scope)
+        s = new(name, AbstractString[], AbstractString[], false, Scope[], parent)
         push!(parent.children, s)
         s
     end
@@ -100,7 +105,7 @@ end
 const top_scope = Scope("")
 top_scope.is_module = false
 
-function get_module_scope(parent::Scope, newname::String)
+function get_module_scope(parent::Scope, newname::AbstractString)
     for s in parent.children
         if s.name == newname
             return s
@@ -111,7 +116,7 @@ function get_module_scope(parent::Scope, newname::String)
     s
 end
 
-function qualify(name::String, scope::Scope) 
+function qualify(name::AbstractString, scope::Scope) 
     if name in scope.syms
         return pfx(name, scope) 
     elseif isdefined(scope, :parent)
@@ -127,9 +132,9 @@ function readreq(srcio::IO)
     req
 end
 
-pfx(name::String, scope::Scope) = isempty(scope.name) ? name : (fullname(scope) * (scope.is_module ? "." : "_") * name)
-splitmodule(name::String) = rsplit(name, '.'; limit=2)
-function findmodule(name::String)
+pfx(name::AbstractString, scope::Scope) = isempty(scope.name) ? name : (fullname(scope) * (scope.is_module ? "." : "_") * name)
+splitmodule(name::AbstractString) = rsplit(name, '.'; limit=2)
+function findmodule(name::AbstractString)
     mlen = 0
     mpkg = ""
     for pkg in values(_packages)
@@ -141,7 +146,7 @@ function findmodule(name::String)
     (mpkg, replace((0 == mlen) ? name : name[(mlen+2):end], '.', '_'))
 end
 
-function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Array{String,1})
+function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Array{AbstractString,1})
     enumname = pfx(enumtype.name, scope)
     sm = splitmodule(enumname)
     (length(sm) > 1) && (enumname = sm[2])
@@ -164,7 +169,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     #logmsg("end enum $(enumname)")
 end
 
-function short_type_name(full_type_name::String, depends::Array{String,1})
+function short_type_name(full_type_name::AbstractString, depends::Array{AbstractString,1})
     comps = split(full_type_name, '.')
     type_name = pop!(comps)
     while !isempty(comps) && !(join(comps, '.') in depends)
@@ -174,7 +179,7 @@ function short_type_name(full_type_name::String, depends::Array{String,1})
     return type_name
 end
 
-function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{String,1}, depends::Array{String,1})
+function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{AbstractString,1}, depends::Array{AbstractString,1})
     io = IOBuffer()
     full_dtypename = dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
@@ -200,11 +205,11 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
 
     # generate this type
     println(io, "type $(dtypename)")
-    reqflds = String[]
-    packedflds = String[]
+    reqflds = AbstractString[]
+    packedflds = AbstractString[]
     fldnums = Int[]
-    defvals = String[]
-    wtypes = String[]
+    defvals = AbstractString[]
+    wtypes = AbstractString[]
 
     if isfilled(dtype, :field)
         for field::FieldDescriptorProto in dtype.field
@@ -300,7 +305,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     #logmsg("end type $(dtypename)")
 end
 
-function protofile_name_to_module_name(n::String)
+function protofile_name_to_module_name(n::AbstractString)
     name = splitext(basename(n))[1]
     name = replace(name, '.', '_')
     name = string(name, "_pb")
@@ -326,7 +331,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         _packages[protofile.name] = fullname(scope)
     end
 
-    depends = String[]
+    depends = AbstractString[]
     #logmsg("generating imports")
     # generate imports
     if isfilled(protofile, :dependency)
@@ -342,7 +347,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     println(io, "import ProtoBuf.meta")
     println(io, "")
 
-    exports = String[]
+    exports = AbstractString[]
 
     # generate top level enums
     #logmsg("generating enums")
@@ -385,7 +390,7 @@ function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorP
     append_response(resp, filename, io)
 end
 
-function append_response(resp::CodeGeneratorResponse, filename::String, io::IOBuffer)
+function append_response(resp::CodeGeneratorResponse, filename::AbstractString, io::IOBuffer)
     jfile = ProtoBuf.instantiate(CodeGenFile)
 
     jfile.name = filename
@@ -402,7 +407,7 @@ function err_response(errio::IOBuffer)
     resp
 end
 
-scope_has_file(s::Scope, f::String) = (f in s.files || any(x->scope_has_file(x,f), s.children))
+scope_has_file(s::Scope, f::AbstractString) = (f in s.files || any(x->scope_has_file(x,f), s.children))
 
 function print_package(io::IO, s::Scope, indent="")
     s.is_module || return

@@ -1,7 +1,12 @@
 module ProtoBufTestCodec
 using ProtoBuf
+using Compat
 
 import ProtoBuf.meta
+
+if isless(Base.VERSION, v"0.4.0-")
+typealias AbstractString String
+end
 
 enum(x) = int(x)
 sint32(x) = int32(x)
@@ -19,7 +24,7 @@ type TestType
 end
 
 type TestStr
-    val::String
+    val::AbstractString
 end
 ==(t1::TestStr, t2::TestStr) = (t1.val == t2.val)
 
@@ -37,7 +42,7 @@ end
 
 type TestDefaults
     iVal1::Int64
-    sVal2::String
+    sVal2::AbstractString
     iVal2::Array{Int64,1}
 
     TestDefaults(f1,f2,f3) = new(f1,f2,f3)
@@ -66,7 +71,8 @@ const TestEnum = __enum_TestEnum()
 meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestNested})       = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
-meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}([:iVal1 => 10, :iVal2 => [1,2,3]]), false)
+const _t_defaults = @compat Dict{Symbol,Any}(:iVal1 => 10, :iVal2 => [1,2,3])
+meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], _t_defaults, false)
 meta(t::Type{TestFilled})       = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}())
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
@@ -101,10 +107,10 @@ end
 assert_equal{T,U}(::Type{Array{T,1}}, ::Type{Array{U,1}}) = @assert issubtype(T,U) || issubtype(U,T)
 assert_equal(T::Type, U::Type) = @assert issubtype(T,U) || issubtype(U,T)
 assert_equal(val1::Bool, val2::Bool) = @assert val1 == val2
-assert_equal(val1::String, val2::String) = @assert val1 == val2
+assert_equal(val1::AbstractString, val2::AbstractString) = @assert val1 == val2
 assert_equal(val1::Number, val2::Number) = @assert val1 == val2
 assert_equal{T<:Number}(val1::Array{T,1}, val2::Array{T,1}) = @assert val1 == val2
-assert_equal{T<:String}(val1::Array{T,1}, val2::Array{T,1}) = @assert val1 == val2
+assert_equal{T<:AbstractString}(val1::Array{T,1}, val2::Array{T,1}) = @assert val1 == val2
 function assert_equal(val1, val2)
     typ1 = typeof(val1)
     typ2 = typeof(val2)
@@ -188,7 +194,7 @@ function test_repeats()
     print_hdr("testing repeated string")
     for idx in 1:100
         testval.val = [randstring(5) for i in 1:10] 
-        readval.val = String[]
+        readval.val = AbstractString[]
         meta = mk_test_meta(int(rand() * 100) + 1, :string)
         meta.ordered[1].occurrence = 2
         writeproto(pb, testval, meta) 

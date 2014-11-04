@@ -11,7 +11,7 @@ const WIRETYP_GRPEND   = 4   # deprecated
 const WIRETYP_32BIT    = 5
 
 # TODO: wiretypes should become julia types, so that methods can be parameterized on them
-const WIRETYPES = Dict{Symbol,Tuple}([
+const WIRETYPES = @compat Dict{Symbol,Tuple}(
     :int32          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
     :int64          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int64),
     :uint32         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Uint32),
@@ -25,14 +25,14 @@ const WIRETYPES = Dict{Symbol,Tuple}([
     :sfixed64       => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
     :double         => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
 
-    :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   String),
+    :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   AbstractString),
     :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{Uint8,1}),
     :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
 
     :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
     :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
     :float          => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32)
-])
+)
 
 
 wiretypes(::Type{Int32})                    = [:int32, :sint32, :enum]
@@ -42,7 +42,7 @@ wiretypes(::Type{Uint64})                   = [:uint64]
 wiretypes(::Type{Bool})                     = [:bool]
 wiretypes(::Type{Float64})                  = [:double, :fixed, :sfixed64]
 wiretypes(::Type{Float32})                  = [:float, :fixed32, :sfixed32]
-wiretypes{T<:String}(::Type{T})             = [:string]
+wiretypes{T<:AbstractString}(::Type{T})     = [:string]
 wiretypes(::Type{Array{Uint8,1}})           = [:bytes]
 wiretypes(::Type)                           = [:obj]
 wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
@@ -50,7 +50,7 @@ wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
 wiretype(t::Type) = wiretypes(t)[1]
 
 defaultval{T<:Number}(::Type{T})            = [convert(T,0)]
-defaultval{T<:String}(::Type{T})            = [convert(T,"")]
+defaultval{T<:AbstractString}(::Type{T})    = [convert(T,"")]
 defaultval(::Type{Bool})                    = [false]
 defaultval{T}(::Type{Array{T,1}})           = [T[]]
 defaultval(::Type)                          = []
@@ -153,11 +153,11 @@ function read_bytes(io::IO)
 end
 read_bytes(io::IO, ::Type{Array{Uint8,1}}) = read_bytes(io)
 
-write_string(io::IO, x::String) = write_string(io, bytestring(x))
+write_string(io::IO, x::AbstractString) = write_string(io, bytestring(x))
 write_string(io::IO, x::ByteString) = write_bytes(io, x.data)
 
 read_string(io::IO) = bytestring(read_bytes(io))
-read_string(io::IO, ::Type{String}) = read_string(io)
+read_string(io::IO, ::Type{AbstractString}) = read_string(io)
 read_string{T <: ByteString}(io::IO, ::Type{T}) = convert(T, read_string(io))
 
 ##
