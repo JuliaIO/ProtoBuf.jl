@@ -274,7 +274,7 @@ function read_lendelim_obj(io::IO, val, meta::ProtoMeta, reader::Symbol)
     val
 end
 
-instantiate(t::Type) = ccall(:jl_new_struct_uninit, Any, (Any,Any...), t)
+instantiate(t::Type) = ccall(:jl_new_struct_uninit, Any, (Any,), t)
 
 function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     #logmsg("readproto begin: $(typeof(obj))")
