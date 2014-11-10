@@ -34,10 +34,10 @@ type UninterpretedOption
     # The value of the uninterpreted option, in whatever type the tokenizer
     # identified it as during parsing. Exactly one of these should be set.
     identifier_value::AbstractString        # optional string identifier_value = 3;
-    positive_int_value::Uint64              # optional uint64 positive_int_value = 4;
+    positive_int_value::UInt64              # optional uint64 positive_int_value = 4;
     negative_int_value::Int64               # optional int64 negative_int_value = 5;
     double_value::Float64                   # optional double double_value = 6;
-    string_value::Array{Uint8,1}            # optional bytes string_value = 7;
+    string_value::Array{UInt8,1}            # optional bytes string_value = 7;
     aggregate_value::AbstractString         # optional string aggregate_value = 8;
 end
 const __fnum_UninterpretedOption = [2:8]
@@ -171,8 +171,8 @@ const TYPE_SFIXED64       = 16
 const TYPE_SINT32         = 17
 const TYPE_SINT64         = 18
 
-const JTYPES              = [Float64, Float32, Int64, Uint64, Int32, Float64, Float32, Bool, AbstractString, Any, Any, Array{Uint8,1}, Uint32, Int32, Float32, Float64, Int32, Int64]
-const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, Uint8[], 0,     0,     0,       0,       0,     0]
+const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, Float64, Float32, Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Float32, Float64, Int32, Int64]
+const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0]
 
 const LABEL_OPTIONAL      = 1
 const LABEL_REQUIRED      = 2

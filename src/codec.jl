@@ -14,8 +14,8 @@ const WIRETYP_32BIT    = 5
 const WIRETYPES = @compat Dict{Symbol,Tuple}(
     :int32          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
     :int64          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int64),
-    :uint32         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Uint32),
-    :uint64         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Uint64),
+    :uint32         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   UInt32),
+    :uint64         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   UInt64),
     :sint32         => (WIRETYP_VARINT,     :write_svarint, :read_svarint,  Int32),
     :sint64         => (WIRETYP_VARINT,     :write_svarint, :read_svarint,  Int64),
     :bool           => (WIRETYP_VARINT,     :write_bool,    :read_bool,     Bool),
@@ -26,7 +26,7 @@ const WIRETYPES = @compat Dict{Symbol,Tuple}(
     :double         => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
 
     :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   AbstractString),
-    :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{Uint8,1}),
+    :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{UInt8,1}),
     :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
 
     :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
@@ -37,13 +37,13 @@ const WIRETYPES = @compat Dict{Symbol,Tuple}(
 
 wiretypes(::Type{Int32})                    = [:int32, :sint32, :enum]
 wiretypes(::Type{Int64})                    = [:int64, :sint64]
-wiretypes(::Type{Uint32})                   = [:uint32]
-wiretypes(::Type{Uint64})                   = [:uint64]
+wiretypes(::Type{UInt32})                   = [:uint32]
+wiretypes(::Type{UInt64})                   = [:uint64]
 wiretypes(::Type{Bool})                     = [:bool]
 wiretypes(::Type{Float64})                  = [:double, :fixed, :sfixed64]
 wiretypes(::Type{Float32})                  = [:float, :fixed32, :sfixed32]
 wiretypes{T<:AbstractString}(::Type{T})     = [:string]
-wiretypes(::Type{Array{Uint8,1}})           = [:bytes]
+wiretypes(::Type{Array{UInt8,1}})           = [:bytes]
 wiretypes(::Type)                           = [:obj]
 wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
 
@@ -76,7 +76,7 @@ function _read_uleb{T <: Integer}(io::IO, typ::Type{T})
     n = 0
     byte = uint8(MSB)
     while (byte & MSB) != 0
-        byte = read(io, Uint8)
+        byte = read(io, UInt8)
         res |= (convert(typ, byte & MASK7) << (7*n))
         n += 1
     end
@@ -90,7 +90,7 @@ function _write_zigzag{T <: Integer}(io::IO, x::T)
 end
 
 function _read_zigzag{T <: Integer}(io::IO, typ::Type{T})
-    zx = _read_uleb(io, Uint64)
+    zx = _read_uleb(io, UInt64)
     # result is positive if zx is even
     convert(typ, iseven(zx) ? (zx >>> 1) : -((zx+1) >>> 1))
 end
@@ -100,7 +100,7 @@ end
 # read and write field keys
 _write_key(io::IO, fld::Int, wiretyp::Int) = _write_uleb(io, (fld << 3) | wiretyp)
 function _read_key(io::IO)
-    key = _read_uleb(io, Uint64)
+    key = _read_uleb(io, UInt64)
     wiretyp = key & MASK3
     fld = key >>> 3
     (fld, wiretyp)
@@ -114,12 +114,12 @@ write_bool(io::IO, x::Bool) = _write_uleb(io, x ? 1 : 0)
 write_svarint{T <: Integer}(io::IO, x::T) = _write_zigzag(io, x)
 
 read_varint{T <: Integer}(io::IO, typ::Type{T}) = _read_uleb(io, typ)
-read_bool(io::IO) = bool(_read_uleb(io, Uint64))
+read_bool(io::IO) = bool(_read_uleb(io, UInt64))
 read_bool(io::IO, ::Type{Bool}) = read_bool(io)
 read_svarint{T <: Integer}(io::IO, typ::Type{T}) = _read_zigzag(io, typ)
 
-write_fixed(io::IO, x::Float32) = _write_fixed(io, reinterpret(Uint32, x))
-write_fixed(io::IO, x::Float64) = _write_fixed(io, reinterpret(Uint64, x))
+write_fixed(io::IO, x::Float32) = _write_fixed(io, reinterpret(UInt32, x))
+write_fixed(io::IO, x::Float64) = _write_fixed(io, reinterpret(UInt64, x))
 function _write_fixed{T <: Unsigned}(io::IO, ux::T)
     N = sizeof(ux)
     for n in 1:N
@@ -133,25 +133,25 @@ read_fixed(io::IO, typ::Type{Float32}) = reinterpret(Float32, _read_fixed(io, ui
 read_fixed(io::IO, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, uint64(0), 8))
 function _read_fixed{T <: Unsigned}(io::IO, ret::T, N::Int)
     for n in 0:(N-1)
-        byte = convert(T, read(io, Uint8))
+        byte = convert(T, read(io, UInt8))
         ret |= (byte << 8*n)
     end
     ret
 end
 
-function write_bytes(io::IO, data::Array{Uint8,1})
+function write_bytes(io::IO, data::Array{UInt8,1})
     n = _write_uleb(io, sizeof(data))
     n += write(io, data)
     n
 end
 
 function read_bytes(io::IO)
-    n = _read_uleb(io, Uint64)
-    data = Array(Uint8, n)
+    n = _read_uleb(io, UInt64)
+    data = Array(UInt8, n)
     read!(io, data)
     data
 end
-read_bytes(io::IO, ::Type{Array{Uint8,1}}) = read_bytes(io)
+read_bytes(io::IO, ::Type{Array{UInt8,1}}) = read_bytes(io)
 
 write_string(io::IO, x::AbstractString) = write_string(io, bytestring(x))
 write_string(io::IO, x::ByteString) = write_bytes(io, x.data)
@@ -336,7 +336,7 @@ end
 ##
 # helpers
 const _metacache = ObjectIdDict() #Dict{Type, ProtoMeta}()
-const _fillcache = Dict{Uint, Array{Symbol,1}}()
+const _fillcache = Dict{UInt, Array{Symbol,1}}()
 
 const DEF_REQ = Symbol[]
 const DEF_FNUM = Int[]
@@ -366,7 +366,7 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
         fldtyp = types[fldidx]
         fldname = names[fldidx]
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
-        isarr = (fldtyp.name === Array.name) && !(fldtyp === Array{Uint8,1})
+        isarr = (fldtyp.name === Array.name) && !(fldtyp === Array{UInt8,1})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
         elemtyp = isarr ? fldtyp.parameters[1] : fldtyp
         wtyp = get(wtypes, fldname, wiretype(elemtyp))

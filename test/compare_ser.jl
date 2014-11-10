@@ -22,9 +22,9 @@ import ProtoBuf.meta
 type TestType
     b::Bool
     i32::Int32
-    iu32::Uint32
+    iu32::UInt32
     i64::Int64
-    ui64::Uint64
+    ui64::UInt64
     f32::Float32
     f64::Float64
     s::ASCIIString
