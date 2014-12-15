@@ -2,8 +2,12 @@ module ProtoBufTestApis
 using ProtoBuf
 import ProtoBuf.meta
 
+if isless(Base.VERSION, v"0.4.0-")
+typealias AbstractString String
+end
+
 type TestType
-    a::String
+    a::AbstractString
     b::Bool
     TestType() = (o=new(); fillunset(o); o)
 end #type TestType
@@ -15,7 +19,7 @@ function test_apis()
     @assert !has_field(t, :a)
     @assert !has_field(t, :b)
 
-    @assert false == try get_field(t, :a); end
+    @assert false == try get_field(t, :a); true; catch; false; end
 
     set_field(t, :b, true)
     @assert has_field(t, :b)

@@ -7,6 +7,8 @@ export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfille
 export copy!, set_field, get_field, clear, add_field, has_field, isinitialized
 export ProtoEnum, lookup
 
+using Compat
+
 # Julia 0.2 compatibility patch
 if isless(Base.VERSION, v"0.3.0-")
 setfield!(a,b,c) = setfield(a,b,c)
