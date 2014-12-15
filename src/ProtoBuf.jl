@@ -14,6 +14,10 @@ if isless(Base.VERSION, v"0.3.0-")
 setfield!(a,b,c) = setfield(a,b,c)
 read!(a::IO,b::Array) = read(a,b)
 end
+if isless(Base.VERSION, v"0.4.0-")
+import Base.rsplit
+rsplit{T<:String}(str::T, splitter; limit::Integer=0, keep::Bool=true) = rsplit(str, splitter, limit, keep)
+end
 
 # enable logging only during debugging
 #using Logging
