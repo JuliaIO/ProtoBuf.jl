@@ -336,11 +336,15 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     # generate imports
     if isfilled(protofile, :dependency)
         protofile_imports[protofile.name] = protofile.dependency
+        using_pkgs = Set{AbstractString}()
         for dependency in protofile.dependency
             if haskey(_packages, dependency)
-                println(io, "using $(_packages[dependency])")
+                push!(using_pkgs, _packages[dependency])
                 push!(depends, _packages[dependency])
             end
+        end
+        for dependency in using_pkgs
+            println(io, "using $dependency")
         end
     end
     println(io, "using ProtoBuf")
