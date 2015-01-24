@@ -138,7 +138,7 @@ function findmodule(name::AbstractString)
     mlen = 0
     mpkg = ""
     for pkg in values(_packages)
-        if (length(pkg) > mlen) && beginswith(name, pkg)
+        if (length(pkg) > mlen) && startswith(name, pkg)
             mlen = length(pkg)
             mpkg = pkg
         end
@@ -223,7 +223,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
             full_typ_name = ""
             if (field.typ == TYPE_MESSAGE) || (field.typ == TYPE_ENUM)
                 typ_name = field.typ_name
-                if beginswith(typ_name, '.')
+                if startswith(typ_name, '.')
                     (m,t) = findmodule(typ_name[2:end])
                     full_typ_name = m=="" ? t : "$(m).$(t)"
                     typ_name = (m == modul) ? t : full_typ_name
