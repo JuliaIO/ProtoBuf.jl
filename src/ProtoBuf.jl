@@ -6,6 +6,9 @@ import Base.show, Base.copy!
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfilled, fillset, fillunset, show
 export copy!, set_field, get_field, clear, add_field, has_field, isinitialized
 export ProtoEnum, lookup
+export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescriptor, ServiceDescriptor, ProtoService,
+       AbstractProtoServiceStub, GenericProtoServiceStub, ProtoServiceStub, ProtoServiceBlockingStub,
+       find_method, get_request_type, get_response_type, get_descriptor_for_type, call_method
 
 using Compat
 
@@ -26,6 +29,7 @@ end
 logmsg(s) = nothing
 
 include("codec.jl")
+include("svc.jl")
 include("gen.jl")
 
 # utility methods

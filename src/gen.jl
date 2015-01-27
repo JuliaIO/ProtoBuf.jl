@@ -116,7 +116,7 @@ function get_module_scope(parent::Scope, newname::AbstractString)
     s
 end
 
-function qualify(name::AbstractString, scope::Scope) 
+function qualify(name::AbstractString, scope::Scope)
     if name in scope.syms
         return pfx(name, scope) 
     elseif isdefined(scope, :parent)
@@ -312,8 +312,70 @@ function protofile_name_to_module_name(n::AbstractString)
     return name
 end
 
+function has_gen_services(opt::FileOptions)
+    isfilled(opt, :cc_generic_services) && opt.cc_generic_services && return true
+    isfilled(opt, :py_generic_services) && opt.py_generic_services && return true
+    isfilled(opt, :java_generic_services) && opt.java_generic_services && return true
+    return false
+end
+
+function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int, exports::Array{AbstractString,1})
+    nmethods = isfilled(stype, :method) ? length(stype.method) : 0
+
+    # generate method and service descriptors
+    println(io, "# service methods for $(stype.name)")
+    println(io, "const _$(stype.name)_methods = MethodDescriptor[")
+    for idx in 1:nmethods
+        method = stype.method[idx]
+        sm = splitmodule(method.input_type)
+        _modul,in_typ_name = (length(sm) > 1) ? (sm[1],sm[2]) : ("",method.input_type)
+        sm = splitmodule(method.output_type)
+        _modul,out_typ_name = (length(sm) > 1) ? (sm[1],sm[2]) : ("",method.output_type)
+        elem_sep = (idx < nmethods) ? "," : ""
+        println(io, "        MethodDescriptor(\"$(method.name)\", $(idx), $(in_typ_name), $(out_typ_name))$(elem_sep)")
+    end
+    println(io, "    ] # const _$(stype.name)_methods")
+    println(io, "const _$(stype.name)_desc = ServiceDescriptor(\"$(stype.name)\", $(svcidx), _$(stype.name)_methods)")
+    println(io, "")
+
+    # generate service
+    println(io, "$(stype.name)(impl::Module) = ProtoService(_$(stype.name)_desc, impl)")
+    println(io, "")
+    push!(exports, stype.name)
+
+    # generate stubs
+    stub = "$(stype.name)Stub"
+    println(io, "type $(stub) <: AbstractProtoServiceStub{false}")
+    println(io, "    impl::ProtoServiceStub")
+    println(io, "    $(stub)(channel::ProtoRpcChannel) = new(ProtoServiceStub(_$(stype.name)_desc, channel))")
+    println(io, "end # type $(stub)")
+    println(io, "")
+    push!(exports, stub)
+
+    nbstub = "$(stype.name)BlockingStub"
+    println(io, "type $(nbstub) <: AbstractProtoServiceStub{true}")
+    println(io, "    impl::ProtoServiceBlockingStub")
+    println(io, "    $(nbstub)(channel::ProtoRpcChannel) = new(ProtoServiceBlockingStub(_$(stype.name)_desc, channel))")
+    println(io, "end # type $(nbstub)")
+    println(io, "")
+    push!(exports, nbstub)
+
+    for idx in 1:nmethods
+        method = stype.method[idx]
+        sm = splitmodule(method.input_type)
+        _modul,in_typ_name = (length(sm) > 1) ? (sm[1],sm[2]) : ("",method.input_type)
+        println(io, "$(method.name)(stub::$(stub), controller::ProtoRpcController, inp::$(in_typ_name), done::Function) = call_method(stub.impl, _$(stype.name)_methods[$(idx)], controller, inp, done)")
+        println(io, "$(method.name)(stub::$(nbstub), controller::ProtoRpcController, inp::$(in_typ_name)) = call_method(stub.impl, _$(stype.name)_methods[$(idx)], controller, inp)")
+        println(io, "")
+        push!(exports, method.name)
+    end
+end
+
 function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     #logmsg("generate begin for $(protofile.name), package $(protofile.package)")
+
+    svcs = isfilled(protofile, :options) ? has_gen_services(protofile.options) : false
+    #logmsg("generate services: $svcs")
 
     scope = top_scope
     if !isempty(protofile.package)
@@ -368,6 +430,17 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         for message_type in protofile.message_type
             generate(io, errio, message_type, scope, exports, depends)
             (errio.size > 0) && return 
+        end
+    end
+
+    # generate service stubs
+    #logmsg("generating services")
+    if svcs && isfilled(protofile, :service)
+        nservices = length(protofile.service)
+        for idx in 1:nservices
+            service = protofile.service[idx]
+            generate(io, errio, service, idx, exports)
+            (errio.size > 0) && return
         end
     end
 
