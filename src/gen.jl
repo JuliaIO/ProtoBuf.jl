@@ -276,10 +276,10 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums)]
     !isempty(reqflds) && println(io, "const __req_$(dtypename) = Symbol[$(join(reqflds, ','))]")
-    !isempty(defvals) && println(io, "const __val_$(dtypename) = [$(join(defvals, ", "))]")
+    !isempty(defvals) && println(io, "const __val_$(dtypename) = @compat Dict($(join(defvals, ", ")))")
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
-    !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = [$(join(wtypes, ", "))]")
+    !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = @compat Dict($(join(wtypes, ", ")))")
     if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)]) || !isempty(packedflds) || !isempty(wtypes)
         #logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
@@ -405,10 +405,16 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
                 push!(depends, _packages[dependency])
             end
         end
+    
+        fullscopename = scope.is_module ? fullname(scope) : ""
+        parentscope = (isdefined(scope, :parent) && scope.parent.is_module) ? fullname(scope.parent) : ""
         for dependency in using_pkgs
+            (fullscopename == dependency) && continue
+            !isempty(parentscope) && startswith(dependency, parentscope) && (dependency = ".$(dependency[length(parentscope)+1:end])")
             println(io, "using $dependency")
         end
     end
+    println(io, "using Compat")
     println(io, "using ProtoBuf")
     println(io, "import ProtoBuf.meta")
     println(io, "")
@@ -507,7 +513,9 @@ function print_package(io::IO, s::Scope, indent="")
         fname = string(protofile_name_to_module_name(f), ".jl")
         println(io, "$(nested)include(\"$fname\")")
     end
-    for c in children
+    for c in s.children
+        # check if already included
+        (c in children) || continue
         print_package(io, c, nested)
     end
     println(io, "$(indent)end")
