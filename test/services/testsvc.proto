@@ -1,0 +1,16 @@
+option py_generic_services = true;
+option java_generic_services = true;
+
+message BinaryOpReq {
+    required int64 i1 = 1;
+    required int64 i2 = 2;
+}
+
+message BinaryOpResp {
+    required int64 result = 1;
+}
+
+service TestMath {
+  rpc Mul(BinaryOpReq) returns(BinaryOpResp);
+  rpc Add(BinaryOpReq) returns(BinaryOpResp);
+}

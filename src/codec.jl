@@ -92,7 +92,7 @@ end
 function _read_zigzag{T <: Integer}(io::IO, typ::Type{T})
     zx = _read_uleb(io, UInt64)
     # result is positive if zx is even
-    convert(typ, iseven(zx) ? (zx >>> 1) : -((zx+1) >>> 1))
+    convert(typ, iseven(zx) ? (zx >>> 1) : -signed((zx+1) >>> 1))
 end
 
 
@@ -196,7 +196,7 @@ function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,
 end
 
 function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
-    !isempty(attrib.default) && isequal(val, attrib.default[1]) && (return 0)
+    #!isempty(attrib.default) && isequal(val, attrib.default[1]) && (return 0)
     fld = attrib.fldnum
     meta = attrib.meta
     ptyp = attrib.ptyp
@@ -324,7 +324,7 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         fld = attrib.fld
         if !isfilled(obj, fld) && (length(attrib.default) > 0)
             default = attrib.default[1]
-            setfield!(obj, fld, deepcopy(default))
+            setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
             fillset(obj, fld)
         end
     end
