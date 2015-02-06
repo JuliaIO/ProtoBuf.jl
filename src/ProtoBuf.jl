@@ -22,6 +22,12 @@ import Base.rsplit
 rsplit{T<:String}(str::T, splitter; limit::Integer=0, keep::Bool=true) = rsplit(str, splitter, limit, keep)
 end
 
+if isless(Base.VERSION, v"0.4.0-")
+fld_type(o, fld) = fieldtype(o, fld)
+else
+fld_type(o, fld) = fieldtype(typeof(o), fld)
+end
+
 # enable logging only during debugging
 #using Logging
 #const logger = Logging.configure(filename="protobuf.log", level=DEBUG)

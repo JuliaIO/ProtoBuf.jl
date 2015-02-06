@@ -324,7 +324,7 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         fld = attrib.fld
         if !isfilled(obj, fld) && (length(attrib.default) > 0)
             default = attrib.default[1]
-            setfield!(obj, fld, convert(fieldtype(typeof(obj), fld), deepcopy(default)))
+            setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
             fillset(obj, fld)
         end
     end
