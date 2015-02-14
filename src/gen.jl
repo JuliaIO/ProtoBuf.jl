@@ -237,6 +237,14 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                 push!(wtypes, ":$fldname => :sint32")
             elseif field.typ == TYPE_SINT64
                 push!(wtypes, ":$fldname => :sint64")
+            elseif field.typ == TYPE_FIXED32
+                push!(wtypes, ":$fldname => :fixed32")
+            elseif field.typ == TYPE_SFIXED32
+                push!(wtypes, ":$fldname => :sfixed32")
+            elseif field.typ == TYPE_FIXED64
+                push!(wtypes, ":$fldname => :fixed64")
+            elseif field.typ == TYPE_SFIXED64
+                push!(wtypes, ":$fldname => :sfixed64")
             end
             enum_typ_name = (field.typ == TYPE_ENUM) ? typ_name : ""
             (field.typ != TYPE_MESSAGE) && (typ_name = "$(JTYPES[field.typ])")
