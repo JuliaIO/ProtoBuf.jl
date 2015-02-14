@@ -171,7 +171,7 @@ const TYPE_SFIXED64       = 16
 const TYPE_SINT32         = 17
 const TYPE_SINT64         = 18
 
-const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, Float64, Float32, Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Float32, Float64, Int32, Int64]
+const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Int32, Int64, Int32, Int64]
 const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0]
 
 const LABEL_OPTIONAL      = 1

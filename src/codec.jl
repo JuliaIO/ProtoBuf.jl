@@ -21,27 +21,28 @@ const WIRETYPES = @compat Dict{Symbol,Tuple}(
     :bool           => (WIRETYP_VARINT,     :write_bool,    :read_bool,     Bool),
     :enum           => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
 
-    :fixed64        => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
-    :sfixed64       => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
+    :fixed64        => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    UInt64),
+    :sfixed64       => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Int64),
     :double         => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
 
     :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   AbstractString),
     :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{UInt8,1}),
     :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
 
-    :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
-    :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32),
+    :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    UInt32),
+    :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Int32),
     :float          => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32)
 )
 
+aliaswiretypes(wtype::Symbol) = wiretypes(WIRETYPES[wtype][4])
 
-wiretypes(::Type{Int32})                    = [:int32, :sint32, :enum]
-wiretypes(::Type{Int64})                    = [:int64, :sint64]
-wiretypes(::Type{UInt32})                   = [:uint32]
-wiretypes(::Type{UInt64})                   = [:uint64]
+wiretypes(::Type{Int32})                    = [:int32, :sint32, :enum, :sfixed32]
+wiretypes(::Type{Int64})                    = [:int64, :sint64, :sfixed64]
+wiretypes(::Type{UInt32})                   = [:uint32, :fixed32]
+wiretypes(::Type{UInt64})                   = [:uint64, :fixed64]
 wiretypes(::Type{Bool})                     = [:bool]
-wiretypes(::Type{Float64})                  = [:double, :fixed, :sfixed64]
-wiretypes(::Type{Float32})                  = [:float, :fixed32, :sfixed32]
+wiretypes(::Type{Float64})                  = [:double]
+wiretypes(::Type{Float32})                  = [:float]
 wiretypes{T<:AbstractString}(::Type{T})     = [:string]
 wiretypes(::Type{Array{UInt8,1}})           = [:bytes]
 wiretypes(::Type)                           = [:obj]
@@ -52,7 +53,7 @@ wiretype(t::Type) = wiretypes(t)[1]
 defaultval{T<:Number}(::Type{T})            = [convert(T,0)]
 defaultval{T<:AbstractString}(::Type{T})    = [convert(T,"")]
 defaultval(::Type{Bool})                    = [false]
-defaultval{T}(::Type{Array{T,1}})           = [T[]]
+defaultval{T}(::Type{Array{T,1}})           = Any[T[]]
 defaultval(::Type)                          = []
 
 
@@ -118,6 +119,10 @@ read_bool(io::IO) = bool(_read_uleb(io, UInt64))
 read_bool(io::IO, ::Type{Bool}) = read_bool(io)
 read_svarint{T <: Integer}(io::IO, typ::Type{T}) = _read_zigzag(io, typ)
 
+write_fixed(io::IO, x::UInt32) = _write_fixed(io, x)
+write_fixed(io::IO, x::UInt64) = _write_fixed(io, x)
+write_fixed(io::IO, x::Int32) = _write_fixed(io, reinterpret(UInt32, x))
+write_fixed(io::IO, x::Int64) = _write_fixed(io, reinterpret(UInt64, x))
 write_fixed(io::IO, x::Float32) = _write_fixed(io, reinterpret(UInt32, x))
 write_fixed(io::IO, x::Float64) = _write_fixed(io, reinterpret(UInt64, x))
 function _write_fixed{T <: Unsigned}(io::IO, ux::T)
@@ -129,6 +134,10 @@ function _write_fixed{T <: Unsigned}(io::IO, ux::T)
     N
 end
 
+read_fixed(io::IO, typ::Type{UInt32}) = _read_fixed(io, uint32(0), 4)
+read_fixed(io::IO, typ::Type{UInt64}) = _read_fixed(io, uint64(0), 8)
+read_fixed(io::IO, typ::Type{Int32}) = reinterpret(Int32, _read_fixed(io, uint32(0), 4))
+read_fixed(io::IO, typ::Type{Int64}) = reinterpret(Int64, _read_fixed(io, uint64(0), 8))
 read_fixed(io::IO, typ::Type{Float32}) = reinterpret(Float32, _read_fixed(io, uint32(0), 4))
 read_fixed(io::IO, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, uint64(0), 8))
 function _read_fixed{T <: Unsigned}(io::IO, ret::T, N::Int)

@@ -11,11 +11,11 @@ end
 enum(x) = int(x)
 sint32(x) = int32(x)
 sint64(x) = int64(x)
-fixed64(x) = float64(x)
-sfixed64(x) = float64(x)
+fixed64(x) = uint64(x)
+sfixed64(x) = int64(x)
 double(x) = float64(x)
-fixed32(x) = float32(x)
-sfixed32(x) = float32(x)
+fixed32(x) = uint32(x)
+sfixed32(x) = int32(x)
 
 print_hdr(tname) = println("testing $tname...")
 
