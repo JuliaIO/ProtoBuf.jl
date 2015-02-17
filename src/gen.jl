@@ -37,6 +37,7 @@ const _deferred = Dict{AbstractString,DeferredWrite}()
 const _all_resolved = Set{AbstractString}()
 
 function defer(name::AbstractString, iob::IOBuffer, depends::AbstractString)
+    #logmsg("defer $name due to $depends")
     if isdeferred(name)
         depsnow = _deferred[name].depends
         !(depends in depsnow) && push!(depsnow, depends)
@@ -69,6 +70,7 @@ function resolve(iob::IOBuffer, name::AbstractString)
         #logmsg("resolved $typ")
         print(iob, takebuf_string(_deferred[typ].iob))
         delete!(_deferred, typ)
+        push!(_all_resolved, typ)
     end
 
     # mark them resolved as well
@@ -184,7 +186,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     full_dtypename = dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
     modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
-    #logmsg("begin type $(dtypename)")
+    #logmsg("begin type $(full_dtypename)")
 
     scope = Scope(dtype.name, scope)
     # generate enums
@@ -270,7 +272,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
             isfilled(field, :options) && field.options.packed && push!(packedflds, ":"*fldname)
 
             if !(isresolved(dtypename, typ_name, exports) || full_typ_name in _all_resolved)
-                defer(dtypename, io, typ_name)
+                defer(full_dtypename, io, full_typ_name)
             end
 
             typ_name = short_type_name(typ_name, depends)
@@ -282,13 +284,13 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     println(io, "end #type $(dtypename)")
 
     # generate the meta for this type if required
-    _d_fldnums = [1:length(fldnums)]
+    _d_fldnums = [1:length(fldnums);]
     !isempty(reqflds) && println(io, "const __req_$(dtypename) = Symbol[$(join(reqflds, ','))]")
     !isempty(defvals) && println(io, "const __val_$(dtypename) = @compat Dict($(join(defvals, ", ")))")
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
     !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = @compat Dict($(join(wtypes, ", ")))")
-    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums)]) || !isempty(packedflds) || !isempty(wtypes)
+    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes)
         #logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
         print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
@@ -303,14 +305,14 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     println(io, "")
     push!(exports, dtypename)
 
-    if !isdeferred(dtypename)
-        #logmsg("resolved $dtypename")
+    if !isdeferred(full_dtypename)
+        #logmsg("resolved $full_dtypename")
         print(outio, takebuf_string(io))
-        resolve(outio, dtypename)
+        resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
     
-    #logmsg("end type $(dtypename)")
+    #logmsg("end type $(full_dtypename)")
 end
 
 function protofile_name_to_module_name(n::AbstractString)
