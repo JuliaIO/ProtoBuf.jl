@@ -175,12 +175,22 @@ bool        | Bool              |
 string      | ByteString        | A string must always contain UTF-8 encoded or 7-bit ASCII text.
 bytes       | Array{Uint8,1}    | May contain any arbitrary sequence of bytes.
 
+### Generic Services
+The Julia code generator generates code for generic services if they are switched on for either C++ `(cc_generic_services)`, Python `(py_generic_services)` or Java `(java_generic_services)`.
+
+To use generic services, users provide implementations of the RPC controller, RPC channel, and service methods.
+
+The RPC Controller must be an implementation of `ProtoRpcController`. It is not currently used by the generated code except for passing it on to the RPC channel.
+
+The RPC channel must implement `call_method(channel, method_descriptor, controller, request)` and return the response.
+
+Service stubs are Julia types. Stubs can be constructed by passing an RPC channel to the constructor. For each service, two stubs are generated:
+- <servicename>Stub: The asynchronous stub that takes a callback to invoke with the result on completion
+- <servicename>BlockingStub: The blocking stub that returns the result on completion
 
 ## Caveats &amp; TODOs
 
 - Extensions are not supported yet.
-- Services are not supported. Generic services are deprecated in protocol buffers. Specific implementations may exist separately.
 - Groups are not supported. They are deprecated anyway.
 - Julia does not have `enum` types. In generated code, enums are declared as `Int32` types, but a separate Julia type is generated with fields same as the enum values which can be used for validation. The types representing enums extend from the abstract type `ProtoEnum` and the `lookup` method can be used to verify valid values.
-
 
