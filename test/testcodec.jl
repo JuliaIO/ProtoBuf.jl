@@ -8,14 +8,11 @@ if isless(Base.VERSION, v"0.4.0-")
 typealias AbstractString String
 end
 
-enum(x) = int(x)
-sint32(x) = int32(x)
-sint64(x) = int64(x)
-fixed64(x) = uint64(x)
-sfixed64(x) = int64(x)
-double(x) = float64(x)
-fixed32(x) = uint32(x)
-sfixed32(x) = int32(x)
+macro _rand_int(T,mx,a)
+   esc(quote
+       @compat $(T)(round(rand() * $(mx)) + $(a))
+   end)
+end
 
 print_hdr(tname) = println("testing $tname...")
 
@@ -131,32 +128,48 @@ function test_types()
     testval = TestType(0)
     readval = TestType(0)
 
-    for typ in [:int32, :int64, :uint32, :uint64, :sint32, :sint64, :bool, :enum]
-        print_hdr(typ)
-        for idx in 1:100
-            testval.val = eval(typ)(rand() * 10^9)
-            meta = mk_test_meta(int(rand() * 100) + 1, typ)
-            writeproto(pb, testval, meta) 
-            readproto(pb, readval, meta)
-            assert_equal(testval, readval)
+    # test enum
+    print_hdr("enum")
+    testval.val = @_rand_int(Int32, 10^9, 0)
+    fldnum = @_rand_int(Int, 100, 1)
+    meta = mk_test_meta(fldnum, :enum)
+    writeproto(pb, testval, meta)
+    readproto(pb, readval, meta)
+    assert_equal(testval, readval)
+
+    let typs = [Int32,Int64,UInt32,UInt64,Bool,Int32,Int64,Uint64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:bool,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
+        for (typ,ptyp) in zip(typs,ptyps)
+            print_hdr(ptyp)
+            for idx in 1:100
+                testval.val = convert(typ, @_rand_int(UInt32, 10^9, 0))
+                fldnum = @_rand_int(Int, 100, 1)
+                meta = mk_test_meta(fldnum, ptyp)
+                writeproto(pb, testval, meta)
+                readproto(pb, readval, meta)
+                assert_equal(testval, readval)
+            end
         end
     end
 
-    for typ in [:fixed64, :sfixed64, :double, :fixed32, :sfixed32, :float]
-        print_hdr(typ)
-        for idx in 1:100
-            testval.val = (typ != :float) ? eval(typ)(rand() * 10^9) : float32(rand() * 10^9)
-            meta = mk_test_meta(int(rand() * 100) + 1, typ)
-            writeproto(pb, testval, meta) 
-            readproto(pb, readval, meta)
-            assert_equal(testval, readval)
+    let typs = [Float64,Float32], ptyps=[:double,:float]
+        for (typ,ptyp) in zip(typs,ptyps)
+            print_hdr(ptyp)
+            for idx in 1:100
+                testval.val = convert(typ, @_rand_int(UInt32, 10^9, 0))
+                fldnum = @_rand_int(Int, 100, 1)
+                meta = mk_test_meta(fldnum, ptyp)
+                writeproto(pb, testval, meta) 
+                readproto(pb, readval, meta)
+                assert_equal(testval, readval)
+            end
         end
     end
 
     print_hdr("string")
     for idx in 1:100
         testval.val = randstring(50)
-        meta = mk_test_meta(int(rand() * 100) + 1, :string)
+        fldnum = @_rand_int(Int, 100, 1)
+        meta = mk_test_meta(fldnum, :string)
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
         assert_equal(testval, readval)
@@ -172,7 +185,8 @@ function test_repeats()
     for idx in 1:100
         testval.val = convert(Array{Int64,1}, randstring(50).data)
         readval.val = Int64[]
-        meta = mk_test_meta(int(rand() * 100) + 1, :int64)
+        fldnum = @_rand_int(Int, 100, 1)
+        meta = mk_test_meta(fldnum, :int64)
         meta.ordered[1].occurrence = 2
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
@@ -183,7 +197,8 @@ function test_repeats()
     for idx in 1:100
         testval.val = convert(Array{Int64,1}, randstring(50).data)
         readval.val = Int64[]
-        meta = mk_test_meta(int(rand() * 100) + 1, :int64)
+        fldnum = @_rand_int(Int, 100, 1)
+        meta = mk_test_meta(fldnum, :int64)
         meta.ordered[1].occurrence = 2
         meta.ordered[1].packed = true
         writeproto(pb, testval, meta) 
@@ -195,7 +210,8 @@ function test_repeats()
     for idx in 1:100
         testval.val = [randstring(5) for i in 1:10] 
         readval.val = AbstractString[]
-        meta = mk_test_meta(int(rand() * 100) + 1, :string)
+        fldnum = @_rand_int(Int, 100, 1)
+        meta = mk_test_meta(fldnum, :string)
         meta.ordered[1].occurrence = 2
         writeproto(pb, testval, meta) 
         readproto(pb, readval, meta)
@@ -210,9 +226,9 @@ function test_optional()
     readval = TestOptional(TestStr(""), TestStr(""), Int64[])
 
     for idx in 1:100
-        testval.sVal1 = TestStr(string(int(rand() * 100)))
+        testval.sVal1 = TestStr(string(@_rand_int(Int, 100, 0)))
         testval.sVal2 = TestStr(randstring(5))
-        testval.iVal2 = Int64[int(rand() * 100) for i in 1:10]
+        testval.iVal2 = Int64[@_rand_int(Int,100,0) for i in 1:10]
         sVal1Opt = rand(Bool)
         sVal2Opt = rand(Bool)
         meta = mk_test_optional_meta(sVal1Opt, sVal2Opt)
@@ -241,10 +257,10 @@ function test_nested()
     readval = TestNested(readfld1, readfld2, TestStr[])
 
     for idx in 1:100
-        testfld1.val = int64(rand() * 10^9)
-        testfld2.sVal1 = TestStr(string(int(rand() * 100)))
+        testfld1.val = @_rand_int(Int64, 10^9, 0)
+        testfld2.sVal1 = TestStr(string(@_rand_int(Int, 100, 0)))
         testfld2.sVal2 = TestStr(randstring(5))
-        testfld2.iVal2 = Int64[int(rand() * 100) for i in 1:10]
+        testfld2.iVal2 = Int64[@_rand_int(Int, 100, 0) for i in 1:10]
 
         o1 = rand(Bool)
         o2 = rand(Bool)
@@ -277,7 +293,7 @@ function test_defaults()
 
     testval = TestDefaults()
     readval = TestDefaults()
-    testval.iVal1 = int(rand() * 100)
+    testval.iVal1 = @_rand_int(Int, 100, 0)
     writeproto(pb, testval)
     readproto(pb, readval)
 

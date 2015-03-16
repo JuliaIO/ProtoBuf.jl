@@ -20,6 +20,7 @@ end
 if isless(Base.VERSION, v"0.4.0-")
 import Base.rsplit
 rsplit{T<:String}(str::T, splitter; limit::Integer=0, keep::Bool=true) = rsplit(str, splitter, limit, keep)
+fieldnames(t) = names(t)
 end
 
 if isless(Base.VERSION, v"0.4.0-")
@@ -44,7 +45,7 @@ function copy!(to::Any, from::Any)
     fromtype = typeof(from)
     (totype != fromtype) && error("Can't copy a type $fromtype to $totype")
     fillunset(to)
-    for name in totype.names
+    for name in fieldnames(totype)
         if isfilled(from, name)
             setfield!(to, name, getfield(from, name))
             fillset(to, name)
