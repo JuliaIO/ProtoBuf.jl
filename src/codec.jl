@@ -67,7 +67,7 @@ function _write_uleb{T <: Integer}(io::IO, x::T)
         else
             cont = false
         end
-        nw += write(io, uint8(byte))
+        nw += write(io, @compat UInt8(byte))
     end
     nw
 end
@@ -75,7 +75,7 @@ end
 function _read_uleb{T <: Integer}(io::IO, typ::Type{T})
     res = convert(typ, 0) 
     n = 0
-    byte = uint8(MSB)
+    byte = @compat UInt8(MSB)
     while (byte & MSB) != 0
         byte = read(io, UInt8)
         res |= (convert(typ, byte & MASK7) << (7*n))
@@ -115,7 +115,7 @@ write_bool(io::IO, x::Bool) = _write_uleb(io, x ? 1 : 0)
 write_svarint{T <: Integer}(io::IO, x::T) = _write_zigzag(io, x)
 
 read_varint{T <: Integer}(io::IO, typ::Type{T}) = _read_uleb(io, typ)
-read_bool(io::IO) = bool(_read_uleb(io, UInt64))
+read_bool(io::IO) = @compat Bool(_read_uleb(io, UInt64))
 read_bool(io::IO, ::Type{Bool}) = read_bool(io)
 read_svarint{T <: Integer}(io::IO, typ::Type{T}) = _read_zigzag(io, typ)
 
@@ -128,18 +128,18 @@ write_fixed(io::IO, x::Float64) = _write_fixed(io, reinterpret(UInt64, x))
 function _write_fixed{T <: Unsigned}(io::IO, ux::T)
     N = sizeof(ux)
     for n in 1:N
-        write(io, uint8(ux & MASK8))
+        write(io, @compat UInt8(ux & MASK8))
         ux >>>= 8
     end
     N
 end
 
-read_fixed(io::IO, typ::Type{UInt32}) = _read_fixed(io, uint32(0), 4)
-read_fixed(io::IO, typ::Type{UInt64}) = _read_fixed(io, uint64(0), 8)
-read_fixed(io::IO, typ::Type{Int32}) = reinterpret(Int32, _read_fixed(io, uint32(0), 4))
-read_fixed(io::IO, typ::Type{Int64}) = reinterpret(Int64, _read_fixed(io, uint64(0), 8))
-read_fixed(io::IO, typ::Type{Float32}) = reinterpret(Float32, _read_fixed(io, uint32(0), 4))
-read_fixed(io::IO, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, uint64(0), 8))
+read_fixed(io::IO, typ::Type{UInt32}) = _read_fixed(io, convert(UInt32,0), 4)
+read_fixed(io::IO, typ::Type{UInt64}) = _read_fixed(io, convert(UInt64,0), 8)
+read_fixed(io::IO, typ::Type{Int32}) = reinterpret(Int32, _read_fixed(io, convert(UInt32,0), 4))
+read_fixed(io::IO, typ::Type{Int64}) = reinterpret(Int64, _read_fixed(io, convert(UInt64,0), 8))
+read_fixed(io::IO, typ::Type{Float32}) = reinterpret(Float32, _read_fixed(io, convert(UInt32,0), 4))
+read_fixed(io::IO, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, convert(UInt64,0), 8))
 function _read_fixed{T <: Unsigned}(io::IO, ret::T, N::Int)
     for n in 0:(N-1)
         byte = convert(T, read(io, UInt8))
@@ -292,7 +292,7 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         fldnum, wiretyp = _read_key(io)
         #logmsg("reading fldnum: $(typeof(obj)).$fldnum")
 
-        attrib = meta.numdict[int(fldnum)]
+        attrib = meta.numdict[@compat Int(fldnum)]
         ptyp = attrib.ptyp
         fld = attrib.fld
         fillset(obj, fld)
