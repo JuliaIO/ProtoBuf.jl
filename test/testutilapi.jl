@@ -1,5 +1,7 @@
 module ProtoBufTestApis
 using ProtoBuf
+using Compat
+using Base.Test
 import ProtoBuf.meta
 
 if isless(Base.VERSION, v"0.4.0-")
@@ -16,26 +18,30 @@ meta(t::Type{TestType}) = meta(t, Symbol[:a], Int[], Dict{Symbol,Any}())
 function test_apis()
     t = TestType()
 
-    @assert !has_field(t, :a)
-    @assert !has_field(t, :b)
+    @test !has_field(t, :a)
+    @test !has_field(t, :b)
 
-    @assert false == try get_field(t, :a); true; catch; false; end
+    @test false == try get_field(t, :a); true; catch; false; end
 
-    set_field(t, :b, true)
-    @assert has_field(t, :b)
-    @assert (get_field(t, :b) == true)
+    set_field!(t, :b, true)
+    @test has_field(t, :b)
+    @test (get_field(t, :b) == true)
 
-    @assert !isinitialized(t)
+    @test !isinitialized(t)
     t.a = "hello"
-    @assert !isinitialized(t)
-    set_field(t, :a, "hello world")
-    @assert isinitialized(t)
-    @assert (get_field(t, :a) ==  "hello world")
+    @test !isinitialized(t)
+    set_field!(t, :a, "hello world")
+    @test isinitialized(t)
+    @test (get_field(t, :a) ==  "hello world")
 
     clear(t, :b)
-    @assert isinitialized(t)
+    @test isinitialized(t)
     clear(t)
-    @assert !isinitialized(t)
+    @test !isinitialized(t)
+
+    t = protobuild(TestType, @compat Dict(:a => "hello", :b => false))
+    @test t.a == "hello"
+    @test t.b == false
 end
 end # module ProtoBufTestApis
 
