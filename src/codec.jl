@@ -369,7 +369,7 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
     cache ? (_metacache[typ] = m) : m
 
     attribs = ProtoMetaAttribs[]
-    names = fieldnames(typ)
+    names = @compat fieldnames(typ)
     types = typ.types
     for fldidx in 1:length(names)
         fldtyp = types[fldidx]
@@ -409,7 +409,7 @@ function filled(obj)
     haskey(_fillcache, oid) && return _fillcache[oid]
 
     fill = Symbol[]
-    for fldname in fieldnames(typeof(obj))
+    for fldname in @compat fieldnames(typeof(obj))
         isdefined(obj, fldname) && push!(fill, fldname)
     end
     if !isimmutable(obj)
@@ -443,7 +443,7 @@ end
 abstract ProtoEnum
 
 function lookup(en::ProtoEnum, val::Integer)
-    for name in fieldnames(typeof(en))
+    for name in @compat fieldnames(typeof(en))
         (val == getfield(en, name)) && return name
     end
     error("Enum $(typeof(en)) has no value: $val")

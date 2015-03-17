@@ -1,6 +1,7 @@
 module ProtoBufTestCodec
 using ProtoBuf
 using Compat
+using Base.Test
 
 import ProtoBuf.meta
 
@@ -101,13 +102,13 @@ function mk_test_meta(fldnum::Int, ptyp::Symbol)
     m
 end
 
-assert_equal{T,U}(::Type{Array{T,1}}, ::Type{Array{U,1}}) = @assert issubtype(T,U) || issubtype(U,T)
-assert_equal(T::Type, U::Type) = @assert issubtype(T,U) || issubtype(U,T)
-assert_equal(val1::Bool, val2::Bool) = @assert val1 == val2
-assert_equal(val1::AbstractString, val2::AbstractString) = @assert val1 == val2
-assert_equal(val1::Number, val2::Number) = @assert val1 == val2
-assert_equal{T<:Number}(val1::Array{T,1}, val2::Array{T,1}) = @assert val1 == val2
-assert_equal{T<:AbstractString}(val1::Array{T,1}, val2::Array{T,1}) = @assert val1 == val2
+assert_equal{T,U}(::Type{Array{T,1}}, ::Type{Array{U,1}}) = @test issubtype(T,U) || issubtype(U,T)
+assert_equal(T::Type, U::Type) = @test issubtype(T,U) || issubtype(U,T)
+assert_equal(val1::Bool, val2::Bool) = @test val1 == val2
+assert_equal(val1::AbstractString, val2::AbstractString) = @test val1 == val2
+assert_equal(val1::Number, val2::Number) = @test val1 == val2
+assert_equal{T<:Number}(val1::Array{T,1}, val2::Array{T,1}) = @test val1 == val2
+assert_equal{T<:AbstractString}(val1::Array{T,1}, val2::Array{T,1}) = @test val1 == val2
 function assert_equal(val1, val2)
     typ1 = typeof(val1)
     typ2 = typeof(val2)
@@ -118,7 +119,7 @@ function assert_equal(val1, val2)
     for fld in n
         fldfill1 = isfilled(val1, fld)
         fldfill2 = isfilled(val2, fld)
-        @assert fldfill1 == fldfill2
+        @test fldfill1 == fldfill2
         fldfill1 && assert_equal(getfield(val1, fld), getfield(val2, fld))
     end
 end
@@ -307,29 +308,29 @@ function test_misc()
     copy!(readfld, testfld)
     assert_equal(readfld, testfld)
 
-    # test add_field
+    # test add_field!
     readfld = TestOptional(TestStr("1"), TestStr(""), Int64[])
     for iVal2 in testfld.iVal2
-        add_field(readfld, :iVal2, iVal2)
+        add_field!(readfld, :iVal2, iVal2)
     end
     assert_equal(readfld, testfld)
 
     tf = TestFilled()
-    @assert !isfilled(tf)
+    @test !isfilled(tf)
     tf.fld1 = TestType("")
     fillset(tf, :fld1)
-    @assert isfilled(tf)
+    @test isfilled(tf)
 end
 
 function test_enums()
     print_hdr("testing enums")
-    @assert getfield(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
-    @assert getfield(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
-    @assert getfield(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
-    @assert getfield(TestEnum, lookup(TestEnum, 3)) == TestEnum.LOCAL
-    @assert getfield(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
-    @assert getfield(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
-    @assert getfield(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
+    @test getfield(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
+    @test getfield(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
+    @test getfield(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
+    @test getfield(TestEnum, lookup(TestEnum, 3)) == TestEnum.LOCAL
+    @test getfield(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
+    @test getfield(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
+    @test getfield(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
 end
 
 end # module ProtoBufTestCodec
