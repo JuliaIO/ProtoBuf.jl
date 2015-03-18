@@ -71,7 +71,7 @@ function add_field!(obj::Any, fld::Symbol, val)
 end
 @deprecate add_field(obj::Any, fld::Symbol, val) add_field!(obj, fld, val)
 
-function protobuild{T}(::Type{T}, nv::Dict{Symbol,Any}=Dict{Symbol,Any}())
+function protobuild{T}(::Type{T}, nv::Dict{Symbol}=Dict{Symbol,Any}())
     obj = T()
     for (n,v) in nv
         fldtyp = fld_type(obj, n)
@@ -81,4 +81,3 @@ function protobuild{T}(::Type{T}, nv::Dict{Symbol,Any}=Dict{Symbol,Any}())
 end
 
 end # module
-

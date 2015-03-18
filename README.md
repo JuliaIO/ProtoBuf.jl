@@ -59,11 +59,14 @@ meta(t::Type{MyType}) = meta(t, [], [8,10], Dict())
 Types used as protocol buffer structures are regular Julia types and the Julia syntax to set and get fields can be used on them. But with fields that are set as optional, it is quite likely that some of them may not have been present in the instance that was read. Similarly, fields that need to be sent need to be explicitly marked as being set. The following methods are exported to assist doing this:
 
 - `get_field(obj::Any, fld::Symbol)` : Gets `obj.fld` if it has been set. Throws an error otherwise.
-- `set_field(obj::Any, fld::Symbol, val)` : Sets `obj.fld = val` and marks the field as being set. The value would be written on the wire when `obj` is serialized. Fields can also be set the regular way, but then they must be marked as being set using the `fillset` method.
-- `add_field(obj::Any, fld::Symbol, val)` : Adds an element with value `val` to a repeated field `fld`. Essentially appends `val` to the array `obj.fld`.
+- `set_field!(obj::Any, fld::Symbol, val)` : Sets `obj.fld = val` and marks the field as being set. The value would be written on the wire when `obj` is serialized. Fields can also be set the regular way, but then they must be marked as being set using the `fillset` method.
+- `add_field!(obj::Any, fld::Symbol, val)` : Adds an element with value `val` to a repeated field `fld`. Essentially appends `val` to the array `obj.fld`.
 - `has_field(obj::Any, fld::Symbol)` : Checks whether field `fld` has been set in `obj`.
 - `clear(obj::Any, fld::Symbol)` : Marks field `fld` of `obj` as unset.
 - `clear(obj::Any)` : Marks all fields of `obj` as unset.
+
+The `protobuild` method makes it easier to set large types with many fields:
+- `protobuild{T}(::Type{T}, nvpairs::Dict{Symbol,Any}())`
 
 ````
 julia> using ProtoBuf
@@ -125,7 +128,7 @@ TestFilled(#undef,#undef)
 julia> isinitialized(tf)      # false, since fld1 is not set
 false
 
-julia> set_field(tf, :fld1, TestType(""))
+julia> set_field!(tf, :fld1, TestType(""))
 
 julia> isinitialized(tf)      # true, even though fld2 is not set yet
 true
@@ -133,7 +136,7 @@ true
 
 
 ## Other Methods
-- `copy!(to::Any, from::Any)` : shallow copy of objects
+- `copy!{T}(to::T, from::T)` : shallow copy of objects
 - `isfilled(obj::Any, fld::Symbol)` : same as `has_field`
 - `isfilled(obj::Any)` : same as `isinitialized`
 - `fillset(obj::Any, fld::Symbol)` : mark field fld of object obj as set
