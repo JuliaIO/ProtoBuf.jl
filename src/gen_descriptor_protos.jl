@@ -40,7 +40,7 @@ type UninterpretedOption
     string_value::Array{UInt8,1}            # optional bytes string_value = 7;
     aggregate_value::AbstractString         # optional string aggregate_value = 8;
 end
-const __fnum_UninterpretedOption = [2:8]
+const __fnum_UninterpretedOption = [2:8;]
 meta(t::Type{UninterpretedOption}) = meta(t, DEF_REQ, __fnum_UninterpretedOption, DEF_VAL)
 
 type MethodOptions
@@ -172,7 +172,7 @@ const TYPE_SINT32         = 17
 const TYPE_SINT64         = 18
 
 const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Int32, Int64, Int32, Int64]
-const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0]
+const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0;]
 
 const LABEL_OPTIONAL      = 1
 const LABEL_REQUIRED      = 2
@@ -236,4 +236,3 @@ end
 # ========================================
 # END DEFINITIONS
 # ========================================
-

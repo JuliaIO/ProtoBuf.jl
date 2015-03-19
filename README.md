@@ -66,7 +66,7 @@ Types used as protocol buffer structures are regular Julia types and the Julia s
 - `clear(obj::Any)` : Marks all fields of `obj` as unset.
 
 The `protobuild` method makes it easier to set large types with many fields:
-- `protobuild{T}(::Type{T}, nvpairs::Dict{Symbol,Any}())`
+- `protobuild{T}(::Type{T}, nvpairs::Dict{Symbol}()=Dict{Symbol,Any}())`
 
 ````
 julia> using ProtoBuf
