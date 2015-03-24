@@ -28,59 +28,6 @@ const _keywords = [
     "bitstype", "do", "baremodule", "importall", "immutable"
 ]
 
-type DeferredWrite
-    iob::IOBuffer
-    depends::Array{AbstractString,1}
-end
-const _deferred = Dict{AbstractString,DeferredWrite}()
-# set of fully-qualified names we've resolved, to handle dependencies in other files
-const _all_resolved = Set{AbstractString}()
-
-function defer(name::AbstractString, iob::IOBuffer, depends::AbstractString)
-    #logmsg("defer $name due to $depends")
-    if isdeferred(name)
-        depsnow = _deferred[name].depends
-        !(depends in depsnow) && push!(depsnow, depends)
-        return
-    end
-    _deferred[name] = DeferredWrite(iob, AbstractString[depends])
-    nothing
-end
-
-isdeferred(name::AbstractString) = haskey(_deferred, name)
-function isresolved(dtypename::AbstractString, referenced_name::AbstractString, exports::Array{AbstractString,1})
-    (dtypename == referenced_name) && return true
-    for jtype in JTYPES
-        (referenced_name == string(jtype)) && return true
-    end
-    (('.' in referenced_name) || (referenced_name in exports)) && !haskey(_deferred, referenced_name)
-end
-
-function resolve(iob::IOBuffer, name::AbstractString)
-    fully_resolved = AbstractString[]
-    for (typ,dw) in _deferred
-        idx = findfirst(dw.depends, name)
-        (idx == 0) && continue
-        splice!(dw.depends, idx)
-        isempty(dw.depends) && push!(fully_resolved, typ)
-    end
-
-    # write all fully resolved entities
-    for typ in fully_resolved
-        #logmsg("resolved $typ")
-        print(iob, takebuf_string(_deferred[typ].iob))
-        delete!(_deferred, typ)
-        push!(_all_resolved, typ)
-    end
-
-    # mark them resolved as well
-    for typ in fully_resolved
-        resolve(iob, typ)
-    end
-end
-
-chk_keyword(name::AbstractString) = (name in _keywords) ? string('_', name) : name
-
 type Scope
     name::AbstractString
     syms::Array{AbstractString,1}
@@ -147,6 +94,65 @@ function findmodule(name::AbstractString)
     end
     (mpkg, replace((0 == mlen) ? name : name[(mlen+2):end], '.', '_'))
 end
+
+
+type DeferredWrite
+    iob::IOBuffer
+    depends::Array{AbstractString,1}
+end
+const _deferred = Dict{AbstractString,DeferredWrite}()
+# set of fully-qualified names we've resolved, to handle dependencies in other files
+const _all_resolved = Set{AbstractString}()
+
+function defer(name::AbstractString, iob::IOBuffer, depends::AbstractString)
+    #logmsg("defer $name due to $depends")
+    if isdeferred(name)
+        depsnow = _deferred[name].depends
+        !(depends in depsnow) && push!(depsnow, depends)
+        return
+    end
+    _deferred[name] = DeferredWrite(iob, AbstractString[depends])
+    nothing
+end
+
+isdeferred(name::AbstractString) = haskey(_deferred, name)
+function isresolved(dtypename::AbstractString, referenced_name::AbstractString, full_referenced_name::AbstractString, exports::Array{AbstractString,1})
+    (dtypename == referenced_name) && return true
+    for jtype in JTYPES
+        (referenced_name == string(jtype)) && return true
+    end
+    if '.' in referenced_name
+        return !isdeferred(referenced_name)
+    elseif referenced_name in exports
+        return !(isdeferred(referenced_name) || isdeferred(full_referenced_name))
+    end
+    false
+end
+
+function resolve(iob::IOBuffer, name::AbstractString)
+    fully_resolved = AbstractString[]
+    for (typ,dw) in _deferred
+        idx = findfirst(dw.depends, name)
+        (idx == 0) && continue
+        splice!(dw.depends, idx)
+        isempty(dw.depends) && push!(fully_resolved, typ)
+    end
+
+    # write all fully resolved entities
+    for typ in fully_resolved
+        #logmsg("resolved $typ")
+        print(iob, takebuf_string(_deferred[typ].iob))
+        delete!(_deferred, typ)
+        push!(_all_resolved, typ)
+    end
+
+    # mark them resolved as well
+    for typ in fully_resolved
+        resolve(iob, typ)
+    end
+end
+
+chk_keyword(name::AbstractString) = (name in _keywords) ? string('_', name) : name
 
 function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Array{AbstractString,1})
     enumname = pfx(enumtype.name, scope)
@@ -271,7 +277,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
 
             isfilled(field, :options) && field.options.packed && push!(packedflds, ":"*fldname)
 
-            if !(isresolved(dtypename, typ_name, exports) || full_typ_name in _all_resolved)
+            if !(isresolved(dtypename, typ_name, full_typ_name, exports) || full_typ_name in _all_resolved)
                 defer(full_dtypename, io, full_typ_name)
             end
 
