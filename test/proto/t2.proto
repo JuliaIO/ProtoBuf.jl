@@ -1,0 +1,11 @@
+package P;
+message MA {
+  required string a = 1;
+  optional MB b = 2;
+  message MB {
+    optional MC c = 1;
+  }
+}
+message MC {
+  required string c = 1;
+}
