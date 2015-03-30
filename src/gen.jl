@@ -307,6 +307,10 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
         print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES" : "__wtype_$(dtypename)")
         println(io, ")")
     end
+    # generate hash, equality and isequal methods
+    println(io, "hash(v::$(dtypename)) = ProtoBuf.protohash(v)")
+    println(io, "isequal(v1::$(dtypename), v2::$(dtypename)) = ProtoBuf.protoisequal(v1, v2)")
+    println(io, "==(v1::$(dtypename), v2::$(dtypename)) = ProtoBuf.protoeq(v1, v2)")
 
     println(io, "")
     push!(exports, dtypename)
@@ -433,6 +437,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     println(io, "using Compat")
     println(io, "using ProtoBuf")
     println(io, "import ProtoBuf.meta")
+    println(io, "import Base: hash, isequal, ==")
     println(io, "")
 
     exports = AbstractString[]
