@@ -1,7 +1,6 @@
 module ProtoBuf
 
 import Base.show, Base.copy!
-#, Base.get, Base.has, Base.add
 
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfilled, fillset, fillunset, show, protobuild
 export copy!, set_field, set_field!, get_field, clear, add_field, add_field!, has_field, isinitialized
@@ -37,47 +36,6 @@ logmsg(s) = nothing
 include("codec.jl")
 include("svc.jl")
 include("gen.jl")
-
-# utility methods
-isinitialized(obj::Any) = isfilled(obj)
-set_field!(obj::Any, fld::Symbol, val) = (setfield!(obj, fld, val); fillset(obj, fld); nothing)
-@deprecate set_field(obj::Any, fld::Symbol, val) set_field!(obj, fld, val)
-get_field(obj::Any, fld::Symbol) = isfilled(obj, fld) ? getfield(obj, fld) : error("uninitialized field $fld")
-clear = fillunset
-has_field(obj::Any, fld::Symbol) = isfilled(obj, fld)
-
-function copy!{T}(to::T, from::T)
-    fillunset(to)
-    for name in @compat fieldnames(T)
-        if isfilled(from, name)
-            set_field!(to, name, getfield(from, name))
-        end
-    end
-    nothing
-end
-
-function add_field!(obj::Any, fld::Symbol, val)
-    typ = typeof(obj)
-    attrib = meta(typ).symdict[fld]
-    (attrib.occurrence != 2) && error("$(typ).$(fld) is not a repeating field")
-
-    ptyp = attrib.ptyp
-    jtyp = WIRETYPES[ptyp][4]
-    (ptyp == :obj) && (jtyp = attrib.meta.jtype)
-
-    !isdefined(obj, fld) && setfield!(obj, fld, jtyp[])
-    push!(getfield(obj, fld), val)
-    nothing
-end
-@deprecate add_field(obj::Any, fld::Symbol, val) add_field!(obj, fld, val)
-
-function protobuild{T}(::Type{T}, nv::Dict{Symbol}=Dict{Symbol,Any}())
-    obj = T()
-    for (n,v) in nv
-        fldtyp = fld_type(obj, n)
-        set_field!(obj, n, isa(v, fldtyp) ? v : convert(fldtyp, v))
-    end
-    obj
-end
+include("utils.jl")
 
 end # module
