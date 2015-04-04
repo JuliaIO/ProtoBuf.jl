@@ -134,6 +134,14 @@ julia> isinitialized(tf)      # true, even though fld2 is not set yet
 true
 ````
 
+## Equality &amp; Hash Value
+It is possible for fields marked as optional to be in an &quot;unset&quot; state. Even bits type fields (`isbits(T) == true`) can be in this state though they may have valid contents. Such fields should then not be compared for equality or used for computing hash values. All ProtoBuf compatible types must override `hash`, `isequal` and `==` methods to handle this. The following unexported utility methods can be used for this purpose:
+
+- `protohash(v)` : hash method that considers fill status of types
+- `protoeq{T}(v1::T, v2::T)` : equality method that considers fill status of types
+- `protoisequal{T}(v1::T, v2::T)` : isequal method that considers fill status of types
+
+The code generator already generates code for the types it generates overriding `hash`, `isequal` and `==` appropriately.
 
 ## Other Methods
 - `copy!{T}(to::T, from::T)` : shallow copy of objects
@@ -166,17 +174,17 @@ double      | Float64           |
 float       | Float64           | 
 int32       | Int32             | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead.
 int64       | Int64             | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead.
-uint32      | Uint32            | Uses variable-length encoding.
-uint64      | Uint64            | Uses variable-length encoding.
+uint32      | UInt32            | Uses variable-length encoding.
+uint64      | UInt64            | Uses variable-length encoding.
 sint32      | Int32             | Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int32s.
 sint64      | Int64             | Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int64s.
-fixed32     | Uint32            | Always four bytes. More efficient than uint32 if values are often greater than 2^28.
-fixed64     | Uint64            | Always eight bytes. More efficient than uint64 if values are often greater than 2^56.
+fixed32     | UInt32            | Always four bytes. More efficient than uint32 if values are often greater than 2^28.
+fixed64     | UInt64            | Always eight bytes. More efficient than uint64 if values are often greater than 2^56.
 sfixed32    | Int32             | Always four bytes.
 sfixed64    | Int64             | Always eight bytes.
 bool        | Bool              | 
 string      | ByteString        | A string must always contain UTF-8 encoded or 7-bit ASCII text.
-bytes       | Array{Uint8,1}    | May contain any arbitrary sequence of bytes.
+bytes       | Array{UInt8,1}    | May contain any arbitrary sequence of bytes.
 
 ### Generic Services
 The Julia code generator generates code for generic services if they are switched on for either C++ `(cc_generic_services)`, Python `(py_generic_services)` or Java `(java_generic_services)`.
@@ -191,9 +199,9 @@ Service stubs are Julia types. Stubs can be constructed by passing an RPC channe
 - <servicename>Stub: The asynchronous stub that takes a callback to invoke with the result on completion
 - <servicename>BlockingStub: The blocking stub that returns the result on completion
 
-## Caveats &amp; TODOs
+## Note:
 
 - Extensions are not supported yet.
 - Groups are not supported. They are deprecated anyway.
-- Julia does not have `enum` types. In generated code, enums are declared as `Int32` types, but a separate Julia type is generated with fields same as the enum values which can be used for validation. The types representing enums extend from the abstract type `ProtoEnum` and the `lookup` method can be used to verify valid values.
+- Enums are declared as `Int32` types in the generated code, but a separate Julia type is generated with fields same as the enum values which can be used for validation. The types representing enums extend from the abstract type `ProtoEnum` and the `lookup` method can be used to verify valid values.
 
