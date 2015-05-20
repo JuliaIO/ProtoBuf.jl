@@ -114,7 +114,7 @@ function assert_equal(val1, val2)
     typ2 = typeof(val2)
     assert_equal(typ1, typ2)
    
-    n = typ1.names
+    n = fieldnames(typ1)
     t = typ1.types 
     for fld in n
         fldfill1 = isfilled(val1, fld)
@@ -138,11 +138,25 @@ function test_types()
     readproto(pb, readval, meta)
     assert_equal(testval, readval)
 
-    let typs = [Int32,Int64,UInt32,UInt64,Bool,Int32,Int64,Uint64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:bool,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
+    let typs = [Int32,Int64,UInt32,UInt64,Int32,Int64,Uint64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
             for idx in 1:100
                 testval.val = convert(typ, @_rand_int(UInt32, 10^9, 0))
+                fldnum = @_rand_int(Int, 100, 1)
+                meta = mk_test_meta(fldnum, ptyp)
+                writeproto(pb, testval, meta)
+                readproto(pb, readval, meta)
+                assert_equal(testval, readval)
+            end
+        end
+    end
+
+    let typs = [Bool], ptyps=[:bool]
+        for (typ,ptyp) in zip(typs,ptyps)
+            print_hdr(ptyp)
+            for idx in 1:100
+                testval.val = convert(typ, @_rand_int(UInt32, 1, 0))
                 fldnum = @_rand_int(Int, 100, 1)
                 meta = mk_test_meta(fldnum, ptyp)
                 writeproto(pb, testval, meta)
