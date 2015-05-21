@@ -5,10 +5,6 @@ using Base.Test
 
 import ProtoBuf.meta
 
-if isless(Base.VERSION, v"0.4.0-")
-typealias AbstractString String
-end
-
 macro _rand_int(T,mx,a)
    esc(quote
        @compat $(T)(round(rand() * $(mx)) + $(a))

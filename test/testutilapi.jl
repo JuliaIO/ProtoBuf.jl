@@ -4,9 +4,7 @@ using Compat
 using Base.Test
 import ProtoBuf.meta
 
-if isless(Base.VERSION, v"0.4.0-")
-typealias AbstractString String
-end
+print_hdr(tname) = println("testing $tname...")
 
 type TestType
     a::AbstractString
@@ -45,5 +43,6 @@ function test_apis()
 end
 end # module ProtoBufTestApis
 
+print_hdr("utility api methods")
 ProtoBufTestApis.test_apis()
 

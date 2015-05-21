@@ -12,10 +12,7 @@
 
 module ProtoBufCompareSer
 using ProtoBuf
-
-if isless(Base.VERSION, v"0.4.0-")
-typealias AbstractString String
-end
+using Compat
 
 import ProtoBuf.meta
 
@@ -38,12 +35,12 @@ type TestType
     
     function TestType(fill=false)
         !fill && (return new())
-        new(randbool(), 
+        new(@compat(rand(Bool)), 
             rand(-100:100), rand(1:100),
             rand(-100:100), rand(1:100),
-            float32(rand()*100), float64(rand()*100),
+            @compat(Float32(rand()*100)), @compat(Float64(rand()*100)),
             randstring(100), 
-            convert(Array{Bool,1}, randbool(100)),
+            convert(Array{Bool,1}, @compat(rand(Bool,100))),
             rand(Int32, 50),
             rand(Int64, 50),
             rand(Float32, 50),

@@ -48,9 +48,9 @@ wiretypes(::Type{Array{UInt8,1}})           = [:bytes]
 wiretypes(::Type)                           = [:obj]
 wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
 
-wiretype(t::Type) = wiretypes(t)[1]
+wiretype{T}(::Type{T}) = wiretypes(T)[1]
 
-defaultval{T<:Number}(::Type{T})            = [convert(T,0)]
+defaultval{T<:Number}(::Type{T})            = [zero(T)]
 defaultval{T<:AbstractString}(::Type{T})    = [convert(T,"")]
 defaultval(::Type{Bool})                    = [false]
 defaultval{T}(::Type{Array{T,1}})           = Any[T[]]
@@ -72,14 +72,19 @@ function _write_uleb{T <: Integer}(io::IO, x::T)
     nw
 end
 
-function _read_uleb{T <: Integer}(io::IO, typ::Type{T})
-    res = convert(typ, 0) 
+function _read_uleb{T <: Integer}(io::IO, ::Type{T})
+    res = zero(T)
     n = 0
     byte = @compat UInt8(MSB)
     while (byte & MSB) != 0
         byte = read(io, UInt8)
-        res |= (convert(typ, byte & MASK7) << (7*n))
+        res |= (convert(T, byte & MASK7) << (7*n))
         n += 1
+    end
+    # in case of overflow, consider it as missing field and return default value
+    if (n-1) > sizeof(T)
+        #logmsg("overflow reading $T. returning 0")
+        return zero(T)
     end
     res
 end
@@ -90,10 +95,10 @@ function _write_zigzag{T <: Integer}(io::IO, x::T)
     _write_uleb(io, zx)
 end
 
-function _read_zigzag{T <: Integer}(io::IO, typ::Type{T})
+function _read_zigzag{T <: Integer}(io::IO, ::Type{T})
     zx = _read_uleb(io, UInt64)
     # result is positive if zx is even
-    convert(typ, iseven(zx) ? (zx >>> 1) : -signed((zx+1) >>> 1))
+    convert(T, iseven(zx) ? (zx >>> 1) : -signed((zx+1) >>> 1))
 end
 
 
@@ -114,10 +119,10 @@ write_varint{T <: Integer}(io::IO, x::T) = _write_uleb(io, x)
 write_bool(io::IO, x::Bool) = _write_uleb(io, x ? 1 : 0)
 write_svarint{T <: Integer}(io::IO, x::T) = _write_zigzag(io, x)
 
-read_varint{T <: Integer}(io::IO, typ::Type{T}) = _read_uleb(io, typ)
+read_varint{T <: Integer}(io::IO, ::Type{T}) = _read_uleb(io, T)
 read_bool(io::IO) = @compat Bool(_read_uleb(io, UInt64))
 read_bool(io::IO, ::Type{Bool}) = read_bool(io)
-read_svarint{T <: Integer}(io::IO, typ::Type{T}) = _read_zigzag(io, typ)
+read_svarint{T <: Integer}(io::IO, ::Type{T}) = _read_zigzag(io, T)
 
 write_fixed(io::IO, x::UInt32) = _write_fixed(io, x)
 write_fixed(io::IO, x::UInt64) = _write_fixed(io, x)
@@ -285,14 +290,35 @@ end
 
 instantiate(t::Type) = ccall(:jl_new_struct_uninit, Any, (Any,), t)
 
+function skip_field(io::IO, wiretype::Integer)
+    if wiretype == WIRETYP_LENDELIM
+        read_bytes(io)
+    elseif wiretype == WIRETYP_64BIT
+        read_fixed(io, UInt64)
+    elseif wiretype == WIRETYP_32BIT
+        read_fixed(io, UInt32)
+    elseif wiretype == WIRETYP_VARINT
+        read_varint(io, UInt64)
+    end
+    nothing
+end
+
 function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     #logmsg("readproto begin: $(typeof(obj))")
     fillunset(obj)
+    fldnums = collect(keys(meta.numdict))
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
         #logmsg("reading fldnum: $(typeof(obj)).$fldnum")
 
-        attrib = meta.numdict[@compat Int(fldnum)]
+        fldnum = @compat(Int(fldnum))
+        # ignore unknown fields
+        if !(fldnum in fldnums)
+            #logmsg("skipping unknown field: $(typeof(obj)).$fldnum")
+            skip_field(io, wiretyp)
+            continue
+        end
+        attrib = meta.numdict[fldnum]
         ptyp = attrib.ptyp
         fld = attrib.fld
         fillset(obj, fld)
