@@ -7,10 +7,6 @@ import ProtoBuf: meta, logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
-if isless(Base.VERSION, v"0.4.0-")
-typealias AbstractString String
-end
-
 include("gen_descriptor_protos.jl")
 include("gen_plugin_protos.jl")
 
