@@ -2,6 +2,7 @@ module ProtoBufTestCodec
 using ProtoBuf
 using Compat
 using Base.Test
+import Base: ==
 
 import ProtoBuf.meta
 

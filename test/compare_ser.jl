@@ -12,6 +12,7 @@
 
 module ProtoBufCompareSer
 using ProtoBuf
+using JSON
 using Compat
 
 import ProtoBuf.meta
@@ -41,8 +42,8 @@ type TestType
             @compat(Float32(rand()*100)), @compat(Float64(rand()*100)),
             randstring(100), 
             convert(Array{Bool,1}, @compat(rand(Bool,100))),
-            rand(Int32, 50),
-            rand(Int64, 50),
+            round(Int32, 127*rand(50)),
+            round(Int64, 127*rand(50)),
             rand(Float32, 50),
             rand(Float64, 50),
             [randstring(10) for i in 1:50]
@@ -75,6 +76,18 @@ function proto_ser(t::TestType, n::Int)
     sz
 end
 
+function json_ser(t::TestType, n::Int)
+    iob = PipeBuffer()
+    sz = 0
+    for idx in 1:n
+        JSON.print(iob, t)
+        sz += iob.size
+        JSON.parse(iob)
+    end
+    sz
+end
+
+
 println(meta(TestType))
 
 t = TestType(true)
@@ -87,8 +100,9 @@ println("julia serialization...")
 gc()
 println("protobuf serialization...")
 @time println("ser byte sz: $(proto_ser(t, nloops))")
+gc()
+println("JSON serialization...")
+@time println("ser byte sz: $(json_ser(t, nloops))")
 
 
 end # module
-
-
