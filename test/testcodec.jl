@@ -135,7 +135,7 @@ function test_types()
     readproto(pb, readval, meta)
     assert_equal(testval, readval)
 
-    let typs = [Int32,Int64,UInt32,UInt64,Int32,Int64,Uint64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
+    let typs = [Int32,Int64,UInt32,UInt64,Int32,Int64,UInt64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
             for idx in 1:100
