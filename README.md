@@ -1,6 +1,8 @@
 # ProtoBuf.jl
 
 [![Build Status](https://travis-ci.org/tanmaykm/ProtoBuf.jl.png)](https://travis-ci.org/tanmaykm/ProtoBuf.jl)
+[![ProtoBuf](http://pkg.julialang.org/badges/ProtoBuf_0.3.svg)](http://pkg.julialang.org/?pkg=ProtoBuf&ver=0.3)
+[![ProtoBuf](http://pkg.julialang.org/badges/ProtoBuf_0.4.svg)](http://pkg.julialang.org/?pkg=ProtoBuf&ver=0.4)
 
 [**Protocol buffers**](https://developers.google.com/protocol-buffers/docs/overview) are a language-neutral, platform-neutral, extensible way of serializing structured data for use in communications protocols, data storage, and more.
 
