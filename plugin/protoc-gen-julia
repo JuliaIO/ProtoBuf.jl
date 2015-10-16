@@ -1,1 +1,7 @@
-julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'
+#!/bin/bash
+
+if [ ${JULIA_PROTOBUF_MODULE_POSTFIX:-0} -eq 0 ]; then
+    julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'
+else
+    julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()' -- --module-postfix-enabled
+fi

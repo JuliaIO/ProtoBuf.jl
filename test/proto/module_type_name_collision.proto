@@ -1,0 +1,5 @@
+package Foo;
+
+message Foo {
+    required string bar = 1;
+}

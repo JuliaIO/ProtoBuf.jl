@@ -24,6 +24,8 @@ const _keywords = [
     "bitstype", "do", "baremodule", "importall", "immutable"
 ]
 
+_module_postfix = false
+
 type Scope
     name::AbstractString
     syms::Array{AbstractString,1}
@@ -51,6 +53,7 @@ const top_scope = Scope("")
 top_scope.is_module = false
 
 function get_module_scope(parent::Scope, newname::AbstractString)
+    newname = _module_postfix ? newname * "_pb" : newname
     for s in parent.children
         if s.name == newname
             return s
@@ -83,8 +86,9 @@ function findmodule(name::AbstractString)
     mlen = 0
     mpkg = ""
     for pkg in values(_packages)
-        if (length(pkg) > mlen) && startswith(name, pkg)
-            mlen = length(pkg)
+        orig = _module_postfix ? join(map(m->m[1:end-3], split(pkg, ".")), ".") : pkg
+        if (length(pkg) > mlen) && startswith(name, orig)
+            mlen = length(orig)
             mpkg = pkg
         end
     end
@@ -580,6 +584,7 @@ end
 # the main read - write method
 function gen()
     try
+        global _module_postfix = in("--module-postfix-enabled", ARGS)
         writeproto(STDOUT, generate(STDIN))
     catch ex
         println(STDERR, "Exception while generating Julia code")
