@@ -168,6 +168,8 @@ Each `.proto` file results in a corresponding `.jl` file, including one each for
 
 If a field name in a message or enum matches a Julia keyword, it is prepended with an `_` character during code generation.
 
+If a package contains a message which has the same name as the package itself, optionally set the `JULIA_PROTOBUF_MODULE_POSTFIX=1` environment variable when running `protoc`, this will append `_pb` to the module names.
+
 ### Julia Type Mapping
 
 .proto Type | Julia Type        | Notes
