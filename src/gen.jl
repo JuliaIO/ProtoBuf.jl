@@ -286,7 +286,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
             println(io, "    $(fldname)::$typ_name")
         end
     end
-    println(io, "    $(dtypename)() = (o=new(); fillunset(o); o)")
+    println(io, "    $(dtypename)(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)")
     println(io, "end #type $(dtypename)")
 
     # generate the meta for this type if required
