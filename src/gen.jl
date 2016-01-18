@@ -21,7 +21,8 @@ const _keywords = [
     "try", "catch", "return", "local", "abstract", "function", "macro",
     "ccall", "finally", "typealias", "break", "continue", "type", 
     "global", "module", "using", "import", "export", "const", "let", 
-    "bitstype", "do", "baremodule", "importall", "immutable"
+    "bitstype", "do", "baremodule", "importall", "immutable",
+    "Type"
 ]
 
 _module_postfix = false
