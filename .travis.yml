@@ -5,8 +5,9 @@ julia:
   - nightly
 notifications:
   email: false
-sudo: required 
+sudo: required
 before_install:
+  - sudo apt-get update -qq -y
   - sudo apt-get install protobuf-compiler
 script:
   - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir("ProtoBuf"))`); Pkg.pin("ProtoBuf"); Pkg.resolve()'
