@@ -1,9 +1,10 @@
 
 import "a.proto";
 
-package B;
+package Base.B;
 
 message obj {
-    required A.Description description = 1;
+    required Base.A.Description description = 1;
     repeated string parameters = 2;
+    optional Base.A.Selection selection = 3 [default = z];
 }
