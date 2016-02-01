@@ -271,7 +271,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                     println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                     return
                 else
-                    defval = (field.typ == TYPE_ENUM) ? "$(enum_typ_name).$(field.default_value)" : "$(field.default_value)"
+                    defval = (field.typ == TYPE_ENUM) ? "$(short_type_name(enum_typ_name, depends)).$(field.default_value)" : "$(field.default_value)"
                     push!(defvals, ":$fldname => $defval")
                 end
             end
