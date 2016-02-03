@@ -154,6 +154,7 @@ The code generator already generates code for the types it generates overriding 
 - `fillunset(obj::Any)` : mark all fields of this object as not set
 - `fillunset(obj::Any, fld::Symbol)` : mark field fld of object obj as not set
 - `lookup(en::ProtoEnum,val::Integer)` : lookup the name (symbol) corresponding to an enum value
+- `enumstr(enumname, enumvalue::Int32)`: returns a string with the enum field name matching the value
 
 
 ## Generating Code (from .proto files)
