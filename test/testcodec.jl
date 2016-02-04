@@ -342,6 +342,9 @@ function test_enums()
     @test getfield(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
     @test getfield(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
     @test getfield(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
+
+    @test enumstr(TestEnum, TestEnum.LOCAL) == "LOCAL"
+    @test_throws ErrorException enumstr(TestEnum, Int32(12))
 end
 
 end # module ProtoBufTestCodec

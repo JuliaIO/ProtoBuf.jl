@@ -76,3 +76,10 @@ function protoisequal{T}(v1::T, v2::T)
     end
     true
 end
+
+function enumstr(enumname, t::Int32)
+    for name in fieldnames(enumname)
+        (getfield(enumname, name) == t) && (return string(name))
+    end
+    error("Invalid enum value $t for $(typeof(enumname))")
+end
