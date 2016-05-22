@@ -71,7 +71,7 @@ get_descriptor_for_type(svc::ProtoService) = svc.desc
 call_method(svc::ProtoService, meth::MethodDescriptor, controller::ProtoRpcController, request, done::Function) = @async done(call_method(svc, meth, controller, request))
 function call_method(svc::ProtoService, meth::MethodDescriptor, controller::ProtoRpcController, request)
     meth_desc = find_method(svc, meth)
-    m = eval(svc.impl_module, symbol(meth_desc.name))
+    m = eval(svc.impl_module, @compat(Symbol(meth_desc.name)))
     isa(request, meth_desc.input_type) || throw(ProtoServiceException("Invalid input type $(typeof(request)) for service $(meth_desc.name). Expected type $(meth_desc.input_type)"))
     m(request)
 end
