@@ -20,13 +20,19 @@ read!(a::IO,b::Array) = read(a,b)
 end
 if isless(Base.VERSION, v"0.4.0-")
 import Base.rsplit
-rsplit{T<:String}(str::T, splitter; limit::Integer=0, keep::Bool=true) = rsplit(str, splitter, limit, keep)
+rsplit{T<:AbstractString}(str::T, splitter; limit::Integer=0, keep::Bool=true) = rsplit(str, splitter, limit, keep)
 end
 
 if isless(Base.VERSION, v"0.4.0-")
 fld_type(o, fld) = fieldtype(o, fld)
 else
 fld_type{T}(o::T, fld) = fieldtype(T, fld)
+end
+
+if isless(Base.VERSION, v"0.5.0-")
+byte2str(x) = bytestring(x)
+else
+byte2str(x) = String(x)
 end
 
 # enable logging only during debugging

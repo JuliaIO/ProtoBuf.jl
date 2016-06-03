@@ -167,12 +167,12 @@ function read_bytes(io::IO)
 end
 read_bytes(io::IO, ::Type{Array{UInt8,1}}) = read_bytes(io)
 
-write_string(io::IO, x::AbstractString) = write_string(io, bytestring(x))
-write_string(io::IO, x::String) = write_bytes(io, x.data)
+write_string(io::IO, x::AbstractString) = write_string(io, String(x))
+write_string(io::IO, x::Compat.String) = write_bytes(io, x.data)
 
-read_string(io::IO) = bytestring(read_bytes(io))
+read_string(io::IO) = byte2str(read_bytes(io))
 read_string(io::IO, ::Type{AbstractString}) = read_string(io)
-read_string{T <: String}(io::IO, ::Type{T}) = convert(T, read_string(io))
+read_string{T <: Compat.String}(io::IO, ::Type{T}) = convert(T, read_string(io))
 
 ##
 # read and write protobuf structures
