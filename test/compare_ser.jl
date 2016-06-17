@@ -25,7 +25,7 @@ type TestType
     ui64::UInt64
     f32::Float32
     f64::Float64
-    s::String
+    s::AbstractString
     
     ab::Array{Bool,1}
     ai32::Array{Int32,1}
