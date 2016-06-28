@@ -332,8 +332,10 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
 
         if isrepeat 
             ofld = isdefined(obj, fld) ? getfield(obj, fld) : jtyp[]
-            if attrib.packed
-                (wiretyp != WIRETYP_LENDELIM) && error("unexpected wire type for repeated packed field $fld (#$fldnum)")
+            # Readers should accept repeated fields in both packed and expanded form.
+            # Allows compatibility with old writers when [packed = true] is added later.
+            # Only repeated fields of primitive numeric types (isbits == true) can be declared "packed".
+            if isbits(jtyp) && (wiretyp == WIRETYP_LENDELIM)
                 read_lendelim_packed(io, ofld, read_fn, jtyp)
             else
                 push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, instantiate(jtyp), attrib.meta, read_fn) : rfn(io, jtyp))
