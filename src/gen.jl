@@ -13,6 +13,8 @@ export gen
 const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Int32, Int64, Int32, Int64]
 const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0;]
 
+isprimitive(fldtype) = (1 <= fldtype <= 8) || (13 <= fldtype <= 18)
+
 # maps protofile name to package name
 const _packages = Dict{AbstractString,AbstractString}()
 
@@ -179,6 +181,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     println(io, "")
     push!(exports, enumname)
     #logmsg("end enum $(enumname)")
+    nothing
 end
 
 function short_type_name(full_type_name::AbstractString, depends::Array{AbstractString,1})
@@ -191,7 +194,7 @@ function short_type_name(full_type_name::AbstractString, depends::Array{Abstract
     return type_name
 end
 
-function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{AbstractString,1}, depends::Array{AbstractString,1})
+function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::String, exports::Array{AbstractString,1}, depends::Array{AbstractString,1})
     io = IOBuffer()
     full_dtypename = dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
@@ -210,7 +213,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     # generate nested types
     if isfilled(dtype, :nested_type)
         for nested_type::DescriptorProto in dtype.nested_type
-            generate(io, errio, nested_type, scope, exports, depends)
+            generate(io, errio, nested_type, scope, syntax, exports, depends)
             (errio.size > 0) && return
         end
     end
@@ -279,7 +282,9 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                 end
             end
 
-            isfilled(field, :options) && field.options.packed && push!(packedflds, ":"*fldname)
+            packed = (isfilled(field, :options) && field.options.packed) || 
+                     ((syntax == "proto3") && (FieldDescriptorProto_Label.LABEL_REPEATED == field.label) && isprimitive(field._type))
+            packed && push!(packedflds, ":"*fldname)
 
             if !(isresolved(dtypename, typ_name, full_typ_name, exports) || full_typ_name in _all_resolved)
                 defer(full_dtypename, io, full_typ_name)
@@ -327,6 +332,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     end
     
     #logmsg("end type $(full_dtypename)")
+    nothing
 end
 
 function protofile_name_to_module_name(n::AbstractString)
@@ -393,6 +399,7 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int,
         println(io, "")
         push!(exports, method.name)
     end
+    nothing
 end
 
 function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
@@ -416,6 +423,10 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         scope.is_module = true
         _packages[protofile.name] = fullname(scope)
     end
+
+    # generate syntax version
+    syntax = (isfilled(protofile, :syntax) && !isempty(protofile.syntax)) ? protofile.syntax : "proto2"
+    println(io, "# syntax: $(syntax)")
 
     depends = AbstractString[]
     #logmsg("generating imports")
@@ -459,7 +470,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     #logmsg("generating types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
-            generate(io, errio, message_type, scope, exports, depends)
+            generate(io, errio, message_type, scope, syntax, exports, depends)
             (errio.size > 0) && return 
         end
     end
@@ -488,6 +499,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     !isempty(exports) && println(io, "export " * join(exports, ", "))
 
     #logmsg("generate end for $(protofile.name)")
+    nothing
 end
 
 function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorProto, io::IOBuffer)
@@ -546,7 +558,7 @@ function print_package(io::IO, s::Scope, indent="")
     println(io, "$(indent)end")
 end
 
-function generate(srcio::IO)
+function codegen(srcio::IO)
     errio = IOBuffer()
     resp = ProtoBuf.instantiate(CodeGeneratorResponse)
     #logmsg("generate begin")
@@ -589,7 +601,7 @@ end
 function gen()
     try
         global _module_postfix = in("--module-postfix-enabled", ARGS)
-        writeproto(STDOUT, generate(STDIN))
+        writeproto(STDOUT, codegen(STDIN))
     catch ex
         println(STDERR, "Exception while generating Julia code")
         rethrow()
