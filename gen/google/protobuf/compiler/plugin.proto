@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -45,12 +45,13 @@
 // flag "--${NAME}_out" is passed to protoc.
 
 syntax = "proto2";
-
 package google.protobuf.compiler;
 option java_package = "com.google.protobuf.compiler";
 option java_outer_classname = "PluginProtos";
 
-import "descriptor.proto";
+option go_package = "plugin_go";
+
+import "google/protobuf/descriptor.proto";
 
 // An encoded CodeGeneratorRequest is written to the plugin's stdin.
 message CodeGeneratorRequest {

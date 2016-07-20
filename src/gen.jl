@@ -1,5 +1,8 @@
 module Gen
 
+include("google/google.jl")
+using .google
+
 using ProtoBuf
 using Compat
 
@@ -7,8 +10,8 @@ import ProtoBuf: meta, logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
-include("gen_descriptor_protos.jl")
-include("gen_plugin_protos.jl")
+const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Int32, Int64, Int32, Int64]
+const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0;]
 
 # maps protofile name to package name
 const _packages = Dict{AbstractString,AbstractString}()
@@ -224,14 +227,14 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
         for field::FieldDescriptorProto in dtype.field
             # If we find that the field name is a keyword prepend it with _type
             fldname = chk_keyword(field.name)
-            if field.typ == TYPE_GROUP
+            if field._type == FieldDescriptorProto_Type.TYPE_GROUP
                 println(errio, "Groups are not supported")
                 return
             end
 
             full_typ_name = ""
-            if (field.typ == TYPE_MESSAGE) || (field.typ == TYPE_ENUM)
-                typ_name = field.typ_name
+            if (field._type == FieldDescriptorProto_Type.TYPE_MESSAGE) || (field._type == FieldDescriptorProto_Type.TYPE_ENUM)
+                typ_name = field.type_name
                 if startswith(typ_name, '.')
                     (m,t) = findmodule(typ_name[2:end])
                     full_typ_name = m=="" ? t : "$(m).$(t)"
@@ -242,36 +245,36 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
                     m,t = splitmodule(typ_name)
                     (m == modul) && (typ_name = t)
                 end
-            elseif field.typ == TYPE_SINT32
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SINT32
                 push!(wtypes, ":$fldname => :sint32")
-            elseif field.typ == TYPE_SINT64
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SINT64
                 push!(wtypes, ":$fldname => :sint64")
-            elseif field.typ == TYPE_FIXED32
+            elseif field._type == FieldDescriptorProto_Type.TYPE_FIXED32
                 push!(wtypes, ":$fldname => :fixed32")
-            elseif field.typ == TYPE_SFIXED32
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SFIXED32
                 push!(wtypes, ":$fldname => :sfixed32")
-            elseif field.typ == TYPE_FIXED64
+            elseif field._type == FieldDescriptorProto_Type.TYPE_FIXED64
                 push!(wtypes, ":$fldname => :fixed64")
-            elseif field.typ == TYPE_SFIXED64
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SFIXED64
                 push!(wtypes, ":$fldname => :sfixed64")
             end
-            enum_typ_name = (field.typ == TYPE_ENUM) ? typ_name : ""
-            (field.typ != TYPE_MESSAGE) && (typ_name = "$(JTYPES[field.typ])")
+            enum_typ_name = (field._type == FieldDescriptorProto_Type.TYPE_ENUM) ? typ_name : ""
+            (field._type != FieldDescriptorProto_Type.TYPE_MESSAGE) && (typ_name = "$(JTYPES[field._type])")
 
             push!(fldnums, field.number)
-            (LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
+            (FieldDescriptorProto_Label.LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
 
             if isfilled(field, :default_value) && !isempty(field.default_value)
-                if field.typ == TYPE_STRING
+                if field._type == FieldDescriptorProto_Type.TYPE_STRING
                     push!(defvals, ":$fldname => \"$(escape_string(field.default_value))\"")
-                elseif field.typ == TYPE_MESSAGE
+                elseif field._type == FieldDescriptorProto_Type.TYPE_MESSAGE
                     println(errio, "Default values for message types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                     return
-                elseif field.typ == TYPE_BYTES
+                elseif field._type == FieldDescriptorProto_Type.TYPE_BYTES
                     println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                     return
                 else
-                    defval = (field.typ == TYPE_ENUM) ? "$(short_type_name(enum_typ_name, depends)).$(field.default_value)" : "$(field.default_value)"
+                    defval = (field._type == FieldDescriptorProto_Type.TYPE_ENUM) ? "$(short_type_name(enum_typ_name, depends)).$(field.default_value)" : "$(field.default_value)"
                     push!(defvals, ":$fldname => $defval")
                 end
             end
@@ -283,7 +286,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
             end
 
             typ_name = short_type_name(typ_name, depends)
-            (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
+            (FieldDescriptorProto_Label.LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
             println(io, "    $(fldname)::$typ_name")
         end
     end
@@ -496,12 +499,12 @@ function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorP
 end
 
 function append_response(resp::CodeGeneratorResponse, filename::AbstractString, io::IOBuffer)
-    jfile = ProtoBuf.instantiate(CodeGenFile)
+    jfile = ProtoBuf.instantiate(CodeGeneratorResponse_File)
 
     jfile.name = filename
     jfile.content = takebuf_string(io)
 
-    !isdefined(resp, :file) && (resp.file = CodeGenFile[])
+    !isdefined(resp, :file) && (resp.file = CodeGeneratorResponse_File[])
     push!(resp.file, jfile)
     resp
 end
