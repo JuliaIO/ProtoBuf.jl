@@ -177,7 +177,7 @@ If a package contains a message which has the same name as the package itself, o
 .proto Type | Julia Type        | Notes
 ---         | ---               | ---
 double      | Float64           | 
-float       | Float64           | 
+float       | Float32           | 
 int32       | Int32             | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead.
 int64       | Int64             | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead.
 uint32      | UInt32            | Uses variable-length encoding.
