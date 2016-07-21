@@ -4,7 +4,7 @@ module ProtoBuf
 
 import Base.show, Base.copy!
 
-export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfilled, fillset, fillunset, show, protobuild, enumstr
+export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, filled, isfilled, isfilled_default, fillset, fillset_default, fillunset, show, protobuild, enumstr
 export copy!, set_field, set_field!, get_field, clear, add_field, add_field!, has_field, isinitialized
 export ProtoEnum, lookup
 export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescriptor, ServiceDescriptor, ProtoService,

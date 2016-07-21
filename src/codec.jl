@@ -362,7 +362,8 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         if !isfilled(obj, fld) && (length(attrib.default) > 0)
             default = attrib.default[1]
             setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
-            fillset(obj, fld)
+            #logmsg("readproto set default: $(typeof(obj)).$fld = $default")
+            fillset_default(obj, fld)
         end
     end
     #logmsg("readproto end: $(typeof(obj))")
@@ -373,7 +374,7 @@ end
 ##
 # helpers
 const _metacache = ObjectIdDict() #Dict{Type, ProtoMeta}()
-const _fillcache = Dict{UInt, Array{Symbol,1}}()
+const _fillcache = Dict{UInt,BitArray}()
 
 const DEF_REQ = Symbol[]
 const DEF_FNUM = Int[]
@@ -416,19 +417,16 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
     m
 end
 
-fillunset(obj) = (empty!(filled(obj)); nothing)
-function fillunset(obj, fld::Symbol)
+fillunset(obj) = (fill!(filled(obj), false); nothing)
+fillunset(obj, fld::Symbol) = _fillset(obj, fld, false, false)
+fillset(obj, fld::Symbol) = _fillset(obj, fld, true, false)
+fillset_default(obj, fld::Symbol) = _fillset(obj, fld, true, true)
+function _fillset(obj, fld::Symbol, val::Bool, isdefault::Bool)
     fill = filled(obj)
-    idx = findfirst(fill, fld)
-    (idx > 0) && splice!(fill, idx)
-    nothing
-end
-
-function fillset(obj, fld::Symbol)
-    fill = filled(obj)
-    idx = findfirst(fill, fld)
-    (idx > 0) && return
-    push!(fill, fld)
+    fnames = @compat fieldnames(typeof(obj))
+    idx = findfirst(fnames, fld)
+    fill[1,idx] = val
+    (!val || isdefault) && (fill[2,idx] = val)
     nothing
 end
 
@@ -436,9 +434,10 @@ function filled(obj)
     oid = object_id(obj)
     haskey(_fillcache, oid) && return _fillcache[oid]
 
-    fill = Symbol[]
-    for fldname in @compat fieldnames(typeof(obj))
-        isdefined(obj, fldname) && push!(fill, fldname)
+    fill = fill!(BitArray(2, length(fieldnames(obj))), false)
+    fnames = @compat fieldnames(typeof(obj))
+    for idx in 1:length(fnames)
+        isdefined(obj, fnames[idx]) && (fill[1,idx] = true)
     end
     if !isimmutable(obj)
         _fillcache[oid] = fill
@@ -447,12 +446,20 @@ function filled(obj)
     fill
 end
 
-isfilled(obj, fld::Symbol) = (fld in filled(obj))
+isfilled(obj, fld::Symbol) = _isfilled(obj, fld, false)
+isfilled_default(obj, fld::Symbol) = _isfilled(obj, fld, true)
+function _isfilled(obj, fld::Symbol, isdefault::Bool)
+    fnames = @compat fieldnames(typeof(obj))
+    idx = findfirst(fnames, fld)
+    filled(obj)[isdefault ? 2 : 1, idx]
+end
 function isfilled(obj)
     fill = filled(obj)
-    for fld in meta(typeof(obj)).ordered
+    flds = meta(typeof(obj)).ordered
+    for idx in 1:length(flds)
+        fld = flds[idx]
         if fld.occurrence == 1
-            !(fld.fld in fill) && (return false)
+            fill[1,idx] || (return false)
             (fld.meta != nothing) && !isfilled(getfield(obj, fld.fld)) && (return false)
         end
     end
