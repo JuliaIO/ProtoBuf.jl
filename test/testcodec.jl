@@ -44,6 +44,14 @@ type TestDefaults
     TestDefaults() = new()
 end
 
+type TestOneofs
+    iVal1::Int64
+    iVal2::Int64
+    iVal3::Int64
+
+    TestOneofs() = new()
+end
+
 type TestFilled
     fld1::TestType
     fld2::TestType
@@ -68,6 +76,9 @@ meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), f
 meta(t::Type{TestNested})       = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 const _t_defaults = @compat Dict{Symbol,Any}(:iVal1 => 10, :iVal2 => [1,2,3])
 meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], _t_defaults, false)
+const _t_oneofs = Int[0,1,1]
+const _t_oneof_names = [:optval]
+meta(t::Type{TestOneofs})       = meta(t,  Symbol[], Int[], Dict{Symbol,Any}(), false, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, _t_oneofs, _t_oneof_names)
 meta(t::Type{TestFilled})       = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}())
 
 function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
@@ -312,6 +323,34 @@ function test_defaults()
     assert_equal(TestDefaults(testval.iVal1, "", [1,2,3]), readval)
 end
 
+function test_oneofs()
+    print_hdr("testing oneofs")
+    testval = TestOneofs()
+    @test isfilled(testval)
+    @test isfilled(testval, :iVal1)
+    @test !isfilled(testval, :iVal2)
+    @test isfilled(testval, :iVal3)
+    @test which_oneof(testval, :optval) === :iVal3
+
+    set_field!(testval, :iVal2, 10)
+    @test isfilled(testval, :iVal1)
+    @test isfilled(testval, :iVal2)
+    @test !isfilled(testval, :iVal3)
+    @test which_oneof(testval, :optval) === :iVal2
+
+    set_field!(testval, :iVal1, 10)
+    @test isfilled(testval, :iVal1)
+    @test isfilled(testval, :iVal2)
+    @test !isfilled(testval, :iVal3)
+    @test which_oneof(testval, :optval) === :iVal2
+
+    set_field!(testval, :iVal3, 10)
+    @test isfilled(testval, :iVal1)
+    @test !isfilled(testval, :iVal2)
+    @test isfilled(testval, :iVal3)
+    @test which_oneof(testval, :optval) === :iVal3
+end
+
 function test_misc()
     print_hdr("testing misc functionality")
     testfld = TestOptional(TestStr("1"), TestStr(""), Int64[1,2,3])
@@ -356,6 +395,7 @@ ProtoBufTestCodec.test_nested()
 ProtoBufTestCodec.test_defaults()
 ProtoBufTestCodec.test_misc()
 ProtoBufTestCodec.test_enums()
+ProtoBufTestCodec.test_oneofs()
 gc()
 println("_metacache has $(length(ProtoBuf._metacache)) items")
 println(ProtoBuf._metacache)

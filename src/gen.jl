@@ -202,6 +202,17 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     #logmsg("begin type $(full_dtypename)")
 
     scope = Scope(dtype.name, scope)
+
+    # check oneof
+    oneof_names = Compat.String[]
+    if isfilled(dtype, :oneof_decl)
+        for oneof_decl in dtype.oneof_decl
+            if isfilled(oneof_decl, :name)
+                push!(oneof_names,  "@compat(Symbol(\"$(oneof_decl.name)\"))")
+            end
+        end
+    end
+
     # generate enums
     if isfilled(dtype, :enum_type)
         for enum_type in dtype.enum_type
@@ -225,9 +236,16 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     fldnums = Int[]
     defvals = AbstractString[]
     wtypes = AbstractString[]
+    oneofs = isempty(oneof_names) ? Int[] : zeros(Int, length(dtype.field))
 
     if isfilled(dtype, :field)
-        for field::FieldDescriptorProto in dtype.field
+        for fld_idx in 1:length(dtype.field)
+            field = dtype.field[fld_idx]
+            if isfilled(field, :oneof_index) && !isfilled_default(field, :oneof_index)
+                oneof_idx = field.oneof_index + 1
+                oneofs[fld_idx] = oneof_idx
+            end
+
             # If we find that the field name is a keyword prepend it with _type
             fldname = chk_keyword(field.name)
             if field._type == FieldDescriptorProto_Type.TYPE_GROUP
@@ -305,7 +323,11 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
     !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = @compat Dict($(join(wtypes, ", ")))")
-    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes)
+    if !isempty(oneofs)
+        println(io, "const __oneofs_$(dtypename) = Int[$(join(oneofs, ','))]")
+        println(io, "const __oneof_names_$(dtypename) = [$(join(oneof_names, ','))]")
+    end
+    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes) || !isempty(oneofs)
         #logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
         print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
@@ -313,7 +335,9 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
         print(io, isempty(defvals) ? "ProtoBuf.DEF_VAL, " : "__val_$(dtypename), ")
         print(io, "true, ")
         print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK, " : "__pack_$(dtypename), ")
-        print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES" : "__wtype_$(dtypename)")
+        print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES, " : "__wtype_$(dtypename), ")
+        print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOFS, " : "__oneofs_$(dtypename), ")
+        print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOF_NAMES" : "__oneof_names_$(dtypename)")
         println(io, ")")
     end
     # generate hash, equality and isequal methods

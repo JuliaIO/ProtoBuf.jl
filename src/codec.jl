@@ -192,11 +192,13 @@ type ProtoMeta
     symdict::Dict{Symbol,ProtoMetaAttribs}
     numdict::Dict{Int,ProtoMetaAttribs}
     ordered::Array{ProtoMetaAttribs,1}
+    oneofs::Vector{Int}
+    oneof_names::Vector{Symbol}
 
-    ProtoMeta(jtype::Type, ordered::Array{ProtoMetaAttribs,1}) = _setmeta(new(), jtype, ordered)
+    ProtoMeta(jtype::Type, ordered::Array{ProtoMetaAttribs,1}, oneofs::Vector{Int}=Int[], oneof_names::Vector{Symbol}=Symbol[]) = _setmeta(new(), jtype, ordered, oneofs, oneof_names)
 end
 
-function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,1})
+function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,1}, oneofs::Vector{Int}, oneof_names::Vector{Symbol})
     symdict = Dict{Symbol,ProtoMetaAttribs}()
     numdict = Dict{Int,ProtoMetaAttribs}()
     for attrib in ordered
@@ -206,6 +208,8 @@ function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,
     meta.symdict = symdict
     meta.numdict = numdict
     meta.ordered = ordered
+    meta.oneofs = oneofs
+    meta.oneof_names = oneof_names
     meta
 end
 
@@ -381,17 +385,20 @@ const DEF_FNUM = Int[]
 const DEF_VAL = Dict{Symbol,Any}()
 const DEF_PACK = Symbol[]
 const DEF_WTYPES = Dict{Symbol,Symbol}()
+const DEF_ONEOFS = Int[]
+const DEF_ONEOF_NAMES = Symbol[]
 
-meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, DEF_REQ, DEF_FNUM, DEF_VAL, true, DEF_PACK, DEF_WTYPES)
-function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true, pack::Array=DEF_PACK, wtypes::Dict=DEF_WTYPES) 
+meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, DEF_REQ, DEF_FNUM, DEF_VAL, true, DEF_PACK, DEF_WTYPES, DEF_ONEOFS, DEF_ONEOF_NAMES)
+function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true, pack::Array=DEF_PACK, wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES)
     haskey(_metacache, typ) && return _metacache[typ]
     d = Dict{Symbol,Any}()
     for (k,v) in defaults
         d[k] = v
     end
-    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, cache, convert(Array{Symbol,1}, pack), wtypes)
+    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, cache, convert(Array{Symbol,1}, pack), wtypes, oneofs, oneof_names)
 end
-function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Array{Symbol,1}=DEF_PACK, wtypes::Dict=DEF_WTYPES)
+function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Array{Symbol,1}=DEF_PACK,
+                wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES)
     haskey(_metacache, typ) && return _metacache[typ]
 
     m = ProtoMeta(typ, ProtoMetaAttribs[])
@@ -413,8 +420,20 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
 
         push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))
     end
-    _setmeta(m, typ, attribs)
+    _setmeta(m, typ, attribs, oneofs, oneof_names)
     m
+end
+
+function _unset_oneofs(fill::BitArray, oneofs::Vector{Int}, idx::Int)
+    oneofidx = isempty(oneofs) ? 0 : oneofs[idx]
+    if oneofidx > 0
+        # unset other fields in the oneof group
+        for uidx = 1:length(oneofs)
+            if (oneofs[uidx] == oneofidx) && (uidx !== idx)
+                fill[1:2,uidx] = false
+            end
+        end
+    end
 end
 
 fillunset(obj) = (fill!(filled(obj), false); nothing)
@@ -427,6 +446,7 @@ function _fillset(obj, fld::Symbol, val::Bool, isdefault::Bool)
     idx = findfirst(fnames, fld)
     fill[1,idx] = val
     (!val || isdefault) && (fill[2,idx] = val)
+    val && _unset_oneofs(fill, meta(typeof(obj)).oneofs, idx)
     nothing
 end
 
@@ -436,8 +456,12 @@ function filled(obj)
 
     fill = fill!(BitArray(2, length(fieldnames(obj))), false)
     fnames = @compat fieldnames(typeof(obj))
+    oneofs = meta(typeof(obj)).oneofs
     for idx in 1:length(fnames)
-        isdefined(obj, fnames[idx]) && (fill[1,idx] = true)
+        if isdefined(obj, fnames[idx])
+            fill[1,idx] = true
+            _unset_oneofs(fill, oneofs, idx)
+        end
     end
     if !isimmutable(obj)
         _fillcache[oid] = fill
@@ -464,6 +488,19 @@ function isfilled(obj)
         end
     end
     true
+end
+
+function which_oneof(obj, oneof::Symbol)
+    m = meta(typeof(obj))
+    fill = filled(obj)
+    fnames = @compat fieldnames(typeof(obj))
+    oneofs = m.oneofs
+    oneof_idx = findfirst(m.oneof_names, oneof)
+
+    for idx in 1:length(oneofs)
+        (oneofs[idx] == oneof_idx) && fill[1,idx] && (return fnames[idx])
+    end
+    Symbol()
 end
 
 function show(io::IO, m::ProtoMeta)
