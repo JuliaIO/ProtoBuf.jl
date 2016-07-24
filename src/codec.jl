@@ -28,6 +28,7 @@ const WIRETYPES = @compat Dict{Symbol,Tuple}(
     :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   AbstractString),
     :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{UInt8,1}),
     :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
+    :map            => (WIRETYP_LENDELIM,   :write_map,     :read_map,      Dict),
 
     :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    UInt32),
     :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Int32),
@@ -45,6 +46,7 @@ wiretypes(::Type{Float64})                  = [:double]
 wiretypes(::Type{Float32})                  = [:float]
 wiretypes{T<:AbstractString}(::Type{T})     = [:string]
 wiretypes(::Type{Array{UInt8,1}})           = [:bytes]
+wiretypes{K,V}(::Type{Dict{K,V}})           = [:map]
 wiretypes(::Type)                           = [:obj]
 wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
 
@@ -213,6 +215,21 @@ function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,
     meta
 end
 
+function write_map(io::IO, fldnum::Int, dict::Dict)
+    dmeta = mapentry_meta(typeof(dict))
+    iob = IOBuffer()
+
+    n = 0
+    for key in keys(dict)
+        val = dict[key]
+        writeproto(iob, key, dmeta.ordered[1])
+        writeproto(iob, val, dmeta.ordered[2])
+        n += _write_key(io, fldnum, WIRETYP_LENDELIM)
+        n += write_bytes(io, takebuf_array(iob))
+    end
+    n
+end
+
 function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
     #!isempty(attrib.default) && isequal(val, attrib.default[1]) && (return 0)
     fld = attrib.fldnum
@@ -237,6 +254,7 @@ function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
             n += write_bytes(io, takebuf_array(iob))
         else
             # write each element separately
+            # maps can not be repeated
             if ptyp == :obj
                 for eachval in val
                     wfn(iob, convert(jtyp, eachval), meta)
@@ -255,6 +273,8 @@ function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
             wfn(iob, convert(jtyp, val), meta)
             n += _write_key(io, fld, WIRETYP_LENDELIM)
             n += write_bytes(io, takebuf_array(iob))
+        elseif ptyp == :map
+            n += write_map(io, fld, val)
         else
             n += _write_key(io, fld, wiretyp)
             n += wfn(io, convert(jtyp, val))
@@ -276,19 +296,18 @@ function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n
 end
 
-function read_lendelim_packed(io::IO, fld::Array, reader::Symbol, jtyp::Type)
+function read_lendelim_packed(io::IO, fld::Array, reader, jtyp::Type)
     iob = IOBuffer(read_bytes(io))
-    rfn = eval(reader)
     while !eof(iob)
-        val = rfn(iob, jtyp)
+        val = reader(iob, jtyp)
         push!(fld, val)
     end
     nothing
 end
 
-function read_lendelim_obj(io::IO, val, meta::ProtoMeta, reader::Symbol)
+function read_lendelim_obj(io::IO, val, meta::ProtoMeta, reader)
     fld_buf = read_bytes(io)
-    eval(reader)(IOBuffer(fld_buf), val, meta)
+    reader(IOBuffer(fld_buf), val, meta)
     val
 end
 
@@ -307,6 +326,79 @@ function skip_field(io::IO, wiretype::Integer)
     nothing
 end
 
+function read_map{K,V}(io, dict::Dict{K,V})
+    iob = IOBuffer(read_bytes(io))
+
+    dmeta = mapentry_meta(Dict{K,V})
+    key_wtyp, key_wfn, key_rfn, key_jtyp = WIRETYPES[dmeta.numdict[1].ptyp]
+    val_wtyp, val_wfn, val_rfn, val_jtyp = WIRETYPES[dmeta.numdict[2].ptyp]
+    key = Nullable{K}()
+    val = Nullable{V}()
+
+    while !eof(iob)
+        fldnum, wiretyp = _read_key(iob)
+        #logmsg("reading fldnum: $(typeof(obj)).$fldnum")
+
+        fldnum = @compat(Int(fldnum))
+        attrib = dmeta.numdict[fldnum]
+
+        if fldnum == 1
+            key = Nullable(read_field(iob, nothing, attrib, key_wtyp, K))
+        elseif fldnum == 2
+            val = Nullable(read_field(iob, nothing, attrib, val_wtyp, V))
+        else
+            skip_field(iob, wiretyp)
+        end
+    end
+    dict[get(key)] = get(val)
+    dict
+end
+
+function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_specific)
+    ptyp = attrib.ptyp
+    fld = attrib.fld
+
+    _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+    rfn = eval(read_fn)
+    isrepeat = (attrib.occurrence == 2)
+
+    if jtyp_specific != nothing
+        jtyp = jtyp_specific
+    elseif ptyp == :obj
+        jtyp = attrib.meta.jtype
+    elseif ptyp == :map
+        jtyp = attrib.meta.jtype
+    end
+
+    if isrepeat
+        val = ((container != nothing) && isdefined(container, fld)) ? getfield(container, fld) : jtyp[]
+        # Readers should accept repeated fields in both packed and expanded form.
+        # Allows compatibility with old writers when [packed = true] is added later.
+        # Only repeated fields of primitive numeric types (isbits == true) can be declared "packed".
+        # Maps can not be repeated
+        if isbits(jtyp) && (wiretyp == WIRETYP_LENDELIM)
+            read_lendelim_packed(io, val, rfn, jtyp)
+        elseif ptyp == :obj
+            push!(val, read_lendelim_obj(io, instantiate(jtyp), attrib.meta, rfn))
+        else
+            push!(val, rfn(io, jtyp))
+        end
+    else
+        (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
+
+        if ptyp == :obj
+            val = ((container != nothing) && isdefined(container, fld)) ? getfield(container, fld) : instantiate(jtyp)
+            val = read_lendelim_obj(io, val, attrib.meta, rfn)
+        elseif ptyp == :map
+            val = ((container != nothing) && isdefined(container, fld)) ? getfield(container, fld) : jtyp()
+            val = read_map(io, val)
+        else
+            val = rfn(io, jtyp)
+        end
+    end
+    val
+end
+
 function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     #logmsg("readproto begin: $(typeof(obj))")
     fillunset(obj)
@@ -323,41 +415,10 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
             continue
         end
         attrib = meta.numdict[fldnum]
-        ptyp = attrib.ptyp
-        fld = attrib.fld
-        fillset(obj, fld)
-        #logmsg("readproto fld: $(typeof(obj)).$fld")
 
-        _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
-        rfn = eval(read_fn)
-        isrepeat = (attrib.occurrence == 2)
-
-        (ptyp == :obj) && (jtyp = attrib.meta.jtype)
-
-        if isrepeat 
-            ofld = isdefined(obj, fld) ? getfield(obj, fld) : jtyp[]
-            # Readers should accept repeated fields in both packed and expanded form.
-            # Allows compatibility with old writers when [packed = true] is added later.
-            # Only repeated fields of primitive numeric types (isbits == true) can be declared "packed".
-            if isbits(jtyp) && (wiretyp == WIRETYP_LENDELIM)
-                read_lendelim_packed(io, ofld, read_fn, jtyp)
-            else
-                push!(ofld, (ptyp == :obj) ? read_lendelim_obj(io, instantiate(jtyp), attrib.meta, read_fn) : rfn(io, jtyp))
-            end
-            setfield!(obj, fld, ofld)
-            #logmsg("readproto set repeated: $(typeof(obj)).$fld = $ofld")
-        else
-            (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
-
-            if ptyp == :obj
-                val = isdefined(obj, fld) ? getfield(obj, fld) : instantiate(jtyp)
-                val = read_lendelim_obj(io, val, attrib.meta, read_fn)
-            else
-                val = rfn(io, jtyp)
-            end
-            #logmsg("readproto set: $(typeof(obj)).$fld = $val")
-            setfield!(obj, fld, val)
-        end
+        val = read_field(io, obj, attrib, wiretyp, nothing)
+        fillset(obj, attrib.fld)
+        setfield!(obj, attrib.fld, val)
     end
 
     # populate defaults
@@ -378,6 +439,7 @@ end
 ##
 # helpers
 const _metacache = ObjectIdDict() #Dict{Type, ProtoMeta}()
+const _mapentry_metacache = ObjectIdDict()
 const _fillcache = Dict{UInt,BitArray}()
 
 const DEF_REQ = Symbol[]
@@ -402,7 +464,7 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
     haskey(_metacache, typ) && return _metacache[typ]
 
     m = ProtoMeta(typ, ProtoMetaAttribs[])
-    cache ? (_metacache[typ] = m) : m
+    cache && (_metacache[typ] = m)
 
     attribs = ProtoMetaAttribs[]
     names = @compat fieldnames(typ)
@@ -418,9 +480,30 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
         packed = (isarr && (fldname in pack))
         default = haskey(defaults, fldname) ? Any[defaults[fldname]] : defaultval(fldtyp)
 
-        push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, (wtyp == :obj) ? meta(elemtyp) : nothing))
+        fldmeta = (wtyp == :obj) ? meta(elemtyp) :
+                  (wtyp == :map) ? mapentry_meta(elemtyp) : nothing
+        push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, fldmeta))
     end
     _setmeta(m, typ, attribs, oneofs, oneof_names)
+    m
+end
+
+function mapentry_meta{K,V}(typ::Type{Dict{K,V}})
+    m = ProtoMeta(typ, ProtoMetaAttribs[])
+    _mapentry_metacache[typ] = m
+
+    attribs = ProtoMetaAttribs[]
+    push!(attribs, ProtoMetaAttribs(1, "key", wiretype(K), 0, false, defaultval(K), nothing))
+
+    isarr = (V.name === Array.name) && !(V === Array{UInt8,1})
+    repeat = isarr ? 2 : 0
+    packed = isarr
+    wtyp = wiretype(V)
+    vmeta = (wtyp == :obj) ? meta(V) :
+            (wtyp == :map) ? mapentry_meta(V) : nothing
+    push!(attribs, ProtoMetaAttribs(2, "value", wtyp, repeat, packed, defaultval(V), vmeta))
+
+    _setmeta(m, typ, attribs, DEF_ONEOFS, DEF_ONEOF_NAMES)
     m
 end
 

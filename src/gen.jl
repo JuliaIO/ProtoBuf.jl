@@ -31,6 +31,7 @@ const _keywords = [
 ]
 
 _module_postfix = false
+_map_as_array = false
 
 type Scope
     name::AbstractString
@@ -194,7 +195,7 @@ function short_type_name(full_type_name::AbstractString, depends::Array{Abstract
     return type_name
 end
 
-function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::String, exports::Array{AbstractString,1}, depends::Array{AbstractString,1})
+function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::AbstractString, exports::Vector{AbstractString}, depends::Vector{AbstractString}, mapentries::Dict)
     io = IOBuffer()
     full_dtypename = dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
@@ -224,7 +225,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     # generate nested types
     if isfilled(dtype, :nested_type)
         for nested_type::DescriptorProto in dtype.nested_type
-            generate(io, errio, nested_type, scope, syntax, exports, depends)
+            generate(io, errio, nested_type, scope, syntax, exports, depends, mapentries)
             (errio.size > 0) && return
         end
     end
@@ -237,6 +238,9 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     defvals = AbstractString[]
     wtypes = AbstractString[]
     oneofs = isempty(oneof_names) ? Int[] : zeros(Int, length(dtype.field))
+    ismapentry = isfilled(dtype, :options) && isfilled(dtype.options, :map_entry) && dtype.options.map_entry
+    map_key_type = ""
+    map_val_type = ""
 
     if isfilled(dtype, :field)
         for fld_idx in 1:length(dtype.field)
@@ -309,12 +313,26 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
             end
 
             typ_name = short_type_name(typ_name, depends)
-            (FieldDescriptorProto_Label.LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
-            println(io, "    $(fldname)::$typ_name")
+            is_typ_mapentry = typ_name in keys(mapentries)
+            if is_typ_mapentry && !_map_as_array
+                k,v = mapentries[typ_name]
+                typ_name = "Dict{$k,$v}"
+            elseif FieldDescriptorProto_Label.LABEL_REPEATED == field.label
+                typ_name = "Array{$typ_name,1}"
+            end
+            println(io, "    $(fldname)::$typ_name", is_typ_mapentry ? " # map entry" : "")
+
+            if ismapentry
+                if field.number == 1
+                    map_key_type = typ_name
+                elseif field.number == 2
+                    map_val_type = typ_name
+                end
+            end
         end
     end
     println(io, "    $(dtypename)(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)")
-    println(io, "end #type $(dtypename)")
+    println(io, "end #type $(dtypename)", ismapentry ? " (mapentry)" : "")
 
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums);]
@@ -347,6 +365,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
 
     println(io, "")
     push!(exports, dtypename)
+    ismapentry && (mapentries[dtypename] = (map_key_type, map_val_type))
 
     if !isdeferred(full_dtypename)
         #logmsg("resolved $full_dtypename")
@@ -480,6 +499,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     println(io, "")
 
     exports = AbstractString[]
+    mapentries = Dict{AbstractString, Tuple{AbstractString,AbstractString}}()
 
     # generate top level enums
     #logmsg("generating enums")
@@ -494,7 +514,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     #logmsg("generating types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
-            generate(io, errio, message_type, scope, syntax, exports, depends)
+            generate(io, errio, message_type, scope, syntax, exports, depends, mapentries)
             (errio.size > 0) && return 
         end
     end
@@ -520,7 +540,10 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate exports
-    !isempty(exports) && println(io, "export " * join(exports, ", "))
+    !isempty(exports) && println(io, "export ", join(exports, ", "))
+
+    # mention mapentries
+    !isempty(mapentries) && println(io, "# mapentries: ", join(mapentries, ", "))
 
     #logmsg("generate end for $(protofile.name)")
     nothing
@@ -625,6 +648,7 @@ end
 function gen()
     try
         global _module_postfix = in("--module-postfix-enabled", ARGS)
+        global _map_as_array = in("--map-as-array", ARGS)
         writeproto(STDOUT, codegen(STDIN))
     catch ex
         println(STDERR, "Exception while generating Julia code")

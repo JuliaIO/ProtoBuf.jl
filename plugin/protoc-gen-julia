@@ -1,7 +1,18 @@
 #!/bin/bash
 
-if [ ${JULIA_PROTOBUF_MODULE_POSTFIX:-0} -eq 0 ]; then
+FLAGS=""
+
+if [ ${JULIA_PROTOBUF_MODULE_POSTFIX:-0} -eq 1 ]; then
+    FLAGS="${FLAGS} --module-postfix-enabled"
+fi
+
+if [ ${JULIA_PROTOBUF_MAP_AS_ARRAY:-0} -eq 1 ]; then
+    FLAGS="${FLAGS} --map-as-array"
+fi
+
+if [ -z ${FLAGS} ]
+then
     julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'
 else
-    julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()' -- --module-postfix-enabled
+    julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()' -- ${FLAGS}
 fi

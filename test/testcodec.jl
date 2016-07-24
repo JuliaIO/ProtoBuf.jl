@@ -52,6 +52,13 @@ type TestOneofs
     TestOneofs() = new()
 end
 
+type TestMaps
+    d1::Dict{Int,Int}
+    d2::Dict{Int32,Compat.UTF8String}
+    d3::Dict{Compat.UTF8String,Compat.UTF8String}
+    TestMaps() = new()
+end
+
 type TestFilled
     fld1::TestType
     fld2::TestType
@@ -117,6 +124,7 @@ assert_equal(val1::AbstractString, val2::AbstractString) = @test val1 == val2
 assert_equal(val1::Number, val2::Number) = @test val1 == val2
 assert_equal{T<:Number}(val1::Array{T,1}, val2::Array{T,1}) = @test val1 == val2
 assert_equal{T<:AbstractString}(val1::Array{T,1}, val2::Array{T,1}) = @test val1 == val2
+assert_equal{K,V}(val1::Dict{K,V}, val2::Dict{K,V}) = @test val1 == val2
 function assert_equal(val1, val2)
     typ1 = typeof(val1)
     typ2 = typeof(val2)
@@ -351,6 +359,68 @@ function test_oneofs()
     @test which_oneof(testval, :optval) === :iVal3
 end
 
+function test_maps()
+    print_hdr("testing maps")
+    pb = PipeBuffer()
+
+    testval = TestMaps()
+    readval = TestMaps()
+    writeproto(pb, testval)
+    readproto(pb, readval)
+    assert_equal(testval, readval)
+
+    testval = TestMaps()
+    readval = TestMaps()
+    set_field!(testval, :d1, Dict{Int,Int}())
+    writeproto(pb, testval)
+    readproto(pb, readval)
+    @test !isfilled(readval, :d1)
+
+    testval = TestMaps()
+    readval = TestMaps()
+    set_field!(testval, :d2, Dict{Int32,Compat.UTF8String}())
+    writeproto(pb, testval)
+    readproto(pb, readval)
+    @test !isfilled(readval, :d2)
+
+    testval = TestMaps()
+    readval = TestMaps()
+    set_field!(testval, :d3, Dict{Compat.UTF8String,Compat.UTF8String}())
+    writeproto(pb, testval)
+    readproto(pb, readval)
+    @test !isfilled(readval, :d3)
+
+    testval = TestMaps()
+    readval = TestMaps()
+    set_field!(testval, :d1, Dict{Int,Int}())
+    testval.d1[1] = 1
+    testval.d1[2] = 2
+    writeproto(pb, testval)
+    readproto(pb, readval)
+    @test isfilled(readval, :d1)
+    assert_equal(testval, readval)
+
+    testval = TestMaps()
+    readval = TestMaps()
+    set_field!(testval, :d2, Dict{Int32,Compat.UTF8String}())
+    testval.d2[@compat(Int32(1))] = convert(Compat.UTF8String, "One")
+    testval.d2[@compat(Int32(2))] = convert(Compat.UTF8String, "Two")
+    writeproto(pb, testval)
+    readproto(pb, readval)
+    @test isfilled(readval, :d2)
+    assert_equal(testval, readval)
+
+    testval = TestMaps()
+    readval = TestMaps()
+    set_field!(testval, :d3, Dict{Compat.UTF8String,Compat.UTF8String}())
+    testval.d3["1"] = "One"
+    testval.d3["2"] = "Two"
+    writeproto(pb, testval)
+    readproto(pb, readval)
+    @test isfilled(readval, :d3)
+    assert_equal(testval, readval)
+end
+
 function test_misc()
     print_hdr("testing misc functionality")
     testfld = TestOptional(TestStr("1"), TestStr(""), Int64[1,2,3])
@@ -396,6 +466,7 @@ ProtoBufTestCodec.test_defaults()
 ProtoBufTestCodec.test_misc()
 ProtoBufTestCodec.test_enums()
 ProtoBufTestCodec.test_oneofs()
+ProtoBufTestCodec.test_maps()
 gc()
 println("_metacache has $(length(ProtoBuf._metacache)) items")
 println(ProtoBuf._metacache)
