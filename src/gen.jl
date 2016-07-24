@@ -1,7 +1,7 @@
 module Gen
 
-include("google/google.jl")
-using .google
+using ProtoBuf.GoogleProtoBuf
+using ProtoBuf.GoogleProtoBufCompiler
 
 using ProtoBuf
 using Compat

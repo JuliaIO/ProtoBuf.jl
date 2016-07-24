@@ -1,3 +1,4 @@
+using ProtoBuf.GoogleProtoBuf
 using Compat
 using ProtoBuf
 import ProtoBuf.meta

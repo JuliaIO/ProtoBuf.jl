@@ -44,6 +44,9 @@ logmsg(s) = nothing
 
 include("codec.jl")
 include("svc.jl")
+
+include("google/google.jl")
+
 include("gen.jl")
 include("utils.jl")
 
