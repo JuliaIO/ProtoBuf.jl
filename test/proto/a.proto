@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-package Base.A;
+package AB.A;
 
 message Description {
     required string id = 1;

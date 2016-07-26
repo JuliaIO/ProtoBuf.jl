@@ -27,7 +27,7 @@ const _keywords = [
     "ccall", "finally", "typealias", "break", "continue", "type", 
     "global", "module", "using", "import", "export", "const", "let", 
     "bitstype", "do", "baremodule", "importall", "immutable",
-    "Type", "Enum", "Any", "DataType"
+    "Type", "Enum", "Any", "DataType", "Base"
 ]
 
 _module_postfix = false

@@ -28,9 +28,9 @@ echo "- t1.proto" && ${GEN} ${SRC}/t1.proto && ${CHK} 'include("out/t1_pb.jl")'
 ERR=$(($ERR + $?))
 echo "- t2.proto" && ${GEN} ${SRC}/t2.proto && ${CHK} 'include("out/t2_pb.jl")'
 ERR=$(($ERR + $?))
-echo "- a.proto, b.proto" && ${GEN} ${SRC}/a.proto test/proto/b.proto && JULIA_LOAD_PATH=out ${CHK} 'using A, B'
+echo "- a.proto, b.proto" && ${GEN} ${SRC}/a.proto ${SRC}/b.proto && ${CHK} 'include("out/AB.jl"); using AB; using AB.A, AB.B'
 ERR=$(($ERR + $?))
-echo "- module_type_name_collision.proto" && JULIA_PROTOBUF_MODULE_POSTFIX=1 ${GEN} ${SRC}/module_type_name_collision.proto && JULIA_LOAD_PATH=out ${CHK} 'using Foo_pb'
+echo "- module_type_name_collision.proto" && JULIA_PROTOBUF_MODULE_POSTFIX=1 ${GEN} ${SRC}/module_type_name_collision.proto && ${CHK} 'include("out/Foo_pb.jl"); using Foo_pb'
 ERR=$(($ERR + $?))
 echo "- packed2.proto" && ${GEN} ${SRC}/packed2.proto && ${CHK} 'include("out/packed2_pb.jl")'
 ERR=$(($ERR + $?))
