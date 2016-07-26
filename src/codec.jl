@@ -85,7 +85,7 @@ function _read_uleb{T <: Integer}(io::IO, ::Type{T})
     end
     # in case of overflow, consider it as missing field and return default value
     if (n-1) > sizeof(T)
-        #logmsg("overflow reading $T. returning 0")
+        @logmsg("overflow reading $T. returning 0")
         return zero(T)
     end
     res
@@ -337,7 +337,7 @@ function read_map{K,V}(io, dict::Dict{K,V})
 
     while !eof(iob)
         fldnum, wiretyp = _read_key(iob)
-        #logmsg("reading fldnum: $(typeof(obj)).$fldnum")
+        @logmsg("reading map fldnum: $fldnum")
 
         fldnum = @compat(Int(fldnum))
         attrib = dmeta.numdict[fldnum]
@@ -400,17 +400,17 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
 end
 
 function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
-    #logmsg("readproto begin: $(typeof(obj))")
+    @logmsg("readproto begin: $(typeof(obj))")
     fillunset(obj)
     fldnums = collect(keys(meta.numdict))
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
-        #logmsg("reading fldnum: $(typeof(obj)).$fldnum")
+        @logmsg("reading fldnum: $(typeof(obj)).$fldnum")
 
         fldnum = @compat(Int(fldnum))
         # ignore unknown fields
         if !(fldnum in fldnums)
-            #logmsg("skipping unknown field: $(typeof(obj)).$fldnum")
+            @logmsg("skipping unknown field: $(typeof(obj)).$fldnum")
             skip_field(io, wiretyp)
             continue
         end
@@ -427,11 +427,11 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         if !isfilled(obj, fld) && (length(attrib.default) > 0)
             default = attrib.default[1]
             setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
-            #logmsg("readproto set default: $(typeof(obj)).$fld = $default")
+            @logmsg("readproto set default: $(typeof(obj)).$fld = $default")
             fillset_default(obj, fld)
         end
     end
-    #logmsg("readproto end: $(typeof(obj))")
+    @logmsg("readproto end: $(typeof(obj))")
     obj
 end
 

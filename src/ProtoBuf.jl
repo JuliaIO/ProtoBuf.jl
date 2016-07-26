@@ -37,10 +37,15 @@ byte2str(x) = String(x)
 end
 
 # enable logging only during debugging
-#using Logging
-#const logger = Logging.configure(filename="protobuf.log", level=DEBUG)
-#logmsg(s) = debug(s)
-logmsg(s) = nothing
+macro logmsg(s)
+end
+#macro logmsg(s)
+#    quote
+#        open("/tmp/protobuf.log", "a") do f
+#            println(f, $(esc(s)))
+#        end
+#    end
+#end
 
 include("codec.jl")
 include("svc.jl")

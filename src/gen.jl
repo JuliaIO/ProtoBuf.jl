@@ -6,7 +6,7 @@ using ProtoBuf.GoogleProtoBufCompiler
 using ProtoBuf
 using Compat
 
-import ProtoBuf: meta, logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
+import ProtoBuf: meta, @logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
@@ -112,7 +112,7 @@ const _deferred = Dict{AbstractString,DeferredWrite}()
 const _all_resolved = Set{AbstractString}()
 
 function defer(name::AbstractString, iob::IOBuffer, depends::AbstractString)
-    #logmsg("defer $name due to $depends")
+    @logmsg("defer $name due to $depends")
     if isdeferred(name)
         depsnow = _deferred[name].depends
         !(depends in depsnow) && push!(depsnow, depends)
@@ -147,7 +147,7 @@ function resolve(iob::IOBuffer, name::AbstractString)
 
     # write all fully resolved entities
     for typ in fully_resolved
-        #logmsg("resolved $typ")
+        @logmsg("resolved $typ")
         print(iob, takebuf_string(_deferred[typ].iob))
         delete!(_deferred, typ)
         push!(_all_resolved, typ)
@@ -168,7 +168,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     enumname = chk_keyword(enumname)
     push!(scope.syms, enumname)
 
-    #logmsg("begin enum $(enumname)")
+    @logmsg("begin enum $(enumname)")
     println(io, "type __enum_$(enumname) <: ProtoEnum")
     values = Int32[]
     for value::EnumValueDescriptorProto in enumtype.value
@@ -182,7 +182,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     println(io, "const $(enumname) = __enum_$(enumname)()")
     println(io, "")
     push!(exports, enumname)
-    #logmsg("end enum $(enumname)")
+    @logmsg("end enum $(enumname)")
     nothing
 end
 
@@ -192,7 +192,7 @@ function short_type_name(full_type_name::AbstractString, depends::Array{Abstract
     while !isempty(comps) && !(join(comps, '.') in depends)
         type_name = (pop!(comps) * "." * type_name)
     end
-    #logmsg("check $full_type_name against $depends || found $type_name")
+    @logmsg("check $full_type_name against $depends || found $type_name")
     return type_name
 end
 
@@ -203,7 +203,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
     dtypename = chk_keyword(dtypename)
     full_dtypename = (modul=="") ? dtypename : "$(modul).$(dtypename)"
-    #logmsg("begin type $(full_dtypename)")
+    @logmsg("begin type $(full_dtypename)")
 
     scope = Scope(dtype.name, scope)
 
@@ -352,7 +352,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
         println(io, "const __oneof_names_$(dtypename) = [$(join(oneof_names, ','))]")
     end
     if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes) || !isempty(oneofs)
-        #logmsg("generating meta for type $(dtypename)")
+        @logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
         print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
         print(io, (fldnums == _d_fldnums) ? "ProtoBuf.DEF_FNUM, " : "__fnum_$(dtypename), ")
@@ -374,13 +374,13 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     ismapentry && (mapentries[dtypename] = (map_key_type, map_val_type))
 
     if !isdeferred(full_dtypename)
-        #logmsg("resolved $full_dtypename")
+        @logmsg("resolved $full_dtypename")
         print(outio, takebuf_string(io))
         resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
     
-    #logmsg("end type $(full_dtypename)")
+    @logmsg("end type $(full_dtypename)")
     nothing
 end
 
@@ -452,10 +452,10 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int,
 end
 
 function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
-    #logmsg("generate begin for $(protofile.name), package $(protofile.package)")
+    @logmsg("generate begin for $(protofile.name), package $(protofile.package)")
 
     svcs = isfilled(protofile, :options) ? has_gen_services(protofile.options) : false
-    #logmsg("generate services: $svcs")
+    @logmsg("generate services: $svcs")
 
     scope = top_scope
     if !isempty(protofile.package)
@@ -465,7 +465,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     push!(scope.files, protofile.name)
-    #logmsg("generated scope for $(protofile.name), package $(protofile.package)")
+    @logmsg("generated scope for $(protofile.name), package $(protofile.package)")
 
     # generate module begin
     if !isempty(scope.name)
@@ -478,7 +478,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     println(io, "# syntax: $(syntax)")
 
     depends = AbstractString[]
-    #logmsg("generating imports")
+    @logmsg("generating imports")
     # generate imports
     println(io, "using Compat")
     println(io, "using ProtoBuf")
@@ -508,7 +508,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     mapentries = Dict{AbstractString, Tuple{AbstractString,AbstractString}}()
 
     # generate top level enums
-    #logmsg("generating enums")
+    @logmsg("generating enums")
     if isfilled(protofile, :enum_type)
         for enum_type in protofile.enum_type
             generate(io, errio, enum_type, scope, exports)
@@ -517,7 +517,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate message types
-    #logmsg("generating types")
+    @logmsg("generating types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
             generate(io, errio, message_type, scope, syntax, exports, depends, mapentries)
@@ -526,7 +526,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate service stubs
-    #logmsg("generating services")
+    @logmsg("generating services")
     if svcs && isfilled(protofile, :service)
         nservices = length(protofile.service)
         for idx in 1:nservices
@@ -551,7 +551,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     # mention mapentries
     !isempty(mapentries) && println(io, "# mapentries: ", join(mapentries, ", "))
 
-    #logmsg("generate end for $(protofile.name)")
+    @logmsg("generate end for $(protofile.name)")
     nothing
 end
 
@@ -614,19 +614,19 @@ end
 function codegen(srcio::IO)
     errio = IOBuffer()
     resp = ProtoBuf.instantiate(CodeGeneratorResponse)
-    #logmsg("generate begin")
+    @logmsg("generate begin")
     while !eof(srcio)
         req = readreq(srcio)
 
         if !isfilled(req, :file_to_generate)
-            #logmsg("no files to generate!!")
+            @logmsg("no files to generate!!")
             continue
         end
 
-        #logmsg("generate request for $(length(req.file_to_generate)) proto files")
-        #logmsg("$(req.file_to_generate)")
+        @logmsg("generate request for $(length(req.file_to_generate)) proto files")
+        @logmsg("$(req.file_to_generate)")
 
-        #isfilled(req, :parameter) && logmsg("parameter $(req.parameter)")
+        #isfilled(req, :parameter) && @logmsg("parameter $(req.parameter)")
 
         for protofile in req.proto_file
             io = IOBuffer()
@@ -644,7 +644,7 @@ function codegen(srcio::IO)
             end
         end
     end
-    #logmsg("generate end")
+    @logmsg("generate end")
     resp
 end
 
