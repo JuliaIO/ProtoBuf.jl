@@ -20,7 +20,8 @@ echo $JULIA_VER
 
 ERR=0
 SRC="test/proto"
-GEN="${PROTOC} --proto_path=${SRC} --julia_out=out"
+WELL_KNOWN_PROTO_SRC="gen"
+GEN="${PROTOC} --proto_path=${SRC} --proto_path=${WELL_KNOWN_PROTO_SRC} --julia_out=out"
 CHK="${JULIA} -e"
 
 echo "- t1.proto" && ${GEN} ${SRC}/t1.proto && ${CHK} 'include("out/t1_pb.jl")'
@@ -45,6 +46,8 @@ then
     echo "- oneof3.proto" && ${GEN} ${SRC}/oneof3.proto && ${CHK} 'include("out/oneof3_pb.jl")'
     ERR=$(($ERR + $?))
     echo "- packed3.proto" && ${GEN} ${SRC}/packed3.proto && ${CHK} 'include("out/packed3_pb.jl")'
+    ERR=$(($ERR + $?))
+    echo "- any_test.proto" && ${GEN} ${SRC}/any_test.proto && ${CHK} 'include("out/any_test_pb.jl")'
     ERR=$(($ERR + $?))
 fi
 

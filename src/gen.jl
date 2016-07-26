@@ -27,7 +27,7 @@ const _keywords = [
     "ccall", "finally", "typealias", "break", "continue", "type", 
     "global", "module", "using", "import", "export", "const", "let", 
     "bitstype", "do", "baremodule", "importall", "immutable",
-    "Type"
+    "Type", "Enum", "Any", "DataType"
 ]
 
 _module_postfix = false
@@ -159,19 +159,20 @@ function resolve(iob::IOBuffer, name::AbstractString)
     end
 end
 
-chk_keyword(name::AbstractString) = (name in _keywords) ? string('_', name) : name
+chk_keyword(name) = (name in _keywords) ? string('_', name) : name
 
 function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Array{AbstractString,1})
     enumname = pfx(enumtype.name, scope)
     sm = splitmodule(enumname)
     (length(sm) > 1) && (enumname = sm[2])
-    push!(scope.syms, enumtype.name)
+    enumname = chk_keyword(enumname)
+    push!(scope.syms, enumname)
 
     #logmsg("begin enum $(enumname)")
     println(io, "type __enum_$(enumname) <: ProtoEnum")
     values = Int32[]
     for value::EnumValueDescriptorProto in enumtype.value
-        # If we find that the field name is a keyword prepend it with _type
+        # If we find that the field name is a keyword prepend it with `_`
         fldname = chk_keyword(value.name)
         println(io, "    $(fldname)::Int32")
         push!(values, value.number)
@@ -200,6 +201,8 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     full_dtypename = dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
     modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
+    dtypename = chk_keyword(dtypename)
+    full_dtypename = (modul=="") ? dtypename : "$(modul).$(dtypename)"
     #logmsg("begin type $(full_dtypename)")
 
     scope = Scope(dtype.name, scope)
@@ -262,13 +265,16 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
                 typ_name = field.type_name
                 if startswith(typ_name, '.')
                     (m,t) = findmodule(typ_name[2:end])
+                    t = chk_keyword(t)
                     full_typ_name = m=="" ? t : "$(m).$(t)"
                     typ_name = (m == modul) ? t : full_typ_name
                 else
                     full_typ_name = qualify(typ_name, scope)
                     typ_name = full_typ_name
                     m,t = splitmodule(typ_name)
+                    t = chk_keyword(t)
                     (m == modul) && (typ_name = t)
+                    full_typ_name = m=="" ? t : "$(m).$(t)"
                 end
             elseif field._type == FieldDescriptorProto_Type.TYPE_SINT32
                 push!(wtypes, ":$fldname => :sint32")
@@ -474,6 +480,10 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     depends = AbstractString[]
     #logmsg("generating imports")
     # generate imports
+    println(io, "using Compat")
+    println(io, "using ProtoBuf")
+    println(io, "import ProtoBuf.meta")
+    println(io, "import Base: hash, isequal, ==")
     if isfilled(protofile, :dependency)
         protofile_imports[protofile.name] = protofile.dependency
         using_pkgs = Set{AbstractString}()
@@ -492,10 +502,6 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
             println(io, "using $dependency")
         end
     end
-    println(io, "using Compat")
-    println(io, "using ProtoBuf")
-    println(io, "import ProtoBuf.meta")
-    println(io, "import Base: hash, isequal, ==")
     println(io, "")
 
     exports = AbstractString[]

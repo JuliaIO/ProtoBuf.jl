@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
 
-#PROTOC3=protoc
-PROTOC3=/home/tan/Work/Tools/Google/protobuf/protobuf-3.0.0-beta-4/install/bin/protoc
-${PROTOC3} --proto_path=. --julia_out=out google/protobuf/compiler/plugin.proto
+# Note: needs the protobuf3 compiler
+if [ -z "$PROTOC" ]
+then
+    PROTOC=protoc
+fi
+
+PROTOC_VER=`${PROTOC} --version | cut -d" " -f2 | cut -d"." -f1`
+echo "compiler version $PROTOC_VER"
+
+if [ "${PROTOC_VER}" -eq "3" ]
+then
+    SPECS=""
+    for SPEC in empty any timestamp duration wrappers descriptor source_context type field_mask api struct
+    do
+        SPECS="${SPECS} google/protobuf/${SPEC}.proto"
+        echo "- google/protobuf/${SPEC}.proto"
+    done
+    ${PROTOC} --proto_path=. --julia_out=out ${SPECS}
+
+    echo "- google/protobuf/compiler/plugin.proto"
+    ${PROTOC} --proto_path=. --julia_out=out google/protobuf/compiler/plugin.proto
+else
+    echo "compiler version 3 is required"
+fi

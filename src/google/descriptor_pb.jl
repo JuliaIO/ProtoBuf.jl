@@ -1,3 +1,4 @@
+# syntax: proto2
 using Compat
 using ProtoBuf
 import ProtoBuf.meta
@@ -9,7 +10,7 @@ type UninterpretedOption_NamePart
     UninterpretedOption_NamePart(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type UninterpretedOption_NamePart
 const __req_UninterpretedOption_NamePart = Symbol[:name_part,:is_extension]
-meta(t::Type{UninterpretedOption_NamePart}) = meta(t, __req_UninterpretedOption_NamePart, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{UninterpretedOption_NamePart}) = meta(t, __req_UninterpretedOption_NamePart, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::UninterpretedOption_NamePart) = ProtoBuf.protohash(v)
 isequal(v1::UninterpretedOption_NamePart, v2::UninterpretedOption_NamePart) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::UninterpretedOption_NamePart, v2::UninterpretedOption_NamePart) = ProtoBuf.protoeq(v1, v2)
@@ -25,7 +26,7 @@ type UninterpretedOption
     UninterpretedOption(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type UninterpretedOption
 const __fnum_UninterpretedOption = Int[2,3,4,5,6,7,8]
-meta(t::Type{UninterpretedOption}) = meta(t, ProtoBuf.DEF_REQ, __fnum_UninterpretedOption, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{UninterpretedOption}) = meta(t, ProtoBuf.DEF_REQ, __fnum_UninterpretedOption, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::UninterpretedOption) = ProtoBuf.protohash(v)
 isequal(v1::UninterpretedOption, v2::UninterpretedOption) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::UninterpretedOption, v2::UninterpretedOption) = ProtoBuf.protoeq(v1, v2)
@@ -58,7 +59,7 @@ type FieldOptions
 end #type FieldOptions
 const __val_FieldOptions = @compat Dict(:ctype => FieldOptions_CType.STRING, :jstype => FieldOptions_JSType.JS_NORMAL, :lazy => false, :deprecated => false, :weak => false)
 const __fnum_FieldOptions = Int[1,2,6,5,3,10,999]
-meta(t::Type{FieldOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FieldOptions, __val_FieldOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{FieldOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FieldOptions, __val_FieldOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::FieldOptions) = ProtoBuf.protohash(v)
 isequal(v1::FieldOptions, v2::FieldOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FieldOptions, v2::FieldOptions) = ProtoBuf.protoeq(v1, v2)
@@ -73,7 +74,7 @@ type MessageOptions
 end #type MessageOptions
 const __val_MessageOptions = @compat Dict(:message_set_wire_format => false, :no_standard_descriptor_accessor => false, :deprecated => false)
 const __fnum_MessageOptions = Int[1,2,3,7,999]
-meta(t::Type{MessageOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_MessageOptions, __val_MessageOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{MessageOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_MessageOptions, __val_MessageOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::MessageOptions) = ProtoBuf.protohash(v)
 isequal(v1::MessageOptions, v2::MessageOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::MessageOptions, v2::MessageOptions) = ProtoBuf.protoeq(v1, v2)
@@ -86,7 +87,7 @@ type EnumOptions
 end #type EnumOptions
 const __val_EnumOptions = @compat Dict(:deprecated => false)
 const __fnum_EnumOptions = Int[2,3,999]
-meta(t::Type{EnumOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_EnumOptions, __val_EnumOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{EnumOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_EnumOptions, __val_EnumOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::EnumOptions) = ProtoBuf.protohash(v)
 isequal(v1::EnumOptions, v2::EnumOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::EnumOptions, v2::EnumOptions) = ProtoBuf.protoeq(v1, v2)
@@ -98,7 +99,7 @@ type MethodOptions
 end #type MethodOptions
 const __val_MethodOptions = @compat Dict(:deprecated => false)
 const __fnum_MethodOptions = Int[33,999]
-meta(t::Type{MethodOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_MethodOptions, __val_MethodOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{MethodOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_MethodOptions, __val_MethodOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::MethodOptions) = ProtoBuf.protohash(v)
 isequal(v1::MethodOptions, v2::MethodOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::MethodOptions, v2::MethodOptions) = ProtoBuf.protoeq(v1, v2)
@@ -131,7 +132,7 @@ type FileOptions
 end #type FileOptions
 const __val_FileOptions = @compat Dict(:java_multiple_files => false, :java_generate_equals_and_hash => false, :java_string_check_utf8 => false, :optimize_for => FileOptions_OptimizeMode.SPEED, :cc_generic_services => false, :java_generic_services => false, :py_generic_services => false, :deprecated => false, :cc_enable_arenas => false)
 const __fnum_FileOptions = Int[1,8,10,20,27,9,11,16,17,18,23,31,36,37,999]
-meta(t::Type{FileOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FileOptions, __val_FileOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{FileOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FileOptions, __val_FileOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::FileOptions) = ProtoBuf.protohash(v)
 isequal(v1::FileOptions, v2::FileOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FileOptions, v2::FileOptions) = ProtoBuf.protoeq(v1, v2)
@@ -143,7 +144,7 @@ type EnumValueOptions
 end #type EnumValueOptions
 const __val_EnumValueOptions = @compat Dict(:deprecated => false)
 const __fnum_EnumValueOptions = Int[1,999]
-meta(t::Type{EnumValueOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_EnumValueOptions, __val_EnumValueOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{EnumValueOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_EnumValueOptions, __val_EnumValueOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::EnumValueOptions) = ProtoBuf.protohash(v)
 isequal(v1::EnumValueOptions, v2::EnumValueOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::EnumValueOptions, v2::EnumValueOptions) = ProtoBuf.protoeq(v1, v2)
@@ -153,7 +154,7 @@ type OneofOptions
     OneofOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type OneofOptions
 const __fnum_OneofOptions = Int[999]
-meta(t::Type{OneofOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_OneofOptions, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{OneofOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_OneofOptions, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::OneofOptions) = ProtoBuf.protohash(v)
 isequal(v1::OneofOptions, v2::OneofOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::OneofOptions, v2::OneofOptions) = ProtoBuf.protoeq(v1, v2)
@@ -165,7 +166,7 @@ type ServiceOptions
 end #type ServiceOptions
 const __val_ServiceOptions = @compat Dict(:deprecated => false)
 const __fnum_ServiceOptions = Int[33,999]
-meta(t::Type{ServiceOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_ServiceOptions, __val_ServiceOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{ServiceOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_ServiceOptions, __val_ServiceOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::ServiceOptions) = ProtoBuf.protohash(v)
 isequal(v1::ServiceOptions, v2::ServiceOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::ServiceOptions, v2::ServiceOptions) = ProtoBuf.protoeq(v1, v2)
@@ -215,7 +216,7 @@ type FieldDescriptorProto
     FieldDescriptorProto(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type FieldDescriptorProto
 const __fnum_FieldDescriptorProto = Int[1,3,4,5,6,2,7,9,10,8]
-meta(t::Type{FieldDescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FieldDescriptorProto, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{FieldDescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FieldDescriptorProto, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::FieldDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::FieldDescriptorProto, v2::FieldDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FieldDescriptorProto, v2::FieldDescriptorProto) = ProtoBuf.protoeq(v1, v2)
@@ -230,7 +231,7 @@ type MethodDescriptorProto
     MethodDescriptorProto(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type MethodDescriptorProto
 const __val_MethodDescriptorProto = @compat Dict(:client_streaming => false, :server_streaming => false)
-meta(t::Type{MethodDescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, __val_MethodDescriptorProto, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{MethodDescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, __val_MethodDescriptorProto, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::MethodDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::MethodDescriptorProto, v2::MethodDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::MethodDescriptorProto, v2::MethodDescriptorProto) = ProtoBuf.protoeq(v1, v2)
@@ -296,7 +297,7 @@ type DescriptorProto
     DescriptorProto(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type DescriptorProto
 const __fnum_DescriptorProto = Int[1,2,6,3,4,5,8,7,9,10]
-meta(t::Type{DescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, __fnum_DescriptorProto, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{DescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, __fnum_DescriptorProto, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::DescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::DescriptorProto, v2::DescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::DescriptorProto, v2::DescriptorProto) = ProtoBuf.protoeq(v1, v2)
@@ -321,7 +322,7 @@ type SourceCodeInfo_Location
 end #type SourceCodeInfo_Location
 const __fnum_SourceCodeInfo_Location = Int[1,2,3,4,6]
 const __pack_SourceCodeInfo_Location = Symbol[:path,:span]
-meta(t::Type{SourceCodeInfo_Location}) = meta(t, ProtoBuf.DEF_REQ, __fnum_SourceCodeInfo_Location, ProtoBuf.DEF_VAL, true, __pack_SourceCodeInfo_Location, ProtoBuf.DEF_WTYPES)
+meta(t::Type{SourceCodeInfo_Location}) = meta(t, ProtoBuf.DEF_REQ, __fnum_SourceCodeInfo_Location, ProtoBuf.DEF_VAL, true, __pack_SourceCodeInfo_Location, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::SourceCodeInfo_Location) = ProtoBuf.protohash(v)
 isequal(v1::SourceCodeInfo_Location, v2::SourceCodeInfo_Location) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::SourceCodeInfo_Location, v2::SourceCodeInfo_Location) = ProtoBuf.protoeq(v1, v2)
@@ -350,7 +351,7 @@ type FileDescriptorProto
     FileDescriptorProto(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type FileDescriptorProto
 const __fnum_FileDescriptorProto = Int[1,2,3,10,11,4,5,6,7,8,9,12]
-meta(t::Type{FileDescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FileDescriptorProto, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+meta(t::Type{FileDescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FileDescriptorProto, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::FileDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::FileDescriptorProto, v2::FileDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FileDescriptorProto, v2::FileDescriptorProto) = ProtoBuf.protoeq(v1, v2)
@@ -371,7 +372,7 @@ type GeneratedCodeInfo_Annotation
     GeneratedCodeInfo_Annotation(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type GeneratedCodeInfo_Annotation
 const __pack_GeneratedCodeInfo_Annotation = Symbol[:path]
-meta(t::Type{GeneratedCodeInfo_Annotation}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, __pack_GeneratedCodeInfo_Annotation, ProtoBuf.DEF_WTYPES)
+meta(t::Type{GeneratedCodeInfo_Annotation}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, __pack_GeneratedCodeInfo_Annotation, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::GeneratedCodeInfo_Annotation) = ProtoBuf.protohash(v)
 isequal(v1::GeneratedCodeInfo_Annotation, v2::GeneratedCodeInfo_Annotation) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::GeneratedCodeInfo_Annotation, v2::GeneratedCodeInfo_Annotation) = ProtoBuf.protoeq(v1, v2)
