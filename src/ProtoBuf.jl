@@ -14,11 +14,6 @@ export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescrip
 
 using Compat
 
-# Julia 0.2 compatibility patch
-if isless(Base.VERSION, v"0.3.0-")
-setfield!(a,b,c) = setfield(a,b,c)
-read!(a::IO,b::Array) = read(a,b)
-end
 if isless(Base.VERSION, v"0.4.0-")
 import Base.rsplit
 rsplit{T<:AbstractString}(str::T, splitter; limit::Integer=0, keep::Bool=true) = rsplit(str, splitter, limit, keep)
@@ -26,8 +21,10 @@ end
 
 if isless(Base.VERSION, v"0.4.0-")
 fld_type(o, fld) = fieldtype(o, fld)
+fld_names(x) = x.names
 else
 fld_type{T}(o::T, fld) = fieldtype(T, fld)
+fld_names(x) = x.name.names
 end
 
 if isless(Base.VERSION, v"0.5.0-")
@@ -35,6 +32,7 @@ byte2str(x) = bytestring(x)
 else
 byte2str(x) = String(x)
 end
+
 
 # enable logging only during debugging
 macro logmsg(s)
