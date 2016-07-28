@@ -1,14 +1,19 @@
 module Gen
 
+using ProtoBuf.GoogleProtoBuf
+using ProtoBuf.GoogleProtoBufCompiler
+
 using ProtoBuf
 using Compat
 
-import ProtoBuf: meta, logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
+import ProtoBuf: meta, @logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
-include("gen_descriptor_protos.jl")
-include("gen_plugin_protos.jl")
+const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Int32, Int64, Int32, Int64]
+const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0;]
+
+isprimitive(fldtype) = (1 <= fldtype <= 8) || (13 <= fldtype <= 18)
 
 # maps protofile name to package name
 const _packages = Dict{AbstractString,AbstractString}()
@@ -22,10 +27,11 @@ const _keywords = [
     "ccall", "finally", "typealias", "break", "continue", "type", 
     "global", "module", "using", "import", "export", "const", "let", 
     "bitstype", "do", "baremodule", "importall", "immutable",
-    "Type"
+    "Type", "Enum", "Any", "DataType", "Base"
 ]
 
 _module_postfix = false
+_map_as_array = false
 
 type Scope
     name::AbstractString
@@ -106,7 +112,7 @@ const _deferred = Dict{AbstractString,DeferredWrite}()
 const _all_resolved = Set{AbstractString}()
 
 function defer(name::AbstractString, iob::IOBuffer, depends::AbstractString)
-    #logmsg("defer $name due to $depends")
+    @logmsg("defer $name due to $depends")
     if isdeferred(name)
         depsnow = _deferred[name].depends
         !(depends in depsnow) && push!(depsnow, depends)
@@ -141,7 +147,7 @@ function resolve(iob::IOBuffer, name::AbstractString)
 
     # write all fully resolved entities
     for typ in fully_resolved
-        #logmsg("resolved $typ")
+        @logmsg("resolved $typ")
         print(iob, takebuf_string(_deferred[typ].iob))
         delete!(_deferred, typ)
         push!(_all_resolved, typ)
@@ -153,19 +159,20 @@ function resolve(iob::IOBuffer, name::AbstractString)
     end
 end
 
-chk_keyword(name::AbstractString) = (name in _keywords) ? string('_', name) : name
+chk_keyword(name) = (name in _keywords) ? string('_', name) : name
 
 function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Array{AbstractString,1})
     enumname = pfx(enumtype.name, scope)
     sm = splitmodule(enumname)
     (length(sm) > 1) && (enumname = sm[2])
-    push!(scope.syms, enumtype.name)
+    enumname = chk_keyword(enumname)
+    push!(scope.syms, enumname)
 
-    #logmsg("begin enum $(enumname)")
+    @logmsg("begin enum $(enumname)")
     println(io, "type __enum_$(enumname) <: ProtoEnum")
     values = Int32[]
     for value::EnumValueDescriptorProto in enumtype.value
-        # If we find that the field name is a keyword prepend it with _type
+        # If we find that the field name is a keyword prepend it with `_`
         fldname = chk_keyword(value.name)
         println(io, "    $(fldname)::Int32")
         push!(values, value.number)
@@ -175,7 +182,8 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     println(io, "const $(enumname) = __enum_$(enumname)()")
     println(io, "")
     push!(exports, enumname)
-    #logmsg("end enum $(enumname)")
+    @logmsg("end enum $(enumname)")
+    nothing
 end
 
 function short_type_name(full_type_name::AbstractString, depends::Array{AbstractString,1})
@@ -184,18 +192,31 @@ function short_type_name(full_type_name::AbstractString, depends::Array{Abstract
     while !isempty(comps) && !(join(comps, '.') in depends)
         type_name = (pop!(comps) * "." * type_name)
     end
-    #logmsg("check $full_type_name against $depends || found $type_name")
+    @logmsg("check $full_type_name against $depends || found $type_name")
     return type_name
 end
 
-function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, exports::Array{AbstractString,1}, depends::Array{AbstractString,1})
+function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::AbstractString, exports::Vector{AbstractString}, depends::Vector{AbstractString}, mapentries::Dict)
     io = IOBuffer()
     full_dtypename = dtypename = pfx(dtype.name, scope)
     sm = splitmodule(dtypename)
     modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
-    #logmsg("begin type $(full_dtypename)")
+    dtypename = chk_keyword(dtypename)
+    full_dtypename = (modul=="") ? dtypename : "$(modul).$(dtypename)"
+    @logmsg("begin type $(full_dtypename)")
 
     scope = Scope(dtype.name, scope)
+
+    # check oneof
+    oneof_names = Compat.String[]
+    if isfilled(dtype, :oneof_decl)
+        for oneof_decl in dtype.oneof_decl
+            if isfilled(oneof_decl, :name)
+                push!(oneof_names,  "@compat(Symbol(\"$(oneof_decl.name)\"))")
+            end
+        end
+    end
+
     # generate enums
     if isfilled(dtype, :enum_type)
         for enum_type in dtype.enum_type
@@ -207,7 +228,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     # generate nested types
     if isfilled(dtype, :nested_type)
         for nested_type::DescriptorProto in dtype.nested_type
-            generate(io, errio, nested_type, scope, exports, depends)
+            generate(io, errio, nested_type, scope, syntax, exports, depends, mapentries)
             (errio.size > 0) && return
         end
     end
@@ -219,76 +240,105 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     fldnums = Int[]
     defvals = AbstractString[]
     wtypes = AbstractString[]
+    oneofs = isempty(oneof_names) ? Int[] : zeros(Int, length(dtype.field))
+    ismapentry = isfilled(dtype, :options) && isfilled(dtype.options, :map_entry) && dtype.options.map_entry
+    map_key_type = ""
+    map_val_type = ""
 
     if isfilled(dtype, :field)
-        for field::FieldDescriptorProto in dtype.field
+        for fld_idx in 1:length(dtype.field)
+            field = dtype.field[fld_idx]
+            if isfilled(field, :oneof_index) && !isfilled_default(field, :oneof_index)
+                oneof_idx = field.oneof_index + 1
+                oneofs[fld_idx] = oneof_idx
+            end
+
             # If we find that the field name is a keyword prepend it with _type
             fldname = chk_keyword(field.name)
-            if field.typ == TYPE_GROUP
+            if field._type == FieldDescriptorProto_Type.TYPE_GROUP
                 println(errio, "Groups are not supported")
                 return
             end
 
             full_typ_name = ""
-            if (field.typ == TYPE_MESSAGE) || (field.typ == TYPE_ENUM)
-                typ_name = field.typ_name
+            if (field._type == FieldDescriptorProto_Type.TYPE_MESSAGE) || (field._type == FieldDescriptorProto_Type.TYPE_ENUM)
+                typ_name = field.type_name
                 if startswith(typ_name, '.')
                     (m,t) = findmodule(typ_name[2:end])
+                    t = chk_keyword(t)
                     full_typ_name = m=="" ? t : "$(m).$(t)"
                     typ_name = (m == modul) ? t : full_typ_name
                 else
                     full_typ_name = qualify(typ_name, scope)
                     typ_name = full_typ_name
                     m,t = splitmodule(typ_name)
+                    t = chk_keyword(t)
                     (m == modul) && (typ_name = t)
+                    full_typ_name = m=="" ? t : "$(m).$(t)"
                 end
-            elseif field.typ == TYPE_SINT32
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SINT32
                 push!(wtypes, ":$fldname => :sint32")
-            elseif field.typ == TYPE_SINT64
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SINT64
                 push!(wtypes, ":$fldname => :sint64")
-            elseif field.typ == TYPE_FIXED32
+            elseif field._type == FieldDescriptorProto_Type.TYPE_FIXED32
                 push!(wtypes, ":$fldname => :fixed32")
-            elseif field.typ == TYPE_SFIXED32
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SFIXED32
                 push!(wtypes, ":$fldname => :sfixed32")
-            elseif field.typ == TYPE_FIXED64
+            elseif field._type == FieldDescriptorProto_Type.TYPE_FIXED64
                 push!(wtypes, ":$fldname => :fixed64")
-            elseif field.typ == TYPE_SFIXED64
+            elseif field._type == FieldDescriptorProto_Type.TYPE_SFIXED64
                 push!(wtypes, ":$fldname => :sfixed64")
             end
-            enum_typ_name = (field.typ == TYPE_ENUM) ? typ_name : ""
-            (field.typ != TYPE_MESSAGE) && (typ_name = "$(JTYPES[field.typ])")
+            enum_typ_name = (field._type == FieldDescriptorProto_Type.TYPE_ENUM) ? typ_name : ""
+            (field._type != FieldDescriptorProto_Type.TYPE_MESSAGE) && (typ_name = "$(JTYPES[field._type])")
 
             push!(fldnums, field.number)
-            (LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
+            (FieldDescriptorProto_Label.LABEL_REQUIRED == field.label) && push!(reqflds, ":"*fldname)
 
             if isfilled(field, :default_value) && !isempty(field.default_value)
-                if field.typ == TYPE_STRING
+                if field._type == FieldDescriptorProto_Type.TYPE_STRING
                     push!(defvals, ":$fldname => \"$(escape_string(field.default_value))\"")
-                elseif field.typ == TYPE_MESSAGE
+                elseif field._type == FieldDescriptorProto_Type.TYPE_MESSAGE
                     println(errio, "Default values for message types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                     return
-                elseif field.typ == TYPE_BYTES
+                elseif field._type == FieldDescriptorProto_Type.TYPE_BYTES
                     println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                     return
                 else
-                    defval = (field.typ == TYPE_ENUM) ? "$(short_type_name(enum_typ_name, depends)).$(field.default_value)" : "$(field.default_value)"
+                    defval = (field._type == FieldDescriptorProto_Type.TYPE_ENUM) ? "$(short_type_name(enum_typ_name, depends)).$(field.default_value)" : "$(field.default_value)"
                     push!(defvals, ":$fldname => $defval")
                 end
             end
 
-            isfilled(field, :options) && field.options.packed && push!(packedflds, ":"*fldname)
+            packed = (isfilled(field, :options) && field.options.packed) || 
+                     ((syntax == "proto3") && (FieldDescriptorProto_Label.LABEL_REPEATED == field.label) && isprimitive(field._type))
+            packed && push!(packedflds, ":"*fldname)
 
             if !(isresolved(dtypename, typ_name, full_typ_name, exports) || full_typ_name in _all_resolved)
                 defer(full_dtypename, io, full_typ_name)
             end
 
             typ_name = short_type_name(typ_name, depends)
-            (LABEL_REPEATED == field.label) && (typ_name = "Array{$typ_name,1}")
-            println(io, "    $(fldname)::$typ_name")
+            is_typ_mapentry = typ_name in keys(mapentries)
+            if is_typ_mapentry && !_map_as_array
+                k,v = mapentries[typ_name]
+                typ_name = "Dict{$k,$v}"
+            elseif FieldDescriptorProto_Label.LABEL_REPEATED == field.label
+                typ_name = "Array{$typ_name,1}"
+            end
+            println(io, "    $(fldname)::$typ_name", is_typ_mapentry ? " # map entry" : "")
+
+            if ismapentry
+                if field.number == 1
+                    map_key_type = typ_name
+                elseif field.number == 2
+                    map_val_type = typ_name
+                end
+            end
         end
     end
     println(io, "    $(dtypename)(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)")
-    println(io, "end #type $(dtypename)")
+    println(io, "end #type $(dtypename)", ismapentry ? " (mapentry)" : "")
 
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums);]
@@ -297,15 +347,21 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
     !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = @compat Dict($(join(wtypes, ", ")))")
-    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes)
-        #logmsg("generating meta for type $(dtypename)")
+    if !isempty(oneofs)
+        println(io, "const __oneofs_$(dtypename) = Int[$(join(oneofs, ','))]")
+        println(io, "const __oneof_names_$(dtypename) = [$(join(oneof_names, ','))]")
+    end
+    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes) || !isempty(oneofs)
+        @logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
         print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
         print(io, (fldnums == _d_fldnums) ? "ProtoBuf.DEF_FNUM, " : "__fnum_$(dtypename), ")
         print(io, isempty(defvals) ? "ProtoBuf.DEF_VAL, " : "__val_$(dtypename), ")
         print(io, "true, ")
         print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK, " : "__pack_$(dtypename), ")
-        print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES" : "__wtype_$(dtypename)")
+        print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES, " : "__wtype_$(dtypename), ")
+        print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOFS, " : "__oneofs_$(dtypename), ")
+        print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOF_NAMES" : "__oneof_names_$(dtypename)")
         println(io, ")")
     end
     # generate hash, equality and isequal methods
@@ -315,15 +371,17 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, ex
 
     println(io, "")
     push!(exports, dtypename)
+    ismapentry && (mapentries[dtypename] = (map_key_type, map_val_type))
 
     if !isdeferred(full_dtypename)
-        #logmsg("resolved $full_dtypename")
+        @logmsg("resolved $full_dtypename")
         print(outio, takebuf_string(io))
         resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
     
-    #logmsg("end type $(full_dtypename)")
+    @logmsg("end type $(full_dtypename)")
+    nothing
 end
 
 function protofile_name_to_module_name(n::AbstractString)
@@ -390,13 +448,14 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int,
         println(io, "")
         push!(exports, method.name)
     end
+    nothing
 end
 
 function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
-    #logmsg("generate begin for $(protofile.name), package $(protofile.package)")
+    @logmsg("generate begin for $(protofile.name), package $(protofile.package)")
 
     svcs = isfilled(protofile, :options) ? has_gen_services(protofile.options) : false
-    #logmsg("generate services: $svcs")
+    @logmsg("generate services: $svcs")
 
     scope = top_scope
     if !isempty(protofile.package)
@@ -406,7 +465,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     push!(scope.files, protofile.name)
-    #logmsg("generated scope for $(protofile.name), package $(protofile.package)")
+    @logmsg("generated scope for $(protofile.name), package $(protofile.package)")
 
     # generate module begin
     if !isempty(scope.name)
@@ -414,9 +473,17 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         _packages[protofile.name] = fullname(scope)
     end
 
+    # generate syntax version
+    syntax = (isfilled(protofile, :syntax) && !isempty(protofile.syntax)) ? protofile.syntax : "proto2"
+    println(io, "# syntax: $(syntax)")
+
     depends = AbstractString[]
-    #logmsg("generating imports")
+    @logmsg("generating imports")
     # generate imports
+    println(io, "using Compat")
+    println(io, "using ProtoBuf")
+    println(io, "import ProtoBuf.meta")
+    println(io, "import Base: hash, isequal, ==")
     if isfilled(protofile, :dependency)
         protofile_imports[protofile.name] = protofile.dependency
         using_pkgs = Set{AbstractString}()
@@ -435,16 +502,13 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
             println(io, "using $dependency")
         end
     end
-    println(io, "using Compat")
-    println(io, "using ProtoBuf")
-    println(io, "import ProtoBuf.meta")
-    println(io, "import Base: hash, isequal, ==")
     println(io, "")
 
     exports = AbstractString[]
+    mapentries = Dict{AbstractString, Tuple{AbstractString,AbstractString}}()
 
     # generate top level enums
-    #logmsg("generating enums")
+    @logmsg("generating enums")
     if isfilled(protofile, :enum_type)
         for enum_type in protofile.enum_type
             generate(io, errio, enum_type, scope, exports)
@@ -453,16 +517,16 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate message types
-    #logmsg("generating types")
+    @logmsg("generating types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
-            generate(io, errio, message_type, scope, exports, depends)
+            generate(io, errio, message_type, scope, syntax, exports, depends, mapentries)
             (errio.size > 0) && return 
         end
     end
 
     # generate service stubs
-    #logmsg("generating services")
+    @logmsg("generating services")
     if svcs && isfilled(protofile, :service)
         nservices = length(protofile.service)
         for idx in 1:nservices
@@ -482,9 +546,13 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate exports
-    !isempty(exports) && println(io, "export " * join(exports, ", "))
+    !isempty(exports) && println(io, "export ", join(exports, ", "))
 
-    #logmsg("generate end for $(protofile.name)")
+    # mention mapentries
+    !isempty(mapentries) && println(io, "# mapentries: ", join(mapentries, ", "))
+
+    @logmsg("generate end for $(protofile.name)")
+    nothing
 end
 
 function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorProto, io::IOBuffer)
@@ -496,12 +564,12 @@ function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorP
 end
 
 function append_response(resp::CodeGeneratorResponse, filename::AbstractString, io::IOBuffer)
-    jfile = ProtoBuf.instantiate(CodeGenFile)
+    jfile = ProtoBuf.instantiate(CodeGeneratorResponse_File)
 
     jfile.name = filename
     jfile.content = takebuf_string(io)
 
-    !isdefined(resp, :file) && (resp.file = CodeGenFile[])
+    !isdefined(resp, :file) && (resp.file = CodeGeneratorResponse_File[])
     push!(resp.file, jfile)
     resp
 end
@@ -543,22 +611,22 @@ function print_package(io::IO, s::Scope, indent="")
     println(io, "$(indent)end")
 end
 
-function generate(srcio::IO)
+function codegen(srcio::IO)
     errio = IOBuffer()
     resp = ProtoBuf.instantiate(CodeGeneratorResponse)
-    #logmsg("generate begin")
+    @logmsg("generate begin")
     while !eof(srcio)
         req = readreq(srcio)
 
         if !isfilled(req, :file_to_generate)
-            #logmsg("no files to generate!!")
+            @logmsg("no files to generate!!")
             continue
         end
 
-        #logmsg("generate request for $(length(req.file_to_generate)) proto files")
-        #logmsg("$(req.file_to_generate)")
+        @logmsg("generate request for $(length(req.file_to_generate)) proto files")
+        @logmsg("$(req.file_to_generate)")
 
-        #isfilled(req, :parameter) && logmsg("parameter $(req.parameter)")
+        #isfilled(req, :parameter) && @logmsg("parameter $(req.parameter)")
 
         for protofile in req.proto_file
             io = IOBuffer()
@@ -576,7 +644,7 @@ function generate(srcio::IO)
             end
         end
     end
-    #logmsg("generate end")
+    @logmsg("generate end")
     resp
 end
 
@@ -586,7 +654,8 @@ end
 function gen()
     try
         global _module_postfix = in("--module-postfix-enabled", ARGS)
-        writeproto(STDOUT, generate(STDIN))
+        global _map_as_array = in("--map-as-array", ARGS)
+        writeproto(STDOUT, codegen(STDIN))
     catch ex
         println(STDERR, "Exception while generating Julia code")
         rethrow()

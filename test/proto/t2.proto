@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 package P;
 message MA {
   required string a = 1;

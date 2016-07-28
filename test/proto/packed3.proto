@@ -1,0 +1,11 @@
+syntax = "proto3";
+// With syntax set to proto2, only Student31.roll_no should be packed.
+// With v3 compiler and syntax set to proto3, roll_no should be packed in both cases.
+
+message Student31 {
+  repeated int32 roll_no= 1 [packed=true];
+}
+
+message Student32 {
+  repeated int32 roll_no= 1;
+}

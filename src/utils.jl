@@ -13,8 +13,11 @@ has_field(obj::Any, fld::Symbol) = isfilled(obj, fld)
 
 function copy!{T}(to::T, from::T)
     fillunset(to)
-    for name in @compat fieldnames(T)
-        if isfilled(from, name)
+    fill = filled(from)
+    fnames = fld_names(T)
+    for idx in 1:length(fnames)
+        if fill[1, idx]
+            name = fnames[idx]
             set_field!(to, name, getfield(from, name))
         end
     end
@@ -49,17 +52,23 @@ end
 # hash method that considers fill status of types
 function protohash(v)
     h = 0
-    for f in fieldnames(v)
-        isfilled(v, f) && (h += hash(getfield(v, f)))
+    fill = filled(v)
+    fnames = fld_names(typeof(v))
+    for idx in 1:length(fnames)
+        fill[1, idx] && (h += hash(getfield(v, fnames[idx])))
     end
     hash(h)
 end
 
 # equality method that considers fill status of types
 function protoeq{T}(v1::T, v2::T)
-    for f in fieldnames(v1)
-        (isfilled(v1, f) == isfilled(v2, f)) || (return false)
-        if isfilled(v1, f)
+    fillv1 = filled(v1)
+    fillv2 = filled(v2)
+    fnames = fld_names(T)
+    for idx in 1:length(fnames)
+        (fillv1[1,idx] == fillv2[1,idx]) || (return false)
+        if fillv1[1,idx]
+            f = fnames[idx]
             (getfield(v1,f) == getfield(v2,f)) || (return false)
         end
     end
@@ -68,9 +77,13 @@ end
 
 # isequal method that considers fill status of types
 function protoisequal{T}(v1::T, v2::T)
-    for f in fieldnames(v1)
-        (isfilled(v1, f) == isfilled(v2, f)) || (return false)
-        if isfilled(v1, f)
+    fillv1 = filled(v1)
+    fillv2 = filled(v2)
+    fnames = fld_names(T)
+    for idx in 1:length(fnames)
+        (fillv1[1,idx] == fillv2[1,idx]) || (return false)
+        if fillv1[1,idx]
+            f = fnames[idx]
             isequal(getfield(v1,f), getfield(v2,f)) || (return false)
         end
     end
@@ -78,8 +91,8 @@ function protoisequal{T}(v1::T, v2::T)
 end
 
 function enumstr(enumname, t::Int32)
-    for name in fieldnames(enumname)
+    for name in fld_names(typeof(enumname))
         (getfield(enumname, name) == t) && (return string(name))
     end
-    error("Invalid enum value $t for $(typeof(enumname))")
+    error(string("Invalid enum value ", t, " for ", typeof(enumname)))
 end

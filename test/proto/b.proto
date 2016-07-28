@@ -1,10 +1,11 @@
+syntax = "proto2";
 
 import "a.proto";
 
-package Base.B;
+package AB.B;
 
 message obj {
-    required Base.A.Description description = 1;
+    required AB.A.Description description = 1;
     repeated string parameters = 2;
-    optional Base.A.Selection selection = 3 [default = z];
+    optional AB.A.Selection selection = 3 [default = z];
 }
