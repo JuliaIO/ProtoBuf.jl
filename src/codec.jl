@@ -74,6 +74,11 @@ function _write_uleb{T <: Integer}(io::IO, x::T)
     nw
 end
 
+# max number of 7bit blocks for reading n bytes
+# d,r = divrem(sizeof(T)*8, 7)
+# (r > 0) && (d += 1)
+const _max_n = [2, 3, 4, 5, 6, 7, 8, 10]
+
 function _read_uleb{T <: Integer}(io::IO, ::Type{T})
     res = zero(T)
     n = 0
@@ -83,8 +88,8 @@ function _read_uleb{T <: Integer}(io::IO, ::Type{T})
         res |= (convert(T, byte & MASK7) << (7*n))
         n += 1
     end
-    # in case of overflow, consider it as missing field and return default value
-    if (n-1) > sizeof(T)
+    ## in case of overflow, consider it as missing field and return default value
+    if n > _max_n[sizeof(T)]
         @logmsg("overflow reading $T. returning 0")
         return zero(T)
     end
@@ -221,8 +226,10 @@ function write_map(io::IO, fldnum::Int, dict::Dict)
 
     n = 0
     for key in keys(dict)
+        @logmsg("write_map writing key: $key")
         val = dict[key]
         writeproto(iob, key, dmeta.ordered[1])
+        @logmsg("write_map writing val: $val")
         writeproto(iob, val, dmeta.ordered[2])
         n += _write_key(io, fldnum, WIRETYP_LENDELIM)
         n += write_bytes(io, takebuf_array(iob))
@@ -268,7 +275,7 @@ function writeproto{T<:AbstractString}(io::IO, val::T, attrib::ProtoMetaAttribs)
     n
 end
 
-writeproto{K,V}(io::IO, val::Dict{K,V}, attrib::ProtoMetaAttribs) = write_map(io, attrib.fldnum, val)
+writeproto(io::IO, val::Dict, attrib::ProtoMetaAttribs) = write_map(io, attrib.fldnum, convert(attrib.meta.jtype, val))
 
 function writeproto(io::IO, val::Array{UInt8,1}, attrib::ProtoMetaAttribs)
     fld = attrib.fldnum
@@ -330,11 +337,14 @@ end
 
 function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n = 0
+    @logmsg("writeproto writing an obj with meta: $meta")
     for attrib in meta.ordered 
         fld = attrib.fld
         if isfilled(obj, fld)
+            @logmsg("writeproto writing field: $fld")
             n += writeproto(io, getfield(obj, fld), attrib)
         else
+            @logmsg("firld not set: $fld")
             (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
         end
     end
@@ -388,13 +398,14 @@ function read_map{K,V}(io, dict::Dict{K,V})
         attrib = dmeta.numdict[fldnum]
 
         if fldnum == 1
-            key = Nullable(read_field(iob, nothing, attrib, key_wtyp, K))
+            key = Nullable{K}(read_field(iob, nothing, attrib, key_wtyp, K))
         elseif fldnum == 2
-            val = Nullable(read_field(iob, nothing, attrib, val_wtyp, V))
+            val = Nullable{V}(read_field(iob, nothing, attrib, val_wtyp, V))
         else
             skip_field(iob, wiretyp)
         end
     end
+    @logmsg("read map key: $(get(key))=$(get(val))")
     dict[get(key)] = get(val)
     dict
 end
@@ -416,7 +427,7 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
     end
 
     if isrepeat
-        arr_val = ((container != nothing) && isdefined(container, fld)) ? getfield(container, fld)::Vector{jtyp} : jtyp[]
+        arr_val = ((container != nothing) && isdefined(container, fld)) ? convert(Vector{jtyp}, getfield(container, fld)) : jtyp[]
         # Readers should accept repeated fields in both packed and expanded form.
         # Allows compatibility with old writers when [packed = true] is added later.
         # Only repeated fields of primitive numeric types (isbits == true) can be declared "packed".
@@ -436,9 +447,10 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
             val_obj = ((container != nothing) && isdefined(container, fld)) ? getfield(container, fld) : instantiate(jtyp)
             return read_lendelim_obj(io, val_obj, attrib.meta, rfn)
         elseif ptyp == :map
-            val_map = ((container != nothing) && isdefined(container, fld)) ? getfield(container, fld) : jtyp()
+            val_map = ((container != nothing) && isdefined(container, fld)) ? convert(jtyp, getfield(container, fld)) : jtyp()
             return read_map(io, val_map)
         else
+            @logmsg("reading type $jtyp")
             return rfn(io, jtyp)
         end
     end
@@ -462,14 +474,23 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         attrib = meta.numdict[fldnum]
 
         val = read_field(io, obj, attrib, wiretyp, nothing)
-        fillset(obj, attrib.fld)
-        setfield!(obj, attrib.fld, val)
+        fld = attrib.fld
+        fillset(obj, fld)
+        if (attrib.occurrence == 2) || (attrib.ptyp == :obj) || (attrib.ptyp == :map)
+            setfield!(obj, fld, convert(fld_type(obj, fld), val))
+        else
+            setfield!(obj, fld, val)
+        end
     end
 
     # populate defaults
+    fnames = fld_names(typeof(obj))
+    fill = filled(obj)
     for attrib in meta.ordered
         fld = attrib.fld
-        if !isfilled(obj, fld) && (length(attrib.default) > 0)
+        idx = findfirst(fnames, fld)
+        # TODO: do not fill if oneof the fields in the oneof 
+        if !isfilled(obj, fld) && (length(attrib.default) > 0) && !_isset_oneof(fill, meta.oneofs, idx)
             default = attrib.default[1]
             setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
             @logmsg("readproto set default: $(typeof(obj)).$fld = $default")
@@ -564,6 +585,19 @@ function _unset_oneofs(fill::BitArray, oneofs::Vector{Int}, idx::Int)
     end
 end
 
+function _isset_oneof(fill::BitArray, oneofs::Vector{Int}, idx::Int)
+    oneofidx = isempty(oneofs) ? 0 : oneofs[idx]
+    if oneofidx > 0
+        # find if any field in the oneof group is set
+        for uidx = 1:length(oneofs)
+            if oneofs[uidx] == oneofidx 
+                fill[1,uidx] && (return true)
+            end
+        end
+    end
+    false
+end
+
 fillunset(obj) = (fill!(filled(obj), false); nothing)
 fillunset(obj, fld::Symbol) = _fillset(obj, fld, false, false)
 fillset(obj, fld::Symbol) = _fillset(obj, fld, true, false)
@@ -605,6 +639,7 @@ function _isfilled(obj, fld::Symbol, isdefault::Bool)
     idx = findfirst(fnames, fld)
     filled(obj)[isdefault ? 2 : 1, idx]
 end
+
 function isfilled(obj)
     fill = filled(obj)
     flds = meta(typeof(obj)).ordered

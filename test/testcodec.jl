@@ -224,7 +224,7 @@ function test_repeats()
         assert_equal(testval, readval)
     end
 
-    print_hdr("testing repeated and packed int64")
+    print_hdr("repeated and packed int64")
     for idx in 1:100
         testval.val = convert(Array{Int64,1}, randstring(50).data)
         readval.val = Int64[]
@@ -237,7 +237,7 @@ function test_repeats()
         assert_equal(testval, readval)
     end
 
-    print_hdr("testing repeated string")
+    print_hdr("repeated string")
     for idx in 1:100
         testval.val = [randstring(5) for i in 1:10] 
         readval.val = AbstractString[]
@@ -251,7 +251,7 @@ function test_repeats()
 end
 
 function test_optional()
-    print_hdr("testing optional fields")
+    print_hdr("optional fields")
     pb = PipeBuffer()
     testval = TestOptional(TestStr(""), TestStr(""), Int64[1,2,3])
     readval = TestOptional(TestStr(""), TestStr(""), Int64[])
@@ -277,7 +277,7 @@ function test_optional()
 end
 
 function test_nested()
-    print_hdr("testing nested types")
+    print_hdr("nested types")
     pb = PipeBuffer()
 
     testfld1 = TestType(0)
@@ -319,7 +319,7 @@ function test_nested()
 end
 
 function test_defaults()
-    print_hdr("testing default values")
+    print_hdr("default values")
     pb = PipeBuffer()
 
     testval = TestDefaults()
@@ -332,7 +332,7 @@ function test_defaults()
 end
 
 function test_oneofs()
-    print_hdr("testing oneofs")
+    print_hdr("oneofs")
     testval = TestOneofs()
     @test isfilled(testval)
     @test isfilled(testval, :iVal1)
@@ -360,7 +360,7 @@ function test_oneofs()
 end
 
 function test_maps()
-    print_hdr("testing maps")
+    print_hdr("maps")
     pb = PipeBuffer()
 
     testval = TestMaps()
@@ -422,7 +422,7 @@ function test_maps()
 end
 
 function test_misc()
-    print_hdr("testing misc functionality")
+    print_hdr("misc functionality")
     testfld = TestOptional(TestStr("1"), TestStr(""), Int64[1,2,3])
     readfld = TestOptional(TestStr(""), TestStr("1"), Int64[])
     copy!(readfld, testfld)
@@ -443,7 +443,7 @@ function test_misc()
 end
 
 function test_enums()
-    print_hdr("testing enums")
+    print_hdr("enums")
     @test getfield(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
     @test getfield(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
     @test getfield(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
@@ -459,17 +459,17 @@ end
 end # module ProtoBufTestCodec
 
 ProtoBufTestCodec.test_types()
+ProtoBufTestCodec.test_enums()
+ProtoBufTestCodec.test_oneofs()
+ProtoBufTestCodec.test_maps()
 ProtoBufTestCodec.test_repeats()
 ProtoBufTestCodec.test_optional()
 ProtoBufTestCodec.test_nested()
 ProtoBufTestCodec.test_defaults()
 ProtoBufTestCodec.test_misc()
-ProtoBufTestCodec.test_enums()
-ProtoBufTestCodec.test_oneofs()
-ProtoBufTestCodec.test_maps()
 gc()
-println("_metacache has $(length(ProtoBuf._metacache)) items")
-println(ProtoBuf._metacache)
-println("_fillcache has $(length(ProtoBuf._fillcache)) items")
-println(ProtoBuf._fillcache)
+println("_metacache has $(length(ProtoBuf._metacache)) entries")
+#println(ProtoBuf._metacache)
+println("_fillcache has $(length(ProtoBuf._fillcache)) entries")
+#println(ProtoBuf._fillcache)
 

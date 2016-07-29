@@ -42,4 +42,18 @@ hash(v::Value) = ProtoBuf.protohash(v)
 isequal(v1::Value, v2::Value) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Value, v2::Value) = ProtoBuf.protoeq(v1, v2)
 
+function meta(t::Type{ListValue})
+    haskey(ProtoBuf._metacache, t) && (return ProtoBuf._metacache[t])
+    m = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    m.ordered[1].meta = meta(Value)
+    m
+end
+
+function meta(t::Type{Struct})
+    haskey(ProtoBuf._metacache, t) && (return ProtoBuf._metacache[t])
+    m = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    m.ordered[1].meta = ProtoBuf.mapentry_meta(Dict{AbstractString,Value})
+    m
+end
+
 export NullValue, Struct, Value, ListValue
