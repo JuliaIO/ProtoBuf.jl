@@ -2,6 +2,7 @@ language: julia
 julia:
   - 0.3
   - 0.4
+  - 0.5
   - nightly
 notifications:
   email: false
@@ -9,8 +10,11 @@ sudo: required
 before_install:
   - sudo apt-get update -qq -y
   - sudo apt-get install protobuf-compiler
+  - sudo apt-get install curl
+  - sudo ./test/setup_protoc3.sh
 script:
   - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir("ProtoBuf"))`); Pkg.pin("ProtoBuf"); Pkg.resolve()'
   - julia -e 'using ProtoBuf; @assert isdefined(:ProtoBuf); @assert typeof(ProtoBuf) === Module'
   - julia ./test/runtests.jl
-  - export PATH=./plugin:$PATH; ./test/testprotoc.sh
+  - PATH=./plugin:$PATH ./test/testprotoc.sh
+  - PATH=./plugin:$PATH PROTOC=/proto3/protobuf-3.0.0-beta-4/install/bin/protoc ./test/testprotoc.sh
