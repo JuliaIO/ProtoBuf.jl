@@ -12,7 +12,7 @@ fi
 
 if [ -z ${FLAGS} ]
 then
-    julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'
+    julia ${COVERAGE} -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'
 else
-    julia -e 'using ProtoBuf; using ProtoBuf.Gen; gen()' -- ${FLAGS}
+    julia ${COVERAGE} -e 'using ProtoBuf; using ProtoBuf.Gen; gen()' -- ${FLAGS}
 fi
