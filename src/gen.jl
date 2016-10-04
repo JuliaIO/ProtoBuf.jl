@@ -21,6 +21,9 @@ const _packages = Dict{AbstractString,AbstractString}()
 # maps protofile name to array of imported protofiles
 const protofile_imports = Dict()
 
+# Treat Google Proto3 extensions specially as they are built into ProtoBuf.jl (for issue #77)
+const GOOGLE_PROTO3_EXTENSIONS = "google.protobuf"
+
 const _keywords = [
     "if", "else", "elseif", "while", "for", "begin", "end", "quote", 
     "try", "catch", "return", "local", "abstract", "function", "macro",
@@ -499,6 +502,9 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         for dependency in using_pkgs
             (fullscopename == dependency) && continue
             !isempty(parentscope) && startswith(dependency, parentscope) && (dependency = ".$(dependency[length(parentscope)+1:end])")
+            if dependency == GOOGLE_PROTO3_EXTENSIONS
+                dependency = "ProtoBuf." * dependency
+            end
             println(io, "using $dependency")
         end
     end
