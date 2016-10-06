@@ -1,6 +1,6 @@
 module ProtoBufTestWellKnown
 using ProtoBuf
-using google.protobuf
+using ProtoBuf.google.protobuf
 using Base.Test
 using Compat
 

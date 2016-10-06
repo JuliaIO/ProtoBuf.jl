@@ -1,6 +1,5 @@
 language: julia
 julia:
-  - 0.3
   - 0.4
   - 0.5
   - nightly
@@ -13,8 +12,10 @@ before_install:
   - sudo apt-get install curl
   - sudo ./test/setup_protoc3.sh
 script:
-  - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir("ProtoBuf"))`); Pkg.pin("ProtoBuf"); Pkg.resolve()'
-  - julia -e 'using ProtoBuf; @assert isdefined(:ProtoBuf); @assert typeof(ProtoBuf) === Module'
-  - julia ./test/runtests.jl
-  - PATH=./plugin:$PATH ./test/testprotoc.sh
-  - PATH=./plugin:$PATH PROTOC=/proto3/protobuf-3.0.0-beta-4/install/bin/protoc ./test/testprotoc.sh
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("ProtoBuf"); Pkg.test("ProtoBuf"; coverage=true)'
+  - COVERAGE="--code-coverage=user --inline=no" PATH=./plugin:$PATH ./test/testprotoc.sh
+  - COVERAGE="--code-coverage=user --inline=no" PATH=./plugin:$PATH PROTOC=/proto3/protobuf-3.0.0-beta-4/install/bin/protoc ./test/testprotoc.sh
+after_success:
+  - julia -e 'cd(Pkg.dir("ProtoBuf")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder());'
+  - julia -e 'cd(Pkg.dir("ProtoBuf")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'

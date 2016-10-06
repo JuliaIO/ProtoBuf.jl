@@ -41,13 +41,13 @@ map         | Dict              | Can be generated as `Array` of `key-value` by 
 
 ### Well-Known Types
 
-The protocol buffers [well known types](https://developers.google.com/protocol-buffers/docs/reference/google.protobuf) are pre-generated and included in the package as a separate module `google.protobuf`.
+The protocol buffers [well known types](https://developers.google.com/protocol-buffers/docs/reference/google.protobuf) are pre-generated and included in the package as a sub-module `ProtoBuf.google.protobuf`.
 The version of the code included with this package have additional changes to make them compatible with Julia.
 
 You can refer to them in your code after including the following statements:
 ````julia
 using ProtoBuf
-using google.protobuf
+using ProtoBuf.google.protobuf
 ````
 
 While generating code for your `.proto` files that use well-known types, add `ProtoBuf/gen` to the list of includes, e.g.:

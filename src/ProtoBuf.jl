@@ -53,9 +53,9 @@ include("google/google.jl")
 include("gen.jl")
 include("utils.jl")
 
-end # module
-
 # Include Google ProtoBuf well known types (https://developers.google.com/protocol-buffers/docs/reference/google.protobuf).
-# These are part of the `google.protobuf` module and are included automatically by the code generator.
-# For hand coded modules, include them with: `using ProtoBuf; using google.protobuf`.
+# These are part of the `google.protobuf` sub-module and are included automatically by the code generator.
+# For hand coded modules, include them with: `using ProtoBuf; using ProtoBuf.google.protobuf`.
 include("google/wellknown.jl")
+
+end # module
