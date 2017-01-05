@@ -151,7 +151,7 @@ function resolve(iob::IOBuffer, name::AbstractString)
     # write all fully resolved entities
     for typ in fully_resolved
         @logmsg("resolved $typ")
-        print(iob, takebuf_string(_deferred[typ].iob))
+        print(iob, Compat.String(take!(_deferred[typ].iob)))
         delete!(_deferred, typ)
         push!(_all_resolved, typ)
     end
@@ -378,7 +378,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
 
     if !isdeferred(full_dtypename)
         @logmsg("resolved $full_dtypename")
-        print(outio, takebuf_string(io))
+        print(outio, Compat.String(take!(io)))
         resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
@@ -573,7 +573,7 @@ function append_response(resp::CodeGeneratorResponse, filename::AbstractString, 
     jfile = ProtoBuf.instantiate(CodeGeneratorResponse_File)
 
     jfile.name = filename
-    jfile.content = takebuf_string(io)
+    jfile.content = Compat.String(take!(io))
 
     !isdefined(resp, :file) && (resp.file = CodeGeneratorResponse_File[])
     push!(resp.file, jfile)
@@ -582,7 +582,7 @@ end
 
 function err_response(errio::IOBuffer)
     resp = ProtoBuf.instantiate(CodeGeneratorResponse)
-    resp.error = takebuf_string(errio)
+    resp.error = Compat.String(take!(errio))
     resp
 end
 

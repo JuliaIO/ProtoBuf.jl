@@ -214,7 +214,7 @@ function test_repeats()
 
     print_hdr("repeated int64")
     for idx in 1:100
-        testval.val = convert(Array{Int64,1}, randstring(50).data)
+        testval.val = convert(Array{Int64,1}, Vector{UInt8}(randstring(50)))
         readval.val = Int64[]
         fldnum = @_rand_int(Int, 100, 1)
         meta = mk_test_meta(fldnum, :int64)
@@ -226,7 +226,7 @@ function test_repeats()
 
     print_hdr("repeated and packed int64")
     for idx in 1:100
-        testval.val = convert(Array{Int64,1}, randstring(50).data)
+        testval.val = convert(Array{Int64,1}, Vector{UInt8}(randstring(50)))
         readval.val = Int64[]
         fldnum = @_rand_int(Int, 100, 1)
         meta = mk_test_meta(fldnum, :int64)
