@@ -98,7 +98,7 @@ end
 
 function _write_zigzag{T <: Integer}(io::IO, x::T)
     nbits = 8*sizeof(x)
-    zx = (x << 1) $ (x >> (nbits-1))
+    zx = (x << 1) ⊻ (x >> (nbits-1))
     _write_uleb(io, zx)
 end
 
@@ -175,7 +175,7 @@ end
 read_bytes(io::IO, ::Type{Array{UInt8,1}}) = read_bytes(io)
 
 write_string(io::IO, x::AbstractString) = write_string(io, String(x))
-write_string(io::IO, x::Compat.String) = write_bytes(io, x.data)
+write_string(io::IO, x::Compat.String) = write_bytes(io, Vector{UInt8}(x))
 
 read_string(io::IO) = byte2str(read_bytes(io))
 read_string(io::IO, ::Type{AbstractString}) = read_string(io)
@@ -232,7 +232,7 @@ function write_map(io::IO, fldnum::Int, dict::Dict)
         @logmsg("write_map writing val: $val")
         writeproto(iob, val, dmeta.ordered[2])
         n += _write_key(io, fldnum, WIRETYP_LENDELIM)
-        n += write_bytes(io, takebuf_array(iob))
+        n += write_bytes(io, take!(iob))
     end
     n
 end
@@ -248,7 +248,7 @@ function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
     n = 0
     wfn(iob, convert(jtyp, val), meta)
     n += _write_key(io, fld, WIRETYP_LENDELIM)
-    n += write_bytes(io, takebuf_array(iob))
+    n += write_bytes(io, take!(iob))
     n
 end
 
@@ -315,7 +315,7 @@ function writeproto{T,F}(io::IO, val::Array{T}, attrib::ProtoMetaAttribs, wfn::F
             end
         end
         n += _write_key(io, fld, WIRETYP_LENDELIM)
-        n += write_bytes(io, takebuf_array(iob))
+        n += write_bytes(io, take!(iob))
     else
         # write each element separately
         # maps can not be repeated
@@ -323,7 +323,7 @@ function writeproto{T,F}(io::IO, val::Array{T}, attrib::ProtoMetaAttribs, wfn::F
             for eachval in val
                 wfn(iob, convert(jtyp, eachval), meta)
                 n += _write_key(io, fld, WIRETYP_LENDELIM)
-                n += write_bytes(io, takebuf_array(iob))
+                n += write_bytes(io, take!(iob))
             end
         else
             for eachval in val
