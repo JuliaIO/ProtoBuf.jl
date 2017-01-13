@@ -1,13 +1,15 @@
+syntax = "proto3";
+
 option py_generic_services = true;
 option java_generic_services = true;
 
 message BinaryOpReq {
-    required int64 i1 = 1;
-    required int64 i2 = 2;
+    int64 i1 = 1;
+    int64 i2 = 2;
 }
 
 message BinaryOpResp {
-    required int64 result = 1;
+    int64 result = 1;
 }
 
 service TestMath {

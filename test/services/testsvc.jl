@@ -1,10 +1,11 @@
 using Compat
+using Base.Test
 import Base: TCPServer, close
 import ProtoBuf: call_method, write_bytes, read_bytes
 
 include("testsvc_pb.jl")
 
-# Out RpcController for the test does nothing as of now
+# Our RpcController for the test does nothing as of now
 type TestRpcController <: ProtoRpcController
     debug::Bool
 end
@@ -22,27 +23,27 @@ end
 close(channel::TestRpcChannel) = close(channel.sock)
 
 type SvcHeader
-    method::ASCIIString
+    method::String
     SvcHeader() = (o=new(); fillunset(o); o)
 end
 
 function write_request(channel::TestRpcChannel, controller::TestRpcController, method::MethodDescriptor, request)
     io = channel.sock
     hdr = SvcHeader()
-    set_field(hdr, :method, method.name)
+    set_field!(hdr, :method, method.name)
 
     iob = IOBuffer()
 
     hdr_len = writeproto(iob, hdr)
-    hdr_buff = takebuf_array(iob)
+    hdr_buff = take!(iob)
 
     data_len = writeproto(iob, request)
-    data_buff = takebuf_array(iob)
+    data_buff = take!(iob)
 
     write_bytes(io, hdr_buff)
-    debug_log(controller, "req hdr  ==> $hdr_len bytes: $hdr_buff")
+    #debug_log(controller, "req hdr  ==> $hdr_len bytes: $hdr_buff")
     write_bytes(io, data_buff)
-    debug_log(controller, "req data ==> $data_len bytes: $data_buff")
+    #debug_log(controller, "req data ==> $data_len bytes: $data_buff")
     hdr_len + data_len
 end
 
@@ -50,14 +51,14 @@ function read_request(channel::TestRpcChannel, controller::TestRpcController, sr
     io = channel.sock
     hdr = SvcHeader()
     hdr_buff = read_bytes(io)
-    debug_log(controller, "req hdr  <== $(length(hdr_buff)) bytes: $hdr_buff")
+    #debug_log(controller, "req hdr  <== $(length(hdr_buff)) bytes: $hdr_buff")
     readproto(IOBuffer(hdr_buff), hdr)
     method = find_method(srvr, hdr.method)
 
     request_type = get_request_type(srvr, method)
     request = request_type()
     data_buff = read_bytes(io)
-    debug_log(controller, "req data <== $(length(data_buff)) bytes: $data_buff")
+    #debug_log(controller, "req data <== $(length(data_buff)) bytes: $data_buff")
     readproto(IOBuffer(data_buff), request)
     method, request
 end
@@ -66,16 +67,16 @@ function write_response(channel::TestRpcChannel, controller::TestRpcController, 
     io = channel.sock
     iob = IOBuffer()
     data_len = writeproto(iob, response)
-    data_buff = takebuf_array(iob)
+    data_buff = take!(iob)
     write_bytes(io, data_buff)
-    debug_log(controller, "resp ==> $(length(data_buff)) bytes: $data_buff")
+    #debug_log(controller, "resp ==> $(length(data_buff)) bytes: $data_buff")
     data_len
 end
 
 function read_response(channel::TestRpcChannel, controller::TestRpcController, response)
     io = channel.sock
     data_buff = read_bytes(io)
-    debug_log(controller, "resp <== $(length(data_buff)) bytes: $data_buff")
+    #debug_log(controller, "resp <== $(length(data_buff)) bytes: $data_buff")
     readproto(IOBuffer(data_buff), response)
     response
 end
@@ -99,31 +100,31 @@ end
 
 function process(srvr::TestServer, channel::TestRpcChannel)
     controller = TestRpcController(srvr.debug)
-    debug_log(controller, "starting processing from channel")
+    #debug_log(controller, "starting processing from channel")
 
     try
         while(!eof(channel.sock))
             method, request = read_request(channel, controller, srvr.impl)
             response = call_method(srvr.impl, method, controller, request)
-            debug_log(controller, "response: $response")
+            #debug_log(controller, "response: $response")
             write_response(channel, controller, response)
         end
     catch ex
         debug_log(controller, "channel stopped with exception $ex")
     end
-    debug_log(controller, "stopped processing channel")
+    #debug_log(controller, "stopped processing channel")
 end
 
 # implementations of our test services
 function Add(req::BinaryOpReq)
     resp = BinaryOpResp()
-    set_field(resp, :result, req.i1 + req.i2)
+    set_field!(resp, :result, req.i1 + req.i2)
     resp
 end
 
 function Mul(req::BinaryOpReq)
     resp = BinaryOpResp()
-    set_field(resp, :result, req.i1 * req.i2)
+    set_field!(resp, :result, req.i1 * req.i2)
     resp
 end
 
@@ -149,7 +150,7 @@ function chk_results(out::BinaryOpResp, expected, channel=nothing)
         close(channel)
         nresults += 1
     end
-    @assert out.result == expected
+    @test out.result == expected
     nothing
 end
 
@@ -157,12 +158,13 @@ function run_client(debug::Bool)
     global nresults
     controller = TestRpcController(debug)
 
-    debug_log(controller, "testing blocking stub")
+    debug_log(controller, "testing services...")
+    debug_log(controller, "testing blocking stub...")
     let channel=TestRpcChannel(connect(9999)), stub=TestMathBlockingStub(channel)
         for i in 1:10
             inp = BinaryOpReq()
-            set_field(inp, :i1, int64(rand(Int8)))
-            set_field(inp, :i2, int64(rand(Int8)))
+            set_field!(inp, :i1, Int64(rand(Int8)))
+            set_field!(inp, :i2, Int64(rand(Int8)))
 
             out = Add(stub, controller, inp)
             chk_results(out, inp.i1+inp.i2)
@@ -173,11 +175,11 @@ function run_client(debug::Bool)
         close(channel)
     end
 
-    debug_log(controller, "testing non blocking stub")
+    debug_log(controller, "testing non blocking stub...")
     for i in 1:10
         inp = BinaryOpReq()
-        set_field(inp, :i1, int64(rand(Int8)))
-        set_field(inp, :i2, int64(rand(Int8)))
+        set_field!(inp, :i1, Int64(rand(Int8)))
+        set_field!(inp, :i2, Int64(rand(Int8)))
        
         nresults -= 1
         let channel=TestRpcChannel(connect(9999)), stub=TestMathStub(channel), expected=inp.i1+inp.i2
@@ -190,7 +192,7 @@ function run_client(debug::Bool)
         end
     end
     while nresults != 0
-        debug_log(controller, "waiting for $nresults results")
+        debug_log(controller, "waiting for $(abs(nresults)) results")
         yield()
         sleep(1)
     end
