@@ -57,7 +57,7 @@ type FieldOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     FieldOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type FieldOptions
-const __val_FieldOptions = @compat Dict(:ctype => FieldOptions_CType.STRING, :jstype => FieldOptions_JSType.JS_NORMAL, :lazy => false, :deprecated => false, :weak => false)
+const __val_FieldOptions = Dict(:ctype => FieldOptions_CType.STRING, :jstype => FieldOptions_JSType.JS_NORMAL, :lazy => false, :deprecated => false, :weak => false)
 const __fnum_FieldOptions = Int[1,2,6,5,3,10,999]
 meta(t::Type{FieldOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FieldOptions, __val_FieldOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::FieldOptions) = ProtoBuf.protohash(v)
@@ -72,7 +72,7 @@ type MessageOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     MessageOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type MessageOptions
-const __val_MessageOptions = @compat Dict(:message_set_wire_format => false, :no_standard_descriptor_accessor => false, :deprecated => false)
+const __val_MessageOptions = Dict(:message_set_wire_format => false, :no_standard_descriptor_accessor => false, :deprecated => false)
 const __fnum_MessageOptions = Int[1,2,3,7,999]
 meta(t::Type{MessageOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_MessageOptions, __val_MessageOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::MessageOptions) = ProtoBuf.protohash(v)
@@ -85,7 +85,7 @@ type EnumOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     EnumOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type EnumOptions
-const __val_EnumOptions = @compat Dict(:deprecated => false)
+const __val_EnumOptions = Dict(:deprecated => false)
 const __fnum_EnumOptions = Int[2,3,999]
 meta(t::Type{EnumOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_EnumOptions, __val_EnumOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::EnumOptions) = ProtoBuf.protohash(v)
@@ -97,7 +97,7 @@ type MethodOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     MethodOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type MethodOptions
-const __val_MethodOptions = @compat Dict(:deprecated => false)
+const __val_MethodOptions = Dict(:deprecated => false)
 const __fnum_MethodOptions = Int[33,999]
 meta(t::Type{MethodOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_MethodOptions, __val_MethodOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::MethodOptions) = ProtoBuf.protohash(v)
@@ -130,7 +130,7 @@ type FileOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     FileOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type FileOptions
-const __val_FileOptions = @compat Dict(:java_multiple_files => false, :java_generate_equals_and_hash => false, :java_string_check_utf8 => false, :optimize_for => FileOptions_OptimizeMode.SPEED, :cc_generic_services => false, :java_generic_services => false, :py_generic_services => false, :deprecated => false, :cc_enable_arenas => false)
+const __val_FileOptions = Dict(:java_multiple_files => false, :java_generate_equals_and_hash => false, :java_string_check_utf8 => false, :optimize_for => FileOptions_OptimizeMode.SPEED, :cc_generic_services => false, :java_generic_services => false, :py_generic_services => false, :deprecated => false, :cc_enable_arenas => false)
 const __fnum_FileOptions = Int[1,8,10,20,27,9,11,16,17,18,23,31,36,37,999]
 meta(t::Type{FileOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_FileOptions, __val_FileOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::FileOptions) = ProtoBuf.protohash(v)
@@ -142,7 +142,7 @@ type EnumValueOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     EnumValueOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type EnumValueOptions
-const __val_EnumValueOptions = @compat Dict(:deprecated => false)
+const __val_EnumValueOptions = Dict(:deprecated => false)
 const __fnum_EnumValueOptions = Int[1,999]
 meta(t::Type{EnumValueOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_EnumValueOptions, __val_EnumValueOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::EnumValueOptions) = ProtoBuf.protohash(v)
@@ -164,7 +164,7 @@ type ServiceOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     ServiceOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type ServiceOptions
-const __val_ServiceOptions = @compat Dict(:deprecated => false)
+const __val_ServiceOptions = Dict(:deprecated => false)
 const __fnum_ServiceOptions = Int[33,999]
 meta(t::Type{ServiceOptions}) = meta(t, ProtoBuf.DEF_REQ, __fnum_ServiceOptions, __val_ServiceOptions, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::ServiceOptions) = ProtoBuf.protohash(v)
@@ -230,7 +230,7 @@ type MethodDescriptorProto
     server_streaming::Bool
     MethodDescriptorProto(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type MethodDescriptorProto
-const __val_MethodDescriptorProto = @compat Dict(:client_streaming => false, :server_streaming => false)
+const __val_MethodDescriptorProto = Dict(:client_streaming => false, :server_streaming => false)
 meta(t::Type{MethodDescriptorProto}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, __val_MethodDescriptorProto, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
 hash(v::MethodDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::MethodDescriptorProto, v2::MethodDescriptorProto) = ProtoBuf.protoisequal(v1, v2)

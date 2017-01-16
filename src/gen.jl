@@ -215,7 +215,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     if isfilled(dtype, :oneof_decl)
         for oneof_decl in dtype.oneof_decl
             if isfilled(oneof_decl, :name)
-                push!(oneof_names,  "@compat(Symbol(\"$(oneof_decl.name)\"))")
+                push!(oneof_names,  "Symbol(\"$(oneof_decl.name)\")")
             end
         end
     end
@@ -346,10 +346,10 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums);]
     !isempty(reqflds) && println(io, "const __req_$(dtypename) = Symbol[$(join(reqflds, ','))]")
-    !isempty(defvals) && println(io, "const __val_$(dtypename) = @compat Dict($(join(defvals, ", ")))")
+    !isempty(defvals) && println(io, "const __val_$(dtypename) = Dict($(join(defvals, ", ")))")
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
-    !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = @compat Dict($(join(wtypes, ", ")))")
+    !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = Dict($(join(wtypes, ", ")))")
     if !isempty(oneofs)
         println(io, "const __oneofs_$(dtypename) = Int[$(join(oneofs, ','))]")
         println(io, "const __oneof_names_$(dtypename) = [$(join(oneof_names, ','))]")

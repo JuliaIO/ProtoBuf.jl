@@ -11,7 +11,7 @@ const WIRETYP_GRPEND   = 4   # deprecated
 const WIRETYP_32BIT    = 5
 
 # TODO: wiretypes should become julia types, so that methods can be parameterized on them
-const WIRETYPES = @compat Dict{Symbol,Tuple}(
+const WIRETYPES = Dict{Symbol,Tuple}(
     :int32          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
     :int64          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int64),
     :uint32         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   UInt32),
@@ -69,7 +69,7 @@ function _write_uleb{T <: Integer}(io::IO, x::T)
         else
             cont = false
         end
-        nw += write(io, @compat UInt8(byte))
+        nw += write(io, UInt8(byte))
     end
     nw
 end
@@ -82,7 +82,7 @@ const _max_n = [2, 3, 4, 5, 6, 7, 8, 10]
 function _read_uleb{T <: Integer}(io::IO, ::Type{T})
     res = zero(T)
     n = 0
-    byte = @compat UInt8(MSB)
+    byte = UInt8(MSB)
     while (byte & MSB) != 0
         byte = read(io, UInt8)
         res |= (convert(T, byte & MASK7) << (7*n))
@@ -127,7 +127,7 @@ write_bool(io::IO, x::Bool) = _write_uleb(io, x ? 1 : 0)
 write_svarint{T <: Integer}(io::IO, x::T) = _write_zigzag(io, x)
 
 read_varint{T <: Integer}(io::IO, ::Type{T}) = _read_uleb(io, T)
-read_bool(io::IO) = @compat Bool(_read_uleb(io, UInt64))
+read_bool(io::IO) = Bool(_read_uleb(io, UInt64))
 read_bool(io::IO, ::Type{Bool}) = read_bool(io)
 read_svarint{T <: Integer}(io::IO, ::Type{T}) = _read_zigzag(io, T)
 
@@ -140,7 +140,7 @@ write_fixed(io::IO, x::Float64) = _write_fixed(io, reinterpret(UInt64, x))
 function _write_fixed{T <: Unsigned}(io::IO, ux::T)
     N = sizeof(ux)
     for n in 1:N
-        write(io, @compat UInt8(ux & MASK8))
+        write(io, UInt8(ux & MASK8))
         ux >>>= 8
     end
     N
@@ -394,7 +394,7 @@ function read_map{K,V}(io, dict::Dict{K,V})
         fldnum, wiretyp = _read_key(iob)
         @logmsg("reading map fldnum: $fldnum")
 
-        fldnum = @compat(Int(fldnum))
+        fldnum = Int(fldnum)
         attrib = dmeta.numdict[fldnum]
 
         if fldnum == 1
@@ -464,7 +464,7 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         fldnum, wiretyp = _read_key(io)
         @logmsg("reading fldnum: $(typeof(obj)).$fldnum")
 
-        fldnum = @compat(Int(fldnum))
+        fldnum = Int(fldnum)
         # ignore unknown fields
         if !(fldnum in fldnums)
             @logmsg("skipping unknown field: $(typeof(obj)).$fldnum")

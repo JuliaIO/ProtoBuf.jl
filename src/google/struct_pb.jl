@@ -36,7 +36,7 @@ type Value
     Value(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type Value
 const __oneofs_Value = Int[1,1,1,1,1,1]
-const __oneof_names_Value = [@compat(Symbol("kind"))]
+const __oneof_names_Value = [Symbol("kind")]
 meta(t::Type{Value}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, __oneofs_Value, __oneof_names_Value)
 hash(v::Value) = ProtoBuf.protohash(v)
 isequal(v1::Value, v2::Value) = ProtoBuf.protoisequal(v1, v2)
