@@ -9,7 +9,7 @@ abstract AbstractProtoServiceStub{B}
 #
 # MethodDescriptor begin
 # ==============================
-type MethodDescriptor
+immutable MethodDescriptor
     name::AbstractString
     index::Int
     input_type::DataType
@@ -25,7 +25,7 @@ get_response_type(meth::MethodDescriptor) = meth.output_type
 #
 # ServiceDescriptor begin
 # ==============================
-type ServiceDescriptor
+immutable ServiceDescriptor
     name::AbstractString
     index::Int
     methods::Array{MethodDescriptor}
@@ -59,7 +59,7 @@ find_method(svc::ServiceDescriptor, meth::MethodDescriptor) = isempty(meth.name)
 #
 # Service begin
 # ==============================
-type ProtoService
+immutable ProtoService
     desc::ServiceDescriptor
     impl_module::Module
 end
@@ -82,7 +82,7 @@ end
 #
 # Service Stubs begin
 # ==============================
-type GenericProtoServiceStub{B} <: AbstractProtoServiceStub{B}
+immutable GenericProtoServiceStub{B} <: AbstractProtoServiceStub{B}
     desc::ServiceDescriptor
     channel::ProtoRpcChannel
     blocking::Bool
