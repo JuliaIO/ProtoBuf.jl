@@ -93,8 +93,8 @@ typealias ProtoServiceStub GenericProtoServiceStub{false}
 typealias ProtoServiceBlockingStub GenericProtoServiceStub{true}
 
 find_method(stub::GenericProtoServiceStub, name_or_index) = find_method(stub.desc, name_or_index)
-call_method(stub::ProtoServiceBlockingStub, meth::MethodDescriptor, controller::ProtoRpcController, request) = call_method(stub.channel, find_method(stub, meth), controller, request)
-call_method(stub::ProtoServiceStub, meth::MethodDescriptor, controller::ProtoRpcController, request, done::Function) = @async done(call_method(stub.channel, find_method(stub, meth), controller, request))
+call_method(stub::ProtoServiceBlockingStub, meth::MethodDescriptor, controller::ProtoRpcController, request) = call_method(stub.channel, stub.desc, find_method(stub, meth), controller, request)
+call_method(stub::ProtoServiceStub, meth::MethodDescriptor, controller::ProtoRpcController, request, done::Function) = @async done(call_method(stub.channel, stub.desc, find_method(stub, meth), controller, request))
 # ==============================
 # Service Stubs end
 #

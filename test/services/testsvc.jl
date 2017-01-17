@@ -27,7 +27,7 @@ type SvcHeader
     SvcHeader() = (o=new(); fillunset(o); o)
 end
 
-function write_request(channel::TestRpcChannel, controller::TestRpcController, method::MethodDescriptor, request)
+function write_request(channel::TestRpcChannel, controller::TestRpcController, service::ServiceDescriptor, method::MethodDescriptor, request)
     io = channel.sock
     hdr = SvcHeader()
     set_field!(hdr, :method, method.name)
@@ -81,8 +81,8 @@ function read_response(channel::TestRpcChannel, controller::TestRpcController, r
     response
 end
 
-function call_method(channel::TestRpcChannel, method::MethodDescriptor, controller::TestRpcController, request)
-    write_request(channel, controller, method, request)
+function call_method(channel::TestRpcChannel, service::ServiceDescriptor, method::MethodDescriptor, controller::TestRpcController, request)
+    write_request(channel, controller, service, method, request)
     response_type = get_response_type(method)
     response = response_type()
     read_response(channel, controller, response)

@@ -401,7 +401,7 @@ function has_gen_services(opt::FileOptions)
     return false
 end
 
-function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int, exports::Array{AbstractString,1})
+function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope, svcidx::Int, exports::Array{AbstractString,1})
     nmethods = isfilled(stype, :method) ? length(stype.method) : 0
 
     # generate method and service descriptors
@@ -417,7 +417,8 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int,
         println(io, "        MethodDescriptor(\"$(method.name)\", $(idx), $(in_typ_name), $(out_typ_name))$(elem_sep)")
     end
     println(io, "    ] # const _$(stype.name)_methods")
-    println(io, "const _$(stype.name)_desc = ServiceDescriptor(\"$(stype.name)\", $(svcidx), _$(stype.name)_methods)")
+    fullservicename = scope.is_module ? pfx(stype.name, scope) : stype.name
+    println(io, "const _$(stype.name)_desc = ServiceDescriptor(\"$(fullservicename)\", $(svcidx), _$(stype.name)_methods)")
     println(io, "")
 
     # generate service
@@ -537,7 +538,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         nservices = length(protofile.service)
         for idx in 1:nservices
             service = protofile.service[idx]
-            generate(io, errio, service, idx, exports)
+            generate(io, errio, service, scope, idx, exports)
             (errio.size > 0) && return
         end
     end
