@@ -168,7 +168,8 @@ end
 
 function read_bytes(io::IO)
     n = _read_uleb(io, UInt64)
-    data = Array(UInt8, n)
+    #data = Array(UInt8, n)
+    data = Array{UInt8,1}(n)
     read!(io, data)
     data
 end
@@ -539,9 +540,10 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
         fldtyp = types[fldidx]
         fldname = names[fldidx]
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
-        isarr = (fldtyp.name === Array.name) && !(fldtyp === Array{UInt8,1})
+        isarr = issubtype(fldtyp, Array) && !(fldtyp === Array{UInt8,1})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
-        elemtyp = isarr ? fldtyp.parameters[1] : fldtyp
+
+        elemtyp = isarr ? eltype(fldtyp) : fldtyp
         wtyp = get(wtypes, fldname, wiretype(elemtyp))
         packed = (isarr && (fldname in pack))
         default = haskey(defaults, fldname) ? Any[defaults[fldname]] : defaultval(fldtyp)
@@ -561,7 +563,7 @@ function mapentry_meta{K,V}(typ::Type{Dict{K,V}})
     attribs = ProtoMetaAttribs[]
     push!(attribs, ProtoMetaAttribs(1, "key", wiretype(K), 0, false, defaultval(K), nothing))
 
-    isarr = (V.name === Array.name) && !(V === Array{UInt8,1})
+    isarr = issubtype(V, Array) && !(V === Array{UInt8,1})
     repeat = isarr ? 2 : 0
     packed = isarr
     wtyp = wiretype(V)
