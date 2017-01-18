@@ -1,20 +1,25 @@
+# syntax: proto3
+using Compat
 using ProtoBuf
 import ProtoBuf.meta
+import Base: hash, isequal, ==
 
 type BinaryOpReq
     i1::Int64
     i2::Int64
-    BinaryOpReq() = (o=new(); fillunset(o); o)
+    BinaryOpReq(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type BinaryOpReq
-const __req_BinaryOpReq = Symbol[:i1,:i2]
-meta(t::Type{BinaryOpReq}) = meta(t, __req_BinaryOpReq, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+hash(v::BinaryOpReq) = ProtoBuf.protohash(v)
+isequal(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoisequal(v1, v2)
+==(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoeq(v1, v2)
 
 type BinaryOpResp
     result::Int64
-    BinaryOpResp() = (o=new(); fillunset(o); o)
+    BinaryOpResp(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type BinaryOpResp
-const __req_BinaryOpResp = Symbol[:result]
-meta(t::Type{BinaryOpResp}) = meta(t, __req_BinaryOpResp, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES)
+hash(v::BinaryOpResp) = ProtoBuf.protohash(v)
+isequal(v1::BinaryOpResp, v2::BinaryOpResp) = ProtoBuf.protoisequal(v1, v2)
+==(v1::BinaryOpResp, v2::BinaryOpResp) = ProtoBuf.protoeq(v1, v2)
 
 # service methods for TestMath
 const _TestMath_methods = MethodDescriptor[

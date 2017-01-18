@@ -9,7 +9,7 @@ abstract AbstractProtoServiceStub{B}
 #
 # MethodDescriptor begin
 # ==============================
-type MethodDescriptor
+immutable MethodDescriptor
     name::AbstractString
     index::Int
     input_type::DataType
@@ -25,7 +25,7 @@ get_response_type(meth::MethodDescriptor) = meth.output_type
 #
 # ServiceDescriptor begin
 # ==============================
-type ServiceDescriptor
+immutable ServiceDescriptor
     name::AbstractString
     index::Int
     methods::Array{MethodDescriptor}
@@ -59,7 +59,7 @@ find_method(svc::ServiceDescriptor, meth::MethodDescriptor) = isempty(meth.name)
 #
 # Service begin
 # ==============================
-type ProtoService
+immutable ProtoService
     desc::ServiceDescriptor
     impl_module::Module
 end
@@ -71,7 +71,7 @@ get_descriptor_for_type(svc::ProtoService) = svc.desc
 call_method(svc::ProtoService, meth::MethodDescriptor, controller::ProtoRpcController, request, done::Function) = @async done(call_method(svc, meth, controller, request))
 function call_method(svc::ProtoService, meth::MethodDescriptor, controller::ProtoRpcController, request)
     meth_desc = find_method(svc, meth)
-    m = eval(svc.impl_module, @compat(Symbol(meth_desc.name)))
+    m = eval(svc.impl_module, Symbol(meth_desc.name))
     isa(request, meth_desc.input_type) || throw(ProtoServiceException("Invalid input type $(typeof(request)) for service $(meth_desc.name). Expected type $(meth_desc.input_type)"))
     m(request)
 end
@@ -82,7 +82,7 @@ end
 #
 # Service Stubs begin
 # ==============================
-type GenericProtoServiceStub{B} <: AbstractProtoServiceStub{B}
+immutable GenericProtoServiceStub{B} <: AbstractProtoServiceStub{B}
     desc::ServiceDescriptor
     channel::ProtoRpcChannel
     blocking::Bool
@@ -93,8 +93,8 @@ typealias ProtoServiceStub GenericProtoServiceStub{false}
 typealias ProtoServiceBlockingStub GenericProtoServiceStub{true}
 
 find_method(stub::GenericProtoServiceStub, name_or_index) = find_method(stub.desc, name_or_index)
-call_method(stub::ProtoServiceBlockingStub, meth::MethodDescriptor, controller::ProtoRpcController, request) = call_method(stub.channel, find_method(stub, meth), controller, request)
-call_method(stub::ProtoServiceStub, meth::MethodDescriptor, controller::ProtoRpcController, request, done::Function) = @async done(call_method(stub.channel, find_method(stub, meth), controller, request))
+call_method(stub::ProtoServiceBlockingStub, meth::MethodDescriptor, controller::ProtoRpcController, request) = call_method(stub.channel, stub.desc, find_method(stub, meth), controller, request)
+call_method(stub::ProtoServiceStub, meth::MethodDescriptor, controller::ProtoRpcController, request, done::Function) = @async done(call_method(stub.channel, stub.desc, find_method(stub, meth), controller, request))
 # ==============================
 # Service Stubs end
 #

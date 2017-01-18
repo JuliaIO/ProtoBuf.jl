@@ -215,7 +215,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     if isfilled(dtype, :oneof_decl)
         for oneof_decl in dtype.oneof_decl
             if isfilled(oneof_decl, :name)
-                push!(oneof_names,  "@compat(Symbol(\"$(oneof_decl.name)\"))")
+                push!(oneof_names,  "Symbol(\"$(oneof_decl.name)\")")
             end
         end
     end
@@ -346,10 +346,10 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums);]
     !isempty(reqflds) && println(io, "const __req_$(dtypename) = Symbol[$(join(reqflds, ','))]")
-    !isempty(defvals) && println(io, "const __val_$(dtypename) = @compat Dict($(join(defvals, ", ")))")
+    !isempty(defvals) && println(io, "const __val_$(dtypename) = Dict($(join(defvals, ", ")))")
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
-    !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = @compat Dict($(join(wtypes, ", ")))")
+    !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = Dict($(join(wtypes, ", ")))")
     if !isempty(oneofs)
         println(io, "const __oneofs_$(dtypename) = Int[$(join(oneofs, ','))]")
         println(io, "const __oneof_names_$(dtypename) = [$(join(oneof_names, ','))]")
@@ -401,7 +401,7 @@ function has_gen_services(opt::FileOptions)
     return false
 end
 
-function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int, exports::Array{AbstractString,1})
+function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope, svcidx::Int, exports::Array{AbstractString,1})
     nmethods = isfilled(stype, :method) ? length(stype.method) : 0
 
     # generate method and service descriptors
@@ -417,7 +417,8 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, svcidx::Int,
         println(io, "        MethodDescriptor(\"$(method.name)\", $(idx), $(in_typ_name), $(out_typ_name))$(elem_sep)")
     end
     println(io, "    ] # const _$(stype.name)_methods")
-    println(io, "const _$(stype.name)_desc = ServiceDescriptor(\"$(stype.name)\", $(svcidx), _$(stype.name)_methods)")
+    fullservicename = scope.is_module ? pfx(stype.name, scope) : stype.name
+    println(io, "const _$(stype.name)_desc = ServiceDescriptor(\"$(fullservicename)\", $(svcidx), _$(stype.name)_methods)")
     println(io, "")
 
     # generate service
@@ -537,7 +538,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         nservices = length(protofile.service)
         for idx in 1:nservices
             service = protofile.service[idx]
-            generate(io, errio, service, idx, exports)
+            generate(io, errio, service, scope, idx, exports)
             (errio.size > 0) && return
         end
     end
