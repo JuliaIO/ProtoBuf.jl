@@ -49,6 +49,8 @@ then
     ERR=$(($ERR + $?))
     echo "- any_test.proto" && ${GEN} ${SRC}/any_test.proto && ${CHK} 'include("out/any_test_pb.jl")'
     ERR=$(($ERR + $?))
+    echo "- svc3.proto" && ${GEN} ${SRC}/svc3.proto && ${CHK} 'include("out/svc3_pb.jl")'
+    ERR=$(($ERR + $?))
 fi
 
 exit $ERR
