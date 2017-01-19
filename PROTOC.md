@@ -66,6 +66,8 @@ The RPC Controller must be an implementation of `ProtoRpcController`. It is not 
 
 The RPC channel must implement `call_method(channel, method_descriptor, controller, request)` and return the response.
 
+RPC method inputs or outputs that are defined as `stream` type, are generated as `Channel` of the corresponding type.
+
 Service stubs are Julia types. Stubs can be constructed by passing an RPC channel to the constructor. For each service, two stubs are generated:
 - <servicename>Stub: The asynchronous stub that takes a callback to invoke with the result on completion
 - <servicename>BlockingStub: The blocking stub that returns the result on completion
