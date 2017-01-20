@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option py_generic_services = true;
+option java_generic_services = true;
+
+message BinaryOpReq {
+    int64 i1 = 1;
+    int64 i2 = 2;
+}
+
+message BinaryOpResp {
+    int64 result = 1;
+}
+
+service TestMath {
+  rpc Mul(BinaryOpReq) returns(BinaryOpResp);
+  rpc Add(BinaryOpReq) returns(BinaryOpResp);
+  rpc StreamingAdd(stream BinaryOpReq) returns(stream BinaryOpResp);
+}

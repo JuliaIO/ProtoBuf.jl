@@ -414,6 +414,10 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope
         sm = splitmodule(method.output_type)
         _modul,out_typ_name = (length(sm) > 1) ? (sm[1],sm[2]) : ("",method.output_type)
         elem_sep = (idx < nmethods) ? "," : ""
+
+        method.client_streaming && (in_typ_name = "Channel{" * in_typ_name * "}")
+        method.server_streaming && (out_typ_name = "Channel{" * out_typ_name * "}")
+
         println(io, "        MethodDescriptor(\"$(method.name)\", $(idx), $(in_typ_name), $(out_typ_name))$(elem_sep)")
     end
     println(io, "    ] # const _$(stype.name)_methods")
@@ -447,6 +451,7 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope
         method = stype.method[idx]
         sm = splitmodule(method.input_type)
         _modul,in_typ_name = (length(sm) > 1) ? (sm[1],sm[2]) : ("",method.input_type)
+        method.client_streaming && (in_typ_name = "Channel{" * in_typ_name * "}")
         println(io, "$(method.name)(stub::$(stub), controller::ProtoRpcController, inp::$(in_typ_name), done::Function) = call_method(stub.impl, _$(stype.name)_methods[$(idx)], controller, inp, done)")
         println(io, "$(method.name)(stub::$(nbstub), controller::ProtoRpcController, inp::$(in_typ_name)) = call_method(stub.impl, _$(stype.name)_methods[$(idx)], controller, inp)")
         println(io, "")
