@@ -23,7 +23,7 @@ end
 close(channel::TestRpcChannel) = close(channel.sock)
 
 type SvcHeader
-    method::String
+    method::Compat.String
     SvcHeader() = (o=new(); fillunset(o); o)
 end
 
