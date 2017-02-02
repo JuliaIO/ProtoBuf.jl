@@ -90,7 +90,7 @@ function _read_uleb{T <: Integer}(io::IO, ::Type{T})
     end
     ## in case of overflow, consider it as missing field and return default value
     if n > _max_n[sizeof(T)]
-        info("overflow reading $T. returning 0")
+        @logmsg("overflow reading $T. returning 0")
         return zero(T)
     end
     res
