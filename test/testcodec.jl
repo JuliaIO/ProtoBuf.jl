@@ -182,6 +182,15 @@ function test_types()
         end
     end
 
+    print_hdr("varint overflow...")
+    ProtoBuf._write_uleb(pb, -1)
+    @test ProtoBuf._read_uleb(pb, Int8) == 0
+    ProtoBuf._write_uleb(pb, 1)
+    @test ProtoBuf._read_uleb(pb, Int8) == 1
+    write(pb, 0xff)
+    ProtoBuf._write_uleb(pb, -1)
+    @test ProtoBuf._read_uleb(pb, Int32) == 0
+
     let typs = [Bool], ptyps=[:bool]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
