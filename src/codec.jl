@@ -79,7 +79,7 @@ end
 # (r > 0) && (d += 1)
 const _max_n = [2, 3, 4, 5, 6, 7, 8, 10]
 
-function _read_uleb{T <: Integer}(io::IO, ::Type{T})
+function _read_uleb_base{T <: Integer}(io::IO, ::Type{T})
     res = zero(T)
     n = 0
     byte = UInt8(MSB)
@@ -88,7 +88,28 @@ function _read_uleb{T <: Integer}(io::IO, ::Type{T})
         res |= (convert(T, byte & MASK7) << (7*n))
         n += 1
     end
-    ## in case of overflow, consider it as missing field and return default value
+    n, res
+end
+
+function _read_uleb(io::IO, ::Type{Int32})
+    n, res = _read_uleb_base(io, Int32)
+
+    # negative int32 are encoded in 10 bytes (ref: https://developers.google.com/protocol-buffers/docs/encoding)
+    # > if you use int32 or int64 as the type for a negative number, the resulting varint is always ten bytes long
+    #
+    # but Julia can be tolerant like the C protobuf implementation (unlike python)
+
+    if n > _max_n[sizeof(res < 0 ? Int64 : Int32)]
+        @logmsg("overflow reading $T. returning 0")
+        return Int32(0)
+    end
+
+    res
+end
+
+function _read_uleb{T <: Integer}(io::IO, ::Type{T})
+    n, res = _read_uleb_base(io, T)
+    # in case of overflow, consider it as missing field and return default value
     if n > _max_n[sizeof(T)]
         @logmsg("overflow reading $T. returning 0")
         return zero(T)
@@ -123,6 +144,7 @@ end
 ##
 # read and write field values
 write_varint{T <: Integer}(io::IO, x::T) = _write_uleb(io, x)
+write_varint(io::IO, x::Int32) = _write_uleb(io, x < 0 ? Int64(x) : x)
 write_bool(io::IO, x::Bool) = _write_uleb(io, x ? 1 : 0)
 write_svarint{T <: Integer}(io::IO, x::T) = _write_zigzag(io, x)
 

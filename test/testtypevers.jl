@@ -52,7 +52,7 @@ function check_V1_v2()
     writeval = V2(typemax(Int64), true, 20);
     writeproto(iob, writeval);
     readval = readproto(iob, V1());
-    checkval = V1(0,true)
+    checkval = V1(-1,true)  # overflow can't be detected as negative int32 is sign extended for serialization
     @assert ProtoBuf.protoeq(readval, checkval)
 end
 
