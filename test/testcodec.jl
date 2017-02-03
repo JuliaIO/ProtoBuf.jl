@@ -168,6 +168,20 @@ function test_types()
         end
     end
 
+    let typs = [Int32,Int64,Int32,Int64], ptyps=[:int32,:int64,:sint32,:sint64]
+        for (typ,ptyp) in zip(typs,ptyps)
+            print_hdr(ptyp)
+            for idx in 1:100
+                testval.val = convert(typ, -1 * @_rand_int(Int32, 10^9, 0))
+                fldnum = @_rand_int(Int, 100, 1)
+                meta = mk_test_meta(fldnum, ptyp)
+                writeproto(pb, testval, meta)
+                readproto(pb, readval, meta)
+                assert_equal(testval, readval)
+            end
+        end
+    end
+
     let typs = [Bool], ptyps=[:bool]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
