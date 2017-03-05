@@ -2,9 +2,9 @@ type ProtoServiceException <: Exception
     msg::AbstractString
 end
 
-abstract ProtoRpcChannel
-abstract ProtoRpcController
-abstract AbstractProtoServiceStub{B}
+@compat abstract type ProtoRpcChannel end
+@compat abstract type ProtoRpcController end
+@compat abstract type AbstractProtoServiceStub{B} end
 
 #
 # MethodDescriptor begin
@@ -86,11 +86,16 @@ immutable GenericProtoServiceStub{B} <: AbstractProtoServiceStub{B}
     desc::ServiceDescriptor
     channel::ProtoRpcChannel
     blocking::Bool
-    GenericProtoServiceStub(desc::ServiceDescriptor, channel::ProtoRpcChannel) = new(desc, channel, B)
+
+    # This inner constructor syntax works with both Julia .5 and .6
+    function (::Type{GenericProtoServiceStub{B}}){B}(desc::ServiceDescriptor,
+                                                     channel::ProtoRpcChannel)
+        new{B}(desc, channel, B)
+    end
 end
 
-typealias ProtoServiceStub GenericProtoServiceStub{false}
-typealias ProtoServiceBlockingStub GenericProtoServiceStub{true}
+const ProtoServiceStub = GenericProtoServiceStub{false}
+const ProtoServiceBlockingStub = GenericProtoServiceStub{true}
 
 find_method(stub::GenericProtoServiceStub, name_or_index) = find_method(stub.desc, name_or_index)
 call_method(stub::ProtoServiceBlockingStub, meth::MethodDescriptor, controller::ProtoRpcController, request) = call_method(stub.channel, stub.desc, find_method(stub, meth), controller, request)
