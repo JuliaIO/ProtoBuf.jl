@@ -200,7 +200,7 @@ read_bytes(io::IO, ::Type{Array{UInt8,1}}) = read_bytes(io)
 write_string(io::IO, x::AbstractString) = write_string(io, String(x))
 write_string(io::IO, x::Compat.String) = write_bytes(io, Vector{UInt8}(x))
 
-read_string(io::IO) = byte2str(read_bytes(io))
+read_string(io::IO) = String(read_bytes(io))
 read_string(io::IO, ::Type{AbstractString}) = read_string(io)
 read_string{T <: Compat.String}(io::IO, ::Type{T}) = convert(T, read_string(io))
 
