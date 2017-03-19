@@ -14,25 +14,8 @@ export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescrip
 
 using Compat
 
-if isless(Base.VERSION, v"0.4.0-")
-import Base.rsplit
-rsplit{T<:AbstractString}(str::T, splitter; limit::Integer=0, keep::Bool=true) = rsplit(str, splitter, limit, keep)
-end
-
-if isless(Base.VERSION, v"0.4.0-")
-fld_type(o, fld) = fieldtype(o, fld)
-fld_names(x) = x.names
-else
 fld_type{T}(o::T, fld) = fieldtype(T, fld)
 fld_names(x) = x.name.names
-end
-
-if isless(Base.VERSION, v"0.5.0-")
-byte2str(x) = bytestring(x)
-else
-byte2str(x) = String(x)
-end
-
 
 # enable logging only during debugging
 macro logmsg(s)
