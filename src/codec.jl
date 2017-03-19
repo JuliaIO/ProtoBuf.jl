@@ -361,7 +361,7 @@ end
 function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n = 0
     @logmsg("writeproto writing an obj with meta: $meta")
-    for attrib in meta.ordered 
+    for attrib in meta.ordered
         fld = attrib.fld
         if isfilled(obj, fld)
             @logmsg("writeproto writing field: $fld")
@@ -512,7 +512,7 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     for attrib in meta.ordered
         fld = attrib.fld
         idx = findfirst(fnames, fld)
-        # TODO: do not fill if oneof the fields in the oneof 
+        # TODO: do not fill if oneof the fields in the oneof
         if !isfilled(obj, fld) && (length(attrib.default) > 0) && !_isset_oneof(fill, meta.oneofs, idx)
             default = attrib.default[1]
             setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
@@ -614,7 +614,7 @@ function _isset_oneof(fill::BitArray, oneofs::Vector{Int}, idx::Int)
     if oneofidx > 0
         # find if any field in the oneof group is set
         for uidx = 1:length(oneofs)
-            if oneofs[uidx] == oneofidx 
+            if oneofs[uidx] == oneofidx
                 fill[1,uidx] && (return true)
             end
         end
@@ -699,7 +699,7 @@ end
 ##
 # Enum Lookup
 
-abstract ProtoEnum
+@compat abstract type ProtoEnum end
 
 function lookup(en::ProtoEnum, val)
     for name in fld_names(typeof(en))
