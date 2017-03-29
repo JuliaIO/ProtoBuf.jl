@@ -75,9 +75,9 @@ function _write_uleb{T <: Integer}(io::IO, x::T)
 end
 
 # max number of 7bit blocks for reading n bytes
-# d,r = divrem(sizeof(T)*8, 7)
+# d,r = divrem(2sizeof(T)*8, 7)
 # (r > 0) && (d += 1)
-const _max_n = [2, 3, 4, 5, 6, 7, 8, 10]
+const _max_n = [4, 6, 8, 10, 12, 14, 16, 20]
 
 function _read_uleb_base{T <: Integer}(io::IO, ::Type{T})
     res = zero(T)
