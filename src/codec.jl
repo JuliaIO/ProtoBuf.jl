@@ -529,7 +529,7 @@ end
 # helpers
 const _metacache = ObjectIdDict() #Dict{Type, ProtoMeta}()
 const _mapentry_metacache = ObjectIdDict()
-const _fillcache = Dict{UInt,BitArray}()
+const _fillcache = Dict{UInt,BitArray{2}}()
 
 const DEF_REQ = Symbol[]
 const DEF_FNUM = Int[]
@@ -597,7 +597,7 @@ function mapentry_meta{K,V}(typ::Type{Dict{K,V}})
     m
 end
 
-function _unset_oneofs(fill::BitArray, oneofs::Vector{Int}, idx::Int)
+function _unset_oneofs(fill::BitArray{2}, oneofs::Vector{Int}, idx::Int)
     oneofidx = isempty(oneofs) ? 0 : oneofs[idx]
     if oneofidx > 0
         # unset other fields in the oneof group
@@ -609,7 +609,7 @@ function _unset_oneofs(fill::BitArray, oneofs::Vector{Int}, idx::Int)
     end
 end
 
-function _isset_oneof(fill::BitArray, oneofs::Vector{Int}, idx::Int)
+function _isset_oneof(fill::BitArray{2}, oneofs::Vector{Int}, idx::Int)
     oneofidx = isempty(oneofs) ? 0 : oneofs[idx]
     if oneofidx > 0
         # find if any field in the oneof group is set
