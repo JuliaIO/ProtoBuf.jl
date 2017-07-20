@@ -54,8 +54,8 @@ end
 
 type TestMaps
     d1::Dict{Int,Int}
-    d2::Dict{Int32,Compat.UTF8String}
-    d3::Dict{Compat.UTF8String,Compat.UTF8String}
+    d2::Dict{Int32,String}
+    d3::Dict{String,String}
     TestMaps() = new()
 end
 
@@ -401,14 +401,14 @@ function test_maps()
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d2, Dict{Int32,Compat.UTF8String}())
+    set_field!(testval, :d2, Dict{Int32,String}())
     writeproto(pb, testval)
     readproto(pb, readval)
     @test !isfilled(readval, :d2)
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d3, Dict{Compat.UTF8String,Compat.UTF8String}())
+    set_field!(testval, :d3, Dict{String,String}())
     writeproto(pb, testval)
     readproto(pb, readval)
     @test !isfilled(readval, :d3)
@@ -425,9 +425,9 @@ function test_maps()
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d2, Dict{Int32,Compat.UTF8String}())
-    testval.d2[@compat(Int32(1))] = convert(Compat.UTF8String, "One")
-    testval.d2[@compat(Int32(2))] = convert(Compat.UTF8String, "Two")
+    set_field!(testval, :d2, Dict{Int32,String}())
+    testval.d2[@compat(Int32(1))] = convert(String, "One")
+    testval.d2[@compat(Int32(2))] = convert(String, "Two")
     writeproto(pb, testval)
     readproto(pb, readval)
     @test isfilled(readval, :d2)
@@ -435,7 +435,7 @@ function test_maps()
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d3, Dict{Compat.UTF8String,Compat.UTF8String}())
+    set_field!(testval, :d3, Dict{String,String}())
     testval.d3["1"] = "One"
     testval.d3["2"] = "Two"
     writeproto(pb, testval)
