@@ -6,7 +6,7 @@ import ProtoBuf: call_method, write_bytes, read_bytes
 include("testsvc_pb.jl")
 
 # Our RpcController for the test does nothing as of now
-type TestRpcController <: ProtoRpcController
+mutable struct TestRpcController <: ProtoRpcController
     debug::Bool
 end
 
@@ -17,12 +17,12 @@ error_log(controller::TestRpcController, msg) = println(STDERR, msg)
 # The protocol is to write and read:
 # - messages as delimited bytes
 # - header type SvcHeader to identify the method being called
-type TestRpcChannel <: ProtoRpcChannel
+mutable struct TestRpcChannel <: ProtoRpcChannel
     sock::TCPSocket
 end
 close(channel::TestRpcChannel) = close(channel.sock)
 
-type SvcHeader
+mutable struct SvcHeader
     method::Compat.String
     SvcHeader() = (o=new(); fillunset(o); o)
 end
@@ -90,7 +90,7 @@ end
 
 # Test server implementation on the RpcChannel
 # 
-type TestServer
+mutable struct TestServer
     srvr::TCPServer
     impl::ProtoService
     run::Bool

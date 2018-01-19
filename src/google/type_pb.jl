@@ -4,14 +4,14 @@ using ProtoBuf
 import ProtoBuf.meta
 import Base: hash, isequal, ==
 
-type __enum_Syntax <: ProtoEnum
+struct __enum_Syntax <: ProtoEnum
     SYNTAX_PROTO2::Int32
     SYNTAX_PROTO3::Int32
     __enum_Syntax() = new(0,1)
 end #type __enum_Syntax
 const Syntax = __enum_Syntax()
 
-type Option
+mutable struct Option
     name::AbstractString
     value::_Any
     Option(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -20,7 +20,7 @@ hash(v::Option) = ProtoBuf.protohash(v)
 isequal(v1::Option, v2::Option) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Option, v2::Option) = ProtoBuf.protoeq(v1, v2)
 
-type EnumValue
+mutable struct EnumValue
     name::AbstractString
     number::Int32
     options::Array{Option,1}
@@ -30,7 +30,7 @@ hash(v::EnumValue) = ProtoBuf.protohash(v)
 isequal(v1::EnumValue, v2::EnumValue) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::EnumValue, v2::EnumValue) = ProtoBuf.protoeq(v1, v2)
 
-type __enum_Field_Kind <: ProtoEnum
+struct __enum_Field_Kind <: ProtoEnum
     TYPE_UNKNOWN::Int32
     TYPE_DOUBLE::Int32
     TYPE_FLOAT::Int32
@@ -54,7 +54,7 @@ type __enum_Field_Kind <: ProtoEnum
 end #type __enum_Field_Kind
 const Field_Kind = __enum_Field_Kind()
 
-type __enum_Field_Cardinality <: ProtoEnum
+struct __enum_Field_Cardinality <: ProtoEnum
     CARDINALITY_UNKNOWN::Int32
     CARDINALITY_OPTIONAL::Int32
     CARDINALITY_REQUIRED::Int32
@@ -63,7 +63,7 @@ type __enum_Field_Cardinality <: ProtoEnum
 end #type __enum_Field_Cardinality
 const Field_Cardinality = __enum_Field_Cardinality()
 
-type Field
+mutable struct Field
     kind::Int32
     cardinality::Int32
     number::Int32
@@ -82,7 +82,7 @@ hash(v::Field) = ProtoBuf.protohash(v)
 isequal(v1::Field, v2::Field) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Field, v2::Field) = ProtoBuf.protoeq(v1, v2)
 
-type _Enum
+mutable struct _Enum
     name::AbstractString
     enumvalue::Array{EnumValue,1}
     options::Array{Option,1}
@@ -94,7 +94,7 @@ hash(v::_Enum) = ProtoBuf.protohash(v)
 isequal(v1::_Enum, v2::_Enum) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::_Enum, v2::_Enum) = ProtoBuf.protoeq(v1, v2)
 
-type _Type
+mutable struct _Type
     name::AbstractString
     fields::Array{Field,1}
     oneofs::Array{AbstractString,1}

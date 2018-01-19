@@ -4,7 +4,7 @@ using ProtoBuf
 import ProtoBuf.meta
 import Base: hash, isequal, ==
 
-type SourceContext
+mutable struct SourceContext
     file_name::AbstractString
     SourceContext(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type SourceContext

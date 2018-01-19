@@ -8,34 +8,34 @@ import ProtoBuf.meta
 
 macro _rand_int(T,mx,a)
    esc(quote
-       @compat $(T)(round(rand() * $(mx)) + $(a))
+       $(T)(round(rand() * $(mx)) + $(a))
    end)
 end
 
 print_hdr(tname) = println("testing $tname...")
 
-type TestType
+mutable struct TestType
     val::Any
 end
 
-type TestStr
+mutable struct TestStr
     val::AbstractString
 end
 ==(t1::TestStr, t2::TestStr) = (t1.val == t2.val)
 
-type TestOptional
+mutable struct TestOptional
     sVal1::TestStr
     sVal2::TestStr
     iVal2::Array{Int64,1}
 end
 
-type TestNested
+mutable struct TestNested
     fld1::TestType
     fld2::TestOptional
     fld3::Array{TestStr}
 end
 
-type TestDefaults
+mutable struct TestDefaults
     iVal1::Int64
     sVal2::AbstractString
     iVal2::Array{Int64,1}
@@ -44,7 +44,7 @@ type TestDefaults
     TestDefaults() = new()
 end
 
-type TestOneofs
+mutable struct TestOneofs
     iVal1::Int64
     iVal2::Int64
     iVal3::Int64
@@ -52,20 +52,20 @@ type TestOneofs
     TestOneofs() = new()
 end
 
-type TestMaps
+mutable struct TestMaps
     d1::Dict{Int,Int}
     d2::Dict{Int32,String}
     d3::Dict{String,String}
     TestMaps() = new()
 end
 
-type TestFilled
+mutable struct TestFilled
     fld1::TestType
     fld2::TestType
     TestFilled() = new()
 end
 
-type __enum_TestEnum <: ProtoEnum
+mutable struct __enum_TestEnum <: ProtoEnum
     UNIVERSAL::Int32
     WEB::Int32
     IMAGES::Int32
@@ -81,7 +81,7 @@ const TestEnum = __enum_TestEnum()
 meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestNested})       = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
-const _t_defaults = @compat Dict{Symbol,Any}(:iVal1 => 10, :iVal2 => [1,2,3])
+const _t_defaults = Dict{Symbol,Any}(:iVal1 => 10, :iVal2 => [1,2,3])
 meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], _t_defaults, false)
 const _t_oneofs = Int[0,1,1]
 const _t_oneof_names = [:optval]
@@ -117,14 +117,14 @@ function mk_test_meta(fldnum::Int, ptyp::Symbol)
     m
 end
 
-assert_equal{T,U}(::Type{Array{T,1}}, ::Type{Array{U,1}}) = @test issubtype(T,U) || issubtype(U,T)
+assert_equal(::Type{Array{T,1}}, ::Type{Array{U,1}}) where {T,U} = @test issubtype(T,U) || issubtype(U,T)
 assert_equal(T::Type, U::Type) = @test issubtype(T,U) || issubtype(U,T)
 assert_equal(val1::Bool, val2::Bool) = @test val1 == val2
 assert_equal(val1::AbstractString, val2::AbstractString) = @test val1 == val2
 assert_equal(val1::Number, val2::Number) = @test val1 == val2
-assert_equal{T<:Number}(val1::Array{T,1}, val2::Array{T,1}) = @test val1 == val2
-assert_equal{T<:AbstractString}(val1::Array{T,1}, val2::Array{T,1}) = @test val1 == val2
-assert_equal{K,V}(val1::Dict{K,V}, val2::Dict{K,V}) = @test val1 == val2
+assert_equal(val1::Array{T,1}, val2::Array{T,1}) where {T<:Number} = @test val1 == val2
+assert_equal(val1::Array{T,1}, val2::Array{T,1}) where {T<:AbstractString} = @test val1 == val2
+assert_equal(val1::Dict{K,V}, val2::Dict{K,V}) where {K,V} = @test val1 == val2
 function assert_equal(val1, val2)
     typ1 = typeof(val1)
     typ2 = typeof(val2)
@@ -426,8 +426,8 @@ function test_maps()
     testval = TestMaps()
     readval = TestMaps()
     set_field!(testval, :d2, Dict{Int32,String}())
-    testval.d2[@compat(Int32(1))] = convert(String, "One")
-    testval.d2[@compat(Int32(2))] = convert(String, "Two")
+    testval.d2[Int32(1)] = convert(String, "One")
+    testval.d2[Int32(2)] = convert(String, "Two")
     writeproto(pb, testval)
     readproto(pb, readval)
     @test isfilled(readval, :d2)
@@ -457,12 +457,18 @@ function test_misc()
         add_field!(readfld, :iVal2, iVal2)
     end
     assert_equal(readfld, testfld)
+    @test ProtoBuf.protoisequal(readfld, testfld)
 
     tf = TestFilled()
     @test !isfilled(tf)
     tf.fld1 = TestType("")
     fillset(tf, :fld1)
     @test isfilled(tf)
+
+    iob = IOBuffer()
+    show(iob, meta(TestOptional))
+    @test !isempty(take!(iob))
+    nothing
 end
 
 function test_enums()

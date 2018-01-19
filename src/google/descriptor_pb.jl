@@ -4,7 +4,7 @@ using ProtoBuf
 import ProtoBuf.meta
 import Base: hash, isequal, ==
 
-type UninterpretedOption_NamePart
+mutable struct UninterpretedOption_NamePart
     name_part::AbstractString
     is_extension::Bool
     UninterpretedOption_NamePart(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -15,7 +15,7 @@ hash(v::UninterpretedOption_NamePart) = ProtoBuf.protohash(v)
 isequal(v1::UninterpretedOption_NamePart, v2::UninterpretedOption_NamePart) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::UninterpretedOption_NamePart, v2::UninterpretedOption_NamePart) = ProtoBuf.protoeq(v1, v2)
 
-type UninterpretedOption
+mutable struct UninterpretedOption
     name::Array{UninterpretedOption_NamePart,1}
     identifier_value::AbstractString
     positive_int_value::UInt64
@@ -31,7 +31,7 @@ hash(v::UninterpretedOption) = ProtoBuf.protohash(v)
 isequal(v1::UninterpretedOption, v2::UninterpretedOption) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::UninterpretedOption, v2::UninterpretedOption) = ProtoBuf.protoeq(v1, v2)
 
-type __enum_FieldOptions_CType <: ProtoEnum
+struct __enum_FieldOptions_CType <: ProtoEnum
     STRING::Int32
     CORD::Int32
     STRING_PIECE::Int32
@@ -39,7 +39,7 @@ type __enum_FieldOptions_CType <: ProtoEnum
 end #type __enum_FieldOptions_CType
 const FieldOptions_CType = __enum_FieldOptions_CType()
 
-type __enum_FieldOptions_JSType <: ProtoEnum
+struct __enum_FieldOptions_JSType <: ProtoEnum
     JS_NORMAL::Int32
     JS_STRING::Int32
     JS_NUMBER::Int32
@@ -47,7 +47,7 @@ type __enum_FieldOptions_JSType <: ProtoEnum
 end #type __enum_FieldOptions_JSType
 const FieldOptions_JSType = __enum_FieldOptions_JSType()
 
-type FieldOptions
+mutable struct FieldOptions
     ctype::Int32
     packed::Bool
     jstype::Int32
@@ -64,7 +64,7 @@ hash(v::FieldOptions) = ProtoBuf.protohash(v)
 isequal(v1::FieldOptions, v2::FieldOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FieldOptions, v2::FieldOptions) = ProtoBuf.protoeq(v1, v2)
 
-type MessageOptions
+mutable struct MessageOptions
     message_set_wire_format::Bool
     no_standard_descriptor_accessor::Bool
     deprecated::Bool
@@ -79,7 +79,7 @@ hash(v::MessageOptions) = ProtoBuf.protohash(v)
 isequal(v1::MessageOptions, v2::MessageOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::MessageOptions, v2::MessageOptions) = ProtoBuf.protoeq(v1, v2)
 
-type EnumOptions
+mutable struct EnumOptions
     allow_alias::Bool
     deprecated::Bool
     uninterpreted_option::Array{UninterpretedOption,1}
@@ -92,7 +92,7 @@ hash(v::EnumOptions) = ProtoBuf.protohash(v)
 isequal(v1::EnumOptions, v2::EnumOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::EnumOptions, v2::EnumOptions) = ProtoBuf.protoeq(v1, v2)
 
-type MethodOptions
+mutable struct MethodOptions
     deprecated::Bool
     uninterpreted_option::Array{UninterpretedOption,1}
     MethodOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -104,7 +104,7 @@ hash(v::MethodOptions) = ProtoBuf.protohash(v)
 isequal(v1::MethodOptions, v2::MethodOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::MethodOptions, v2::MethodOptions) = ProtoBuf.protoeq(v1, v2)
 
-type __enum_FileOptions_OptimizeMode <: ProtoEnum
+struct __enum_FileOptions_OptimizeMode <: ProtoEnum
     SPEED::Int32
     CODE_SIZE::Int32
     LITE_RUNTIME::Int32
@@ -112,7 +112,7 @@ type __enum_FileOptions_OptimizeMode <: ProtoEnum
 end #type __enum_FileOptions_OptimizeMode
 const FileOptions_OptimizeMode = __enum_FileOptions_OptimizeMode()
 
-type FileOptions
+mutable struct FileOptions
     java_package::AbstractString
     java_outer_classname::AbstractString
     java_multiple_files::Bool
@@ -137,7 +137,7 @@ hash(v::FileOptions) = ProtoBuf.protohash(v)
 isequal(v1::FileOptions, v2::FileOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FileOptions, v2::FileOptions) = ProtoBuf.protoeq(v1, v2)
 
-type EnumValueOptions
+mutable struct EnumValueOptions
     deprecated::Bool
     uninterpreted_option::Array{UninterpretedOption,1}
     EnumValueOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -149,7 +149,7 @@ hash(v::EnumValueOptions) = ProtoBuf.protohash(v)
 isequal(v1::EnumValueOptions, v2::EnumValueOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::EnumValueOptions, v2::EnumValueOptions) = ProtoBuf.protoeq(v1, v2)
 
-type OneofOptions
+mutable struct OneofOptions
     uninterpreted_option::Array{UninterpretedOption,1}
     OneofOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type OneofOptions
@@ -159,7 +159,7 @@ hash(v::OneofOptions) = ProtoBuf.protohash(v)
 isequal(v1::OneofOptions, v2::OneofOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::OneofOptions, v2::OneofOptions) = ProtoBuf.protoeq(v1, v2)
 
-type ServiceOptions
+mutable struct ServiceOptions
     deprecated::Bool
     uninterpreted_option::Array{UninterpretedOption,1}
     ServiceOptions(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -171,7 +171,7 @@ hash(v::ServiceOptions) = ProtoBuf.protohash(v)
 isequal(v1::ServiceOptions, v2::ServiceOptions) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::ServiceOptions, v2::ServiceOptions) = ProtoBuf.protoeq(v1, v2)
 
-type __enum_FieldDescriptorProto_Type <: ProtoEnum
+struct __enum_FieldDescriptorProto_Type <: ProtoEnum
     TYPE_DOUBLE::Int32
     TYPE_FLOAT::Int32
     TYPE_INT64::Int32
@@ -194,7 +194,7 @@ type __enum_FieldDescriptorProto_Type <: ProtoEnum
 end #type __enum_FieldDescriptorProto_Type
 const FieldDescriptorProto_Type = __enum_FieldDescriptorProto_Type()
 
-type __enum_FieldDescriptorProto_Label <: ProtoEnum
+struct __enum_FieldDescriptorProto_Label <: ProtoEnum
     LABEL_OPTIONAL::Int32
     LABEL_REQUIRED::Int32
     LABEL_REPEATED::Int32
@@ -202,7 +202,7 @@ type __enum_FieldDescriptorProto_Label <: ProtoEnum
 end #type __enum_FieldDescriptorProto_Label
 const FieldDescriptorProto_Label = __enum_FieldDescriptorProto_Label()
 
-type FieldDescriptorProto
+mutable struct FieldDescriptorProto
     name::AbstractString
     number::Int32
     label::Int32
@@ -221,7 +221,7 @@ hash(v::FieldDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::FieldDescriptorProto, v2::FieldDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FieldDescriptorProto, v2::FieldDescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type MethodDescriptorProto
+mutable struct MethodDescriptorProto
     name::AbstractString
     input_type::AbstractString
     output_type::AbstractString
@@ -236,7 +236,7 @@ hash(v::MethodDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::MethodDescriptorProto, v2::MethodDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::MethodDescriptorProto, v2::MethodDescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type EnumValueDescriptorProto
+mutable struct EnumValueDescriptorProto
     name::AbstractString
     number::Int32
     options::EnumValueOptions
@@ -246,7 +246,7 @@ hash(v::EnumValueDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::EnumValueDescriptorProto, v2::EnumValueDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::EnumValueDescriptorProto, v2::EnumValueDescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type EnumDescriptorProto
+mutable struct EnumDescriptorProto
     name::AbstractString
     value::Array{EnumValueDescriptorProto,1}
     options::EnumOptions
@@ -256,7 +256,7 @@ hash(v::EnumDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::EnumDescriptorProto, v2::EnumDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::EnumDescriptorProto, v2::EnumDescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type OneofDescriptorProto
+mutable struct OneofDescriptorProto
     name::AbstractString
     options::OneofOptions
     OneofDescriptorProto(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -265,7 +265,7 @@ hash(v::OneofDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::OneofDescriptorProto, v2::OneofDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::OneofDescriptorProto, v2::OneofDescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type DescriptorProto_ExtensionRange
+mutable struct DescriptorProto_ExtensionRange
     start::Int32
     _end::Int32
     DescriptorProto_ExtensionRange(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -274,7 +274,7 @@ hash(v::DescriptorProto_ExtensionRange) = ProtoBuf.protohash(v)
 isequal(v1::DescriptorProto_ExtensionRange, v2::DescriptorProto_ExtensionRange) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::DescriptorProto_ExtensionRange, v2::DescriptorProto_ExtensionRange) = ProtoBuf.protoeq(v1, v2)
 
-type DescriptorProto_ReservedRange
+mutable struct DescriptorProto_ReservedRange
     start::Int32
     _end::Int32
     DescriptorProto_ReservedRange(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -283,7 +283,7 @@ hash(v::DescriptorProto_ReservedRange) = ProtoBuf.protohash(v)
 isequal(v1::DescriptorProto_ReservedRange, v2::DescriptorProto_ReservedRange) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::DescriptorProto_ReservedRange, v2::DescriptorProto_ReservedRange) = ProtoBuf.protoeq(v1, v2)
 
-type DescriptorProto
+mutable struct DescriptorProto
     name::AbstractString
     field::Array{FieldDescriptorProto,1}
     extension::Array{FieldDescriptorProto,1}
@@ -302,7 +302,7 @@ hash(v::DescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::DescriptorProto, v2::DescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::DescriptorProto, v2::DescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type ServiceDescriptorProto
+mutable struct ServiceDescriptorProto
     name::AbstractString
     method::Array{MethodDescriptorProto,1}
     options::ServiceOptions
@@ -312,7 +312,7 @@ hash(v::ServiceDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::ServiceDescriptorProto, v2::ServiceDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::ServiceDescriptorProto, v2::ServiceDescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type SourceCodeInfo_Location
+mutable struct SourceCodeInfo_Location
     path::Array{Int32,1}
     span::Array{Int32,1}
     leading_comments::AbstractString
@@ -327,7 +327,7 @@ hash(v::SourceCodeInfo_Location) = ProtoBuf.protohash(v)
 isequal(v1::SourceCodeInfo_Location, v2::SourceCodeInfo_Location) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::SourceCodeInfo_Location, v2::SourceCodeInfo_Location) = ProtoBuf.protoeq(v1, v2)
 
-type SourceCodeInfo
+mutable struct SourceCodeInfo
     location::Array{SourceCodeInfo_Location,1}
     SourceCodeInfo(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type SourceCodeInfo
@@ -335,7 +335,7 @@ hash(v::SourceCodeInfo) = ProtoBuf.protohash(v)
 isequal(v1::SourceCodeInfo, v2::SourceCodeInfo) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::SourceCodeInfo, v2::SourceCodeInfo) = ProtoBuf.protoeq(v1, v2)
 
-type FileDescriptorProto
+mutable struct FileDescriptorProto
     name::AbstractString
     package::AbstractString
     dependency::Array{AbstractString,1}
@@ -356,7 +356,7 @@ hash(v::FileDescriptorProto) = ProtoBuf.protohash(v)
 isequal(v1::FileDescriptorProto, v2::FileDescriptorProto) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FileDescriptorProto, v2::FileDescriptorProto) = ProtoBuf.protoeq(v1, v2)
 
-type FileDescriptorSet
+mutable struct FileDescriptorSet
     file::Array{FileDescriptorProto,1}
     FileDescriptorSet(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type FileDescriptorSet
@@ -364,7 +364,7 @@ hash(v::FileDescriptorSet) = ProtoBuf.protohash(v)
 isequal(v1::FileDescriptorSet, v2::FileDescriptorSet) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::FileDescriptorSet, v2::FileDescriptorSet) = ProtoBuf.protoeq(v1, v2)
 
-type GeneratedCodeInfo_Annotation
+mutable struct GeneratedCodeInfo_Annotation
     path::Array{Int32,1}
     source_file::AbstractString
     _begin::Int32
@@ -377,7 +377,7 @@ hash(v::GeneratedCodeInfo_Annotation) = ProtoBuf.protohash(v)
 isequal(v1::GeneratedCodeInfo_Annotation, v2::GeneratedCodeInfo_Annotation) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::GeneratedCodeInfo_Annotation, v2::GeneratedCodeInfo_Annotation) = ProtoBuf.protoeq(v1, v2)
 
-type GeneratedCodeInfo
+mutable struct GeneratedCodeInfo
     annotation::Array{GeneratedCodeInfo_Annotation,1}
     GeneratedCodeInfo(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type GeneratedCodeInfo

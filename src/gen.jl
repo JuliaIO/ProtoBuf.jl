@@ -36,7 +36,7 @@ const _keywords = [
 _module_postfix = false
 _map_as_array = false
 
-type Scope
+mutable struct Scope
     name::AbstractString
     syms::Array{AbstractString,1}
     files::Array{AbstractString,1}
@@ -106,7 +106,7 @@ function findmodule(name::AbstractString)
 end
 
 
-type DeferredWrite
+mutable struct DeferredWrite
     iob::IOBuffer
     depends::Array{AbstractString,1}
 end
@@ -151,7 +151,7 @@ function resolve(iob::IOBuffer, name::AbstractString)
     # write all fully resolved entities
     for typ in fully_resolved
         @logmsg("resolved $typ")
-        print(iob, Compat.String(take!(_deferred[typ].iob)))
+        print(iob, String(take!(_deferred[typ].iob)))
         delete!(_deferred, typ)
         push!(_all_resolved, typ)
     end
@@ -211,7 +211,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     scope = Scope(dtype.name, scope)
 
     # check oneof
-    oneof_names = Compat.String[]
+    oneof_names = String[]
     if isfilled(dtype, :oneof_decl)
         for oneof_decl in dtype.oneof_decl
             if isfilled(oneof_decl, :name)
@@ -378,7 +378,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
 
     if !isdeferred(full_dtypename)
         @logmsg("resolved $full_dtypename")
-        print(outio, Compat.String(take!(io)))
+        print(outio, String(take!(io)))
         resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
@@ -579,7 +579,7 @@ function append_response(resp::CodeGeneratorResponse, filename::AbstractString, 
     jfile = ProtoBuf.instantiate(CodeGeneratorResponse_File)
 
     jfile.name = filename
-    jfile.content = Compat.String(take!(io))
+    jfile.content = String(take!(io))
 
     !isdefined(resp, :file) && (resp.file = CodeGeneratorResponse_File[])
     push!(resp.file, jfile)
@@ -588,7 +588,7 @@ end
 
 function err_response(errio::IOBuffer)
     resp = ProtoBuf.instantiate(CodeGeneratorResponse)
-    resp.error = Compat.String(take!(errio))
+    resp.error = String(take!(errio))
     resp
 end
 

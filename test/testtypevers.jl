@@ -2,14 +2,14 @@ using ProtoBuf
 
 print_hdr(tname) = println("testing $tname...")
 
-type V1
+mutable struct V1
     f1::Int32
     f2::Bool
     V1() = (a=new(); clear(a); a)
     V1(f1,f2) = new(f1,f2)
 end
 
-type V2
+mutable struct V2
     f1::Int64
     f2::Bool
     f3::Int64
