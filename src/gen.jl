@@ -10,7 +10,7 @@ import ProtoBuf: meta, @logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
-const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Array{UInt8,1}, UInt32, Int32, Int32, Int64, Int32, Int64]
+const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Vector{UInt8}, UInt32, Int32, Int32, Int64, Int32, Int64]
 const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0;]
 
 isprimitive(fldtype) = (1 <= fldtype <= 8) || (13 <= fldtype <= 18)
@@ -36,12 +36,12 @@ const _keywords = [
 _module_postfix = false
 _map_as_array = false
 
-type Scope
+mutable struct Scope
     name::AbstractString
-    syms::Array{AbstractString,1}
-    files::Array{AbstractString,1}
+    syms::Vector{AbstractString}
+    files::Vector{AbstractString}
     is_module::Bool
-    children::Array{Scope,1}
+    children::Vector{Scope}
     parent::Scope
 
     Scope(name::AbstractString) = new(name, AbstractString[], AbstractString[], false, Scope[])
@@ -106,9 +106,9 @@ function findmodule(name::AbstractString)
 end
 
 
-type DeferredWrite
+mutable struct DeferredWrite
     iob::IOBuffer
-    depends::Array{AbstractString,1}
+    depends::Vector{AbstractString}
 end
 const _deferred = Dict{AbstractString,DeferredWrite}()
 # set of fully-qualified names we've resolved, to handle dependencies in other files
@@ -126,7 +126,7 @@ function defer(name::AbstractString, iob::IOBuffer, depends::AbstractString)
 end
 
 isdeferred(name::AbstractString) = haskey(_deferred, name)
-function isresolved(dtypename::AbstractString, referenced_name::AbstractString, full_referenced_name::AbstractString, exports::Array{AbstractString,1})
+function isresolved(dtypename::AbstractString, referenced_name::AbstractString, full_referenced_name::AbstractString, exports::Vector{AbstractString})
     (dtypename == referenced_name) && return true
     for jtype in JTYPES
         (referenced_name == string(jtype)) && return true
@@ -151,7 +151,7 @@ function resolve(iob::IOBuffer, name::AbstractString)
     # write all fully resolved entities
     for typ in fully_resolved
         @logmsg("resolved $typ")
-        print(iob, Compat.String(take!(_deferred[typ].iob)))
+        print(iob, String(take!(_deferred[typ].iob)))
         delete!(_deferred, typ)
         push!(_all_resolved, typ)
     end
@@ -164,7 +164,7 @@ end
 
 chk_keyword(name) = (name in _keywords) ? string('_', name) : name
 
-function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Array{AbstractString,1})
+function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Vector{AbstractString})
     enumname = pfx(enumtype.name, scope)
     sm = splitmodule(enumname)
     (length(sm) > 1) && (enumname = sm[2])
@@ -172,7 +172,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     push!(scope.syms, enumname)
 
     @logmsg("begin enum $(enumname)")
-    println(io, "type __enum_$(enumname) <: ProtoEnum")
+    println(io, "struct __enum_$(enumname) <: ProtoEnum")
     values = Int32[]
     for value::EnumValueDescriptorProto in enumtype.value
         # If we find that the field name is a keyword prepend it with `_`
@@ -181,7 +181,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
         push!(values, value.number)
     end
     println(io, "    __enum_$(enumname)() = new($(join(values,',')))")
-    println(io, "end #type __enum_$(enumname)")
+    println(io, "end #struct __enum_$(enumname)")
     println(io, "const $(enumname) = __enum_$(enumname)()")
     println(io, "")
     push!(exports, enumname)
@@ -189,7 +189,7 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     nothing
 end
 
-function short_type_name(full_type_name::AbstractString, depends::Array{AbstractString,1})
+function short_type_name(full_type_name::AbstractString, depends::Vector{AbstractString})
     comps = split(full_type_name, '.')
     type_name = pop!(comps)
     while !isempty(comps) && !(join(comps, '.') in depends)
@@ -211,7 +211,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     scope = Scope(dtype.name, scope)
 
     # check oneof
-    oneof_names = Compat.String[]
+    oneof_names = String[]
     if isfilled(dtype, :oneof_decl)
         for oneof_decl in dtype.oneof_decl
             if isfilled(oneof_decl, :name)
@@ -237,7 +237,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     end
 
     # generate this type
-    println(io, "type $(dtypename)")
+    println(io, "mutable struct $(dtypename)")
     reqflds = AbstractString[]
     packedflds = AbstractString[]
     fldnums = Int[]
@@ -327,7 +327,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
                 k,v = mapentries[typ_name]
                 typ_name = "Dict{$k,$v}"
             elseif FieldDescriptorProto_Label.LABEL_REPEATED == field.label
-                typ_name = "Array{$typ_name,1}"
+                typ_name = "Vector{$typ_name}"
             end
             println(io, "    $(fldname)::$typ_name", is_typ_mapentry ? " # map entry" : "")
 
@@ -341,7 +341,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
         end
     end
     println(io, "    $(dtypename)(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)")
-    println(io, "end #type $(dtypename)", ismapentry ? " (mapentry)" : "")
+    println(io, "end #mutable struct $(dtypename)", ismapentry ? " (mapentry)" : "")
 
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums);]
@@ -378,7 +378,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
 
     if !isdeferred(full_dtypename)
         @logmsg("resolved $full_dtypename")
-        print(outio, Compat.String(take!(io)))
+        print(outio, String(take!(io)))
         resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
@@ -401,7 +401,7 @@ function has_gen_services(opt::FileOptions)
     return false
 end
 
-function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope, svcidx::Int, exports::Array{AbstractString,1})
+function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope, svcidx::Int, exports::Vector{AbstractString})
     nmethods = isfilled(stype, :method) ? length(stype.method) : 0
 
     # generate method and service descriptors
@@ -432,18 +432,18 @@ function generate(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope
 
     # generate stubs
     stub = "$(stype.name)Stub"
-    println(io, "type $(stub) <: AbstractProtoServiceStub{false}")
+    println(io, "mutable struct $(stub) <: AbstractProtoServiceStub{false}")
     println(io, "    impl::ProtoServiceStub")
     println(io, "    $(stub)(channel::ProtoRpcChannel) = new(ProtoServiceStub(_$(stype.name)_desc, channel))")
-    println(io, "end # type $(stub)")
+    println(io, "end # mutable struct $(stub)")
     println(io, "")
     push!(exports, stub)
 
     nbstub = "$(stype.name)BlockingStub"
-    println(io, "type $(nbstub) <: AbstractProtoServiceStub{true}")
+    println(io, "mutable struct $(nbstub) <: AbstractProtoServiceStub{true}")
     println(io, "    impl::ProtoServiceBlockingStub")
     println(io, "    $(nbstub)(channel::ProtoRpcChannel) = new(ProtoServiceBlockingStub(_$(stype.name)_desc, channel))")
-    println(io, "end # type $(nbstub)")
+    println(io, "end # mutable struct $(nbstub)")
     println(io, "")
     push!(exports, nbstub)
 
@@ -579,7 +579,7 @@ function append_response(resp::CodeGeneratorResponse, filename::AbstractString, 
     jfile = ProtoBuf.instantiate(CodeGeneratorResponse_File)
 
     jfile.name = filename
-    jfile.content = Compat.String(take!(io))
+    jfile.content = String(take!(io))
 
     !isdefined(resp, :file) && (resp.file = CodeGeneratorResponse_File[])
     push!(resp.file, jfile)
@@ -588,7 +588,7 @@ end
 
 function err_response(errio::IOBuffer)
     resp = ProtoBuf.instantiate(CodeGeneratorResponse)
-    resp.error = Compat.String(take!(errio))
+    resp.error = String(take!(errio))
     resp
 end
 

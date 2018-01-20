@@ -11,7 +11,7 @@ clear = fillunset
 
 has_field(obj::Any, fld::Symbol) = isfilled(obj, fld)
 
-function copy!{T}(to::T, from::T)
+function copy!(to::T, from::T) where T
     fillunset(to)
     fill = filled(from)
     fnames = fld_names(T)
@@ -39,9 +39,9 @@ function add_field!(obj::Any, fld::Symbol, val)
 end
 @deprecate add_field(obj::Any, fld::Symbol, val) add_field!(obj, fld, val)
 
-protobuild{T}(::Type{T}, nv::Dict{Symbol}=Dict{Symbol,Any}()) = _protobuild(T(), collect(nv))
+protobuild(::Type{T}, nv::Dict{Symbol}=Dict{Symbol,Any}()) where {T} = _protobuild(T(), collect(nv))
 
-function _protobuild{T}(obj::T, nv)
+function _protobuild(obj::T, nv) where T
     for (n,v) in nv
         fldtyp = fld_type(obj, n)
         set_field!(obj, n, isa(v, fldtyp) ? v : convert(fldtyp, v))
@@ -61,7 +61,7 @@ function protohash(v)
 end
 
 # equality method that considers fill status of types
-function protoeq{T}(v1::T, v2::T)
+function protoeq(v1::T, v2::T) where T
     fillv1 = filled(v1)
     fillv2 = filled(v2)
     fnames = fld_names(T)
@@ -76,7 +76,7 @@ function protoeq{T}(v1::T, v2::T)
 end
 
 # isequal method that considers fill status of types
-function protoisequal{T}(v1::T, v2::T)
+function protoisequal(v1::T, v2::T) where T
     fillv1 = filled(v1)
     fillv2 = filled(v2)
     fnames = fld_names(T)

@@ -6,7 +6,7 @@ import ProtoBuf.meta
 
 print_hdr(tname) = println("testing $tname...")
 
-type TestType
+mutable struct TestType
     a::AbstractString
     b::Bool
     TestType() = (o=new(); fillunset(o); o)
@@ -37,7 +37,7 @@ function test_apis()
     clear(t)
     @test !isinitialized(t)
 
-    t = protobuild(TestType, @compat Dict(:a => "hello", :b => false))
+    t = protobuild(TestType, Dict(:a => "hello", :b => false))
     @test t.a == "hello"
     @test t.b == false
 end

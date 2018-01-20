@@ -4,7 +4,7 @@ using ProtoBuf
 import ProtoBuf.meta
 import Base: hash, isequal, ==
 
-type BinaryOpReq
+mutable struct BinaryOpReq
     i1::Int64
     i2::Int64
     BinaryOpReq(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -13,7 +13,7 @@ hash(v::BinaryOpReq) = ProtoBuf.protohash(v)
 isequal(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoeq(v1, v2)
 
-type BinaryOpResp
+mutable struct BinaryOpResp
     result::Int64
     BinaryOpResp(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type BinaryOpResp
@@ -30,12 +30,12 @@ const _TestMath_desc = ServiceDescriptor("TestMath", 1, _TestMath_methods)
 
 TestMath(impl::Module) = ProtoService(_TestMath_desc, impl)
 
-type TestMathStub <: AbstractProtoServiceStub{false}
+mutable struct TestMathStub <: AbstractProtoServiceStub{false}
     impl::ProtoServiceStub
     TestMathStub(channel::ProtoRpcChannel) = new(ProtoServiceStub(_TestMath_desc, channel))
 end # type TestMathStub
 
-type TestMathBlockingStub <: AbstractProtoServiceStub{true}
+mutable struct TestMathBlockingStub <: AbstractProtoServiceStub{true}
     impl::ProtoServiceBlockingStub
     TestMathBlockingStub(channel::ProtoRpcChannel) = new(ProtoServiceBlockingStub(_TestMath_desc, channel))
 end # type TestMathBlockingStub

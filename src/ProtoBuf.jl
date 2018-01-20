@@ -1,4 +1,4 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
+__precompile__(true)
 
 module ProtoBuf
 
@@ -14,7 +14,7 @@ export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescrip
 
 using Compat
 
-fld_type{T}(o::T, fld) = fieldtype(T, fld)
+fld_type(o::T, fld) where {T} = fieldtype(T, fld)
 fld_names(x) = x.name.names
 
 # enable logging only during debugging

@@ -26,7 +26,7 @@ const WIRETYPES = Dict{Symbol,Tuple}(
     :double         => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
 
     :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   AbstractString),
-    :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Array{UInt8,1}),
+    :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Vector{UInt8}),
     :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
     :map            => (WIRETYP_LENDELIM,   :write_map,     :read_map,      Dict),
 
@@ -37,29 +37,29 @@ const WIRETYPES = Dict{Symbol,Tuple}(
 
 aliaswiretypes(wtype::Symbol) = wiretypes(WIRETYPES[wtype][4])
 
-wiretypes(::Type{Int32})                    = [:int32, :sint32, :enum, :sfixed32]
-wiretypes(::Type{Int64})                    = [:int64, :sint64, :sfixed64]
-wiretypes(::Type{UInt32})                   = [:uint32, :fixed32]
-wiretypes(::Type{UInt64})                   = [:uint64, :fixed64]
-wiretypes(::Type{Bool})                     = [:bool]
-wiretypes(::Type{Float64})                  = [:double]
-wiretypes(::Type{Float32})                  = [:float]
-wiretypes{T<:AbstractString}(::Type{T})     = [:string]
-wiretypes(::Type{Array{UInt8,1}})           = [:bytes]
-wiretypes{K,V}(::Type{Dict{K,V}})           = [:map]
-wiretypes(::Type)                           = [:obj]
-wiretypes{T}(::Type{Array{T,1}})            = wiretypes(T)
+wiretypes(::Type{Int32})                            = [:int32, :sint32, :enum, :sfixed32]
+wiretypes(::Type{Int64})                            = [:int64, :sint64, :sfixed64]
+wiretypes(::Type{UInt32})                           = [:uint32, :fixed32]
+wiretypes(::Type{UInt64})                           = [:uint64, :fixed64]
+wiretypes(::Type{Bool})                             = [:bool]
+wiretypes(::Type{Float64})                          = [:double]
+wiretypes(::Type{Float32})                          = [:float]
+wiretypes(::Type{T}) where {T<:AbstractString}      = [:string]
+wiretypes(::Type{Vector{UInt8}})                    = [:bytes]
+wiretypes(::Type{Dict{K,V}}) where {K,V}            = [:map]
+wiretypes(::Type)                                   = [:obj]
+wiretypes(::Type{Vector{T}}) where {T}              = wiretypes(T)
 
-wiretype{T}(::Type{T}) = wiretypes(T)[1]
+wiretype(::Type{T}) where {T}                       = wiretypes(T)[1]
 
-defaultval{T<:Number}(::Type{T})            = [zero(T)]
-defaultval{T<:AbstractString}(::Type{T})    = [convert(T,"")]
-defaultval(::Type{Bool})                    = [false]
-defaultval{T}(::Type{Array{T,1}})           = Any[T[]]
-defaultval(::Type)                          = []
+defaultval(::Type{T}) where {T<:Number}             = [zero(T)]
+defaultval(::Type{T}) where {T<:AbstractString}     = [convert(T,"")]
+defaultval(::Type{Bool})                            = [false]
+defaultval(::Type{Vector{T}}) where {T}             = Any[T[]]
+defaultval(::Type)                                  = []
 
 
-function _write_uleb{T <: Integer}(io::IO, x::T)
+function _write_uleb(io::IO, x::T) where T <: Integer
     nw = 0
     cont = true
     while cont
@@ -79,7 +79,7 @@ end
 # (r > 0) && (d += 1)
 const _max_n = [2, 3, 4, 5, 6, 7, 8, 10]
 
-function _read_uleb_base{T <: Integer}(io::IO, ::Type{T})
+function _read_uleb_base(io::IO, ::Type{T}) where T <: Integer
     res = zero(T)
     n = 0
     byte = UInt8(MSB)
@@ -107,7 +107,7 @@ function _read_uleb(io::IO, ::Type{Int32})
     res
 end
 
-function _read_uleb{T <: Integer}(io::IO, ::Type{T})
+function _read_uleb(io::IO, ::Type{T}) where T <: Integer
     n, res = _read_uleb_base(io, T)
     # in case of overflow, consider it as missing field and return default value
     if n > _max_n[sizeof(T)]
@@ -117,13 +117,13 @@ function _read_uleb{T <: Integer}(io::IO, ::Type{T})
     res
 end
 
-function _write_zigzag{T <: Integer}(io::IO, x::T)
+function _write_zigzag(io::IO, x::T) where T <: Integer
     nbits = 8*sizeof(x)
     zx = (x << 1) ⊻ (x >> (nbits-1))
     _write_uleb(io, zx)
 end
 
-function _read_zigzag{T <: Integer}(io::IO, ::Type{T})
+function _read_zigzag(io::IO, ::Type{T}) where T <: Integer
     zx = _read_uleb(io, UInt64)
     # result is positive if zx is even
     convert(T, iseven(zx) ? (zx >>> 1) : -signed((zx+1) >>> 1))
@@ -143,15 +143,15 @@ end
 
 ##
 # read and write field values
-write_varint{T <: Integer}(io::IO, x::T) = _write_uleb(io, x)
+write_varint(io::IO, x::T) where {T <: Integer} = _write_uleb(io, x)
 write_varint(io::IO, x::Int32) = _write_uleb(io, x < 0 ? Int64(x) : x)
 write_bool(io::IO, x::Bool) = _write_uleb(io, x ? 1 : 0)
-write_svarint{T <: Integer}(io::IO, x::T) = _write_zigzag(io, x)
+write_svarint(io::IO, x::T) where {T <: Integer} = _write_zigzag(io, x)
 
-read_varint{T <: Integer}(io::IO, ::Type{T}) = _read_uleb(io, T)
+read_varint(io::IO, ::Type{T}) where {T <: Integer} = _read_uleb(io, T)
 read_bool(io::IO) = Bool(_read_uleb(io, UInt64))
 read_bool(io::IO, ::Type{Bool}) = read_bool(io)
-read_svarint{T <: Integer}(io::IO, ::Type{T}) = _read_zigzag(io, T)
+read_svarint(io::IO, ::Type{T}) where {T <: Integer} = _read_zigzag(io, T)
 
 write_fixed(io::IO, x::UInt32) = _write_fixed(io, x)
 write_fixed(io::IO, x::UInt64) = _write_fixed(io, x)
@@ -159,7 +159,7 @@ write_fixed(io::IO, x::Int32) = _write_fixed(io, reinterpret(UInt32, x))
 write_fixed(io::IO, x::Int64) = _write_fixed(io, reinterpret(UInt64, x))
 write_fixed(io::IO, x::Float32) = _write_fixed(io, reinterpret(UInt32, x))
 write_fixed(io::IO, x::Float64) = _write_fixed(io, reinterpret(UInt64, x))
-function _write_fixed{T <: Unsigned}(io::IO, ux::T)
+function _write_fixed(io::IO, ux::T) where T <: Unsigned
     N = sizeof(ux)
     for n in 1:N
         write(io, UInt8(ux & MASK8))
@@ -174,7 +174,7 @@ read_fixed(io::IO, typ::Type{Int32}) = reinterpret(Int32, _read_fixed(io, conver
 read_fixed(io::IO, typ::Type{Int64}) = reinterpret(Int64, _read_fixed(io, convert(UInt64,0), 8))
 read_fixed(io::IO, typ::Type{Float32}) = reinterpret(Float32, _read_fixed(io, convert(UInt32,0), 4))
 read_fixed(io::IO, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, convert(UInt64,0), 8))
-function _read_fixed{T <: Unsigned}(io::IO, ret::T, N::Int)
+function _read_fixed(io::IO, ret::T, N::Int) where T <: Unsigned
     for n in 0:(N-1)
         byte = convert(T, read(io, UInt8))
         ret |= (byte << 8*n)
@@ -182,7 +182,7 @@ function _read_fixed{T <: Unsigned}(io::IO, ret::T, N::Int)
     ret
 end
 
-function write_bytes(io::IO, data::Array{UInt8,1})
+function write_bytes(io::IO, data::Vector{UInt8})
     n = _write_uleb(io, sizeof(data))
     n += write(io, data)
     n
@@ -191,23 +191,22 @@ end
 function read_bytes(io::IO)
     n = _read_uleb(io, UInt64)
     #data = Array(UInt8, n)
-    data = Array{UInt8,1}(n)
+    data = Vector{UInt8}(n)
     read!(io, data)
     data
 end
-read_bytes(io::IO, ::Type{Array{UInt8,1}}) = read_bytes(io)
+read_bytes(io::IO, ::Type{Vector{UInt8}}) = read_bytes(io)
 
 write_string(io::IO, x::AbstractString) = write_string(io, String(x))
-write_string(io::IO, x::Compat.String) = write_bytes(io, Vector{UInt8}(x))
+write_string(io::IO, x::String) = write_bytes(io, Vector{UInt8}(x))
 
 read_string(io::IO) = String(read_bytes(io))
-read_string(io::IO, ::Type{AbstractString}) = read_string(io)
-read_string{T <: Compat.String}(io::IO, ::Type{T}) = convert(T, read_string(io))
+read_string(io::IO, ::Type{T}) where {T <: AbstractString} = convert(T, read_string(io))
 
 ##
 # read and write protobuf structures
 
-type ProtoMetaAttribs
+mutable struct ProtoMetaAttribs
     fldnum::Int             # the field number in the structure
     fld::Symbol
     ptyp::Symbol            # protobuf type
@@ -217,18 +216,18 @@ type ProtoMetaAttribs
     meta::Any               # the ProtoMeta if this is a nested type
 end
 
-type ProtoMeta
+mutable struct ProtoMeta
     jtype::Type
     symdict::Dict{Symbol,ProtoMetaAttribs}
     numdict::Dict{Int,ProtoMetaAttribs}
-    ordered::Array{ProtoMetaAttribs,1}
+    ordered::Vector{ProtoMetaAttribs}
     oneofs::Vector{Int}
     oneof_names::Vector{Symbol}
 
-    ProtoMeta(jtype::Type, ordered::Array{ProtoMetaAttribs,1}, oneofs::Vector{Int}=Int[], oneof_names::Vector{Symbol}=Symbol[]) = _setmeta(new(), jtype, ordered, oneofs, oneof_names)
+    ProtoMeta(jtype::Type, ordered::Vector{ProtoMetaAttribs}, oneofs::Vector{Int}=Int[], oneof_names::Vector{Symbol}=Symbol[]) = _setmeta(new(), jtype, ordered, oneofs, oneof_names)
 end
 
-function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Array{ProtoMetaAttribs,1}, oneofs::Vector{Int}, oneof_names::Vector{Symbol})
+function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Vector{ProtoMetaAttribs}, oneofs::Vector{Int}, oneof_names::Vector{Symbol})
     symdict = Dict{Symbol,ProtoMetaAttribs}()
     numdict = Dict{Int,ProtoMetaAttribs}()
     for attrib in ordered
@@ -275,7 +274,7 @@ function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
     n
 end
 
-function writeproto{T<:Number}(io::IO, val::T, attrib::ProtoMetaAttribs)
+function writeproto(io::IO, val::T, attrib::ProtoMetaAttribs) where T<:Number
     fld = attrib.fldnum
     ptyp = attrib.ptyp
     wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
@@ -287,7 +286,7 @@ function writeproto{T<:Number}(io::IO, val::T, attrib::ProtoMetaAttribs)
     n
 end
 
-function writeproto{T<:AbstractString}(io::IO, val::T, attrib::ProtoMetaAttribs)
+function writeproto(io::IO, val::T, attrib::ProtoMetaAttribs) where T<:AbstractString
     fld = attrib.fldnum
     ptyp = attrib.ptyp
     wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
@@ -300,7 +299,7 @@ end
 
 writeproto(io::IO, val::Dict, attrib::ProtoMetaAttribs) = write_map(io, attrib.fldnum, convert(attrib.meta.jtype, val))
 
-function writeproto(io::IO, val::Array{UInt8,1}, attrib::ProtoMetaAttribs)
+function writeproto(io::IO, val::Vector{UInt8}, attrib::ProtoMetaAttribs)
     fld = attrib.fldnum
     ptyp = attrib.ptyp
     wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
@@ -311,7 +310,7 @@ function writeproto(io::IO, val::Array{UInt8,1}, attrib::ProtoMetaAttribs)
     n
 end
 
-function writeproto{T}(io::IO, val::Array{T}, attrib::ProtoMetaAttribs)
+function writeproto(io::IO, val::Array{T}, attrib::ProtoMetaAttribs) where T
     ptyp = attrib.ptyp
     wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
     wfn = eval(write_fn)
@@ -319,7 +318,7 @@ function writeproto{T}(io::IO, val::Array{T}, attrib::ProtoMetaAttribs)
     writeproto(io, val, attrib, wfn)
 end
 
-function writeproto{T,F}(io::IO, val::Array{T}, attrib::ProtoMetaAttribs, wfn::F)
+function writeproto(io::IO, val::Array{T}, attrib::ProtoMetaAttribs, wfn::F) where {T,F}
     fld = attrib.fldnum
     meta = attrib.meta
     ptyp = attrib.ptyp
@@ -404,7 +403,7 @@ function skip_field(io::IO, wiretype::Integer)
     nothing
 end
 
-function read_map{K,V}(io, dict::Dict{K,V})
+function read_map(io, dict::Dict{K,V}) where {K,V}
     iob = IOBuffer(read_bytes(io))
 
     dmeta = mapentry_meta(Dict{K,V})
@@ -546,9 +545,9 @@ function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache:
     for (k,v) in defaults
         d[k] = v
     end
-    meta(typ, convert(Array{Symbol,1}, required), convert(Array{Int,1}, numbers), d, cache, convert(Array{Symbol,1}, pack), wtypes, oneofs, oneof_names)
+    meta(typ, convert(Vector{Symbol}, required), convert(Vector{Int}, numbers), d, cache, convert(Vector{Symbol}, pack), wtypes, oneofs, oneof_names)
 end
-function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Array{Symbol,1}=DEF_PACK,
+function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Vector{Symbol}=DEF_PACK,
                 wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES)
     haskey(_metacache, typ) && return _metacache[typ]
 
@@ -562,7 +561,7 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
         fldtyp = types[fldidx]
         fldname = names[fldidx]
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
-        isarr = issubtype(fldtyp, Array) && !(fldtyp === Array{UInt8,1})
+        isarr = issubtype(fldtyp, Array) && !(fldtyp === Vector{UInt8})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
 
         elemtyp = isarr ? eltype(fldtyp) : fldtyp
@@ -578,14 +577,14 @@ function meta(typ::Type, required::Array{Symbol,1}, numbers::Array{Int,1}, defau
     m
 end
 
-function mapentry_meta{K,V}(typ::Type{Dict{K,V}})
+function mapentry_meta(typ::Type{Dict{K,V}}) where {K,V}
     m = ProtoMeta(typ, ProtoMetaAttribs[])
     _mapentry_metacache[typ] = m
 
     attribs = ProtoMetaAttribs[]
     push!(attribs, ProtoMetaAttribs(1, "key", wiretype(K), 0, false, defaultval(K), nothing))
 
-    isarr = issubtype(V, Array) && !(V === Array{UInt8,1})
+    isarr = issubtype(V, Array) && !(V === Vector{UInt8})
     repeat = isarr ? 2 : 0
     packed = isarr
     wtyp = wiretype(V)
@@ -699,7 +698,7 @@ end
 ##
 # Enum Lookup
 
-@compat abstract type ProtoEnum end
+abstract type ProtoEnum end
 
 function lookup(en::ProtoEnum, val)
     for name in fld_names(typeof(en))

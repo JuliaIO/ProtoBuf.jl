@@ -42,7 +42,7 @@ function test_struct()
     @test s == s1
 end
 
-function test_generic{T}(::Type{T}; kwargs...)
+function test_generic(::Type{T}; kwargs...) where T
     print_hdr(T.name)
     w = T(;kwargs...)
     iob = PipeBuffer()
@@ -60,7 +60,7 @@ test_fieldmask() = test_generic(FieldMask; paths=[randstring(10), randstring(10)
 
 function test_wrappers()
     types = [DoubleValue, FloatValue, Int64Value, UInt64Value, Int32Value, UInt32Value, BoolValue, StringValue, BytesValue]
-    vals = Any[1.1, @compat(Float32(1.1)), 100, rand(UInt64), rand(Int32), rand(UInt32), true, randstring(10), rand(UInt8, 10)]
+    vals = Any[1.1, Float32(1.1), 100, rand(UInt64), rand(Int32), rand(UInt32), true, randstring(10), rand(UInt8, 10)]
     for idx in 1:length(types)
         test_generic(types[idx]; value=vals[idx])
     end
