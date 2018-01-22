@@ -5,7 +5,7 @@ import ProtoBuf.meta
 import Base: hash, isequal, ==
 using ProtoBuf.GoogleProtoBuf
 
-mutable struct CodeGeneratorRequest
+mutable struct CodeGeneratorRequest <: ProtoType
     file_to_generate::Array{AbstractString,1}
     parameter::AbstractString
     proto_file::Array{FileDescriptorProto,1}
@@ -17,7 +17,7 @@ hash(v::CodeGeneratorRequest) = ProtoBuf.protohash(v)
 isequal(v1::CodeGeneratorRequest, v2::CodeGeneratorRequest) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::CodeGeneratorRequest, v2::CodeGeneratorRequest) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct CodeGeneratorResponse_File
+mutable struct CodeGeneratorResponse_File <: ProtoType
     name::AbstractString
     insertion_point::AbstractString
     content::AbstractString
@@ -29,7 +29,7 @@ hash(v::CodeGeneratorResponse_File) = ProtoBuf.protohash(v)
 isequal(v1::CodeGeneratorResponse_File, v2::CodeGeneratorResponse_File) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::CodeGeneratorResponse_File, v2::CodeGeneratorResponse_File) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct CodeGeneratorResponse
+mutable struct CodeGeneratorResponse <: ProtoType
     error::AbstractString
     file::Array{CodeGeneratorResponse_File,1}
     CodeGeneratorResponse(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)

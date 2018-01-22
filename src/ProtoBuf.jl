@@ -7,7 +7,7 @@ import Base.show, Base.copy!
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, protobuild
 export filled, isfilled, isfilled_default, which_oneof, fillset, fillset_default, fillunset
 export show, copy!, set_field, set_field!, get_field, clear, add_field, add_field!, has_field, isinitialized
-export ProtoEnum, lookup, enumstr
+export ProtoEnum, ProtoType, lookup, enumstr
 export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescriptor, ServiceDescriptor, ProtoService,
        AbstractProtoServiceStub, GenericProtoServiceStub, ProtoServiceStub, ProtoServiceBlockingStub,
        find_method, get_request_type, get_response_type, get_descriptor_for_type, call_method

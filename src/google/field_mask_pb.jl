@@ -4,7 +4,7 @@ using ProtoBuf
 import ProtoBuf.meta
 import Base: hash, isequal, ==
 
-mutable struct FieldMask
+mutable struct FieldMask <: ProtoType
     paths::Array{AbstractString,1}
     FieldMask(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type FieldMask

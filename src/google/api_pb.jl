@@ -4,7 +4,7 @@ using ProtoBuf
 import ProtoBuf.meta
 import Base: hash, isequal, ==
 
-mutable struct Method
+mutable struct Method <: ProtoType
     name::AbstractString
     request_type_url::AbstractString
     request_streaming::Bool
@@ -18,7 +18,7 @@ hash(v::Method) = ProtoBuf.protohash(v)
 isequal(v1::Method, v2::Method) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Method, v2::Method) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct Mixin
+mutable struct Mixin <: ProtoType
     name::AbstractString
     root::AbstractString
     Mixin(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -27,7 +27,7 @@ hash(v::Mixin) = ProtoBuf.protohash(v)
 isequal(v1::Mixin, v2::Mixin) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Mixin, v2::Mixin) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct Api
+mutable struct Api <: ProtoType
     name::AbstractString
     methods::Array{Method,1}
     options::Array{Option,1}

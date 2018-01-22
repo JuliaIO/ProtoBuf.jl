@@ -238,7 +238,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     end
 
     # generate this type
-    println(io, "mutable struct $(dtypename)")
+    println(io, "mutable struct $(dtypename) <: ProtoType")
     reqflds = String[]
     packedflds = String[]
     fldnums = Int[]
