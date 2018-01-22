@@ -1,0 +1,18 @@
+syntax = "proto2";
+
+package Recurse;
+
+message RecurseA {
+  required string a = 1;
+  optional RecurseB b = 2;
+}
+
+message RecurseB {
+    required string b = 1;
+    optional RecurseC c = 2;
+}
+
+message RecurseC {
+  required string c = 1;
+  optional RecurseB next = 2;
+}

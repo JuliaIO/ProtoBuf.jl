@@ -199,9 +199,10 @@ function short_type_name(full_type_name::AbstractString, depends::Vector{Abstrac
     return type_name
 end
 
-function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::AbstractString, exports::Vector{AbstractString}, depends::Vector{AbstractString}, mapentries::Dict)
-    io = IOBuffer()
+function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::AbstractString, exports::Vector{AbstractString}, depends::Vector{AbstractString}, mapentries::Dict, deferedmode::Bool)
     full_dtypename = dtypename = pfx(dtype.name, scope)
+    deferedmode && !isdeferred(full_dtypename) && return
+    io = IOBuffer()
     sm = splitmodule(dtypename)
     modul,dtypename = (length(sm) > 1) ? (sm[1],sm[2]) : ("",dtypename)
     dtypename = chk_keyword(dtypename)
@@ -231,18 +232,19 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     # generate nested types
     if isfilled(dtype, :nested_type)
         for nested_type::DescriptorProto in dtype.nested_type
-            generate(io, errio, nested_type, scope, syntax, exports, depends, mapentries)
+            generate(io, errio, nested_type, scope, syntax, exports, depends, mapentries, deferedmode)
             (errio.size > 0) && return
         end
     end
 
     # generate this type
     println(io, "mutable struct $(dtypename)")
-    reqflds = AbstractString[]
-    packedflds = AbstractString[]
+    reqflds = String[]
+    packedflds = String[]
     fldnums = Int[]
-    defvals = AbstractString[]
-    wtypes = AbstractString[]
+    defvals = String[]
+    wtypes = String[]
+    realfldtypes = String[]
     oneofs = isempty(oneof_names) ? Int[] : zeros(Int, length(dtype.field))
     ismapentry = isfilled(dtype, :options) && isfilled(dtype.options, :map_entry) && dtype.options.map_entry
     map_key_type = ""
@@ -317,8 +319,13 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
                      ((syntax == "proto3") && (FieldDescriptorProto_Label.LABEL_REPEATED == field.label) && isprimitive(field._type))
             packed && push!(packedflds, ":"*fldname)
 
+            gen_typ_name = ""
             if !(isresolved(dtypename, typ_name, full_typ_name, exports) || full_typ_name in _all_resolved)
-                defer(full_dtypename, io, full_typ_name)
+                if deferedmode
+                    gen_typ_name = "Any"
+                else
+                    defer(full_dtypename, io, full_typ_name)
+                end
             end
 
             typ_name = short_type_name(typ_name, depends)
@@ -329,7 +336,14 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
             elseif FieldDescriptorProto_Label.LABEL_REPEATED == field.label
                 typ_name = "Vector{$typ_name}"
             end
-            println(io, "    $(fldname)::$typ_name", is_typ_mapentry ? " # map entry" : "")
+
+            if isempty(gen_typ_name)
+                gen_typ_name = typ_name
+            else
+                push!(realfldtypes, ":$fldname => \"$(typ_name)\"")
+            end
+
+            println(io, "    $(fldname)::$gen_typ_name", is_typ_mapentry ? " # map entry" : "")
 
             if ismapentry
                 if field.number == 1
@@ -350,11 +364,12 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     (fldnums != _d_fldnums) && println(io, "const __fnum_$(dtypename) = Int[$(join(fldnums, ','))]")
     !isempty(packedflds) && println(io, "const __pack_$(dtypename) = Symbol[$(join(packedflds, ','))]")
     !isempty(wtypes) && println(io, "const __wtype_$(dtypename) = Dict($(join(wtypes, ", ")))")
+    !isempty(realfldtypes) && println(io, "const __ftype_$(dtypename) = Dict($(join(realfldtypes, ", ")))")
     if !isempty(oneofs)
         println(io, "const __oneofs_$(dtypename) = Int[$(join(oneofs, ','))]")
         println(io, "const __oneof_names_$(dtypename) = [$(join(oneof_names, ','))]")
     end
-    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes) || !isempty(oneofs)
+    if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes) || !isempty(oneofs) || !isempty(realfldtypes)
         @logmsg("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
         print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
@@ -364,7 +379,8 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
         print(io, isempty(packedflds) ? "ProtoBuf.DEF_PACK, " : "__pack_$(dtypename), ")
         print(io, isempty(wtypes) ? "ProtoBuf.DEF_WTYPES, " : "__wtype_$(dtypename), ")
         print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOFS, " : "__oneofs_$(dtypename), ")
-        print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOF_NAMES" : "__oneof_names_$(dtypename)")
+        print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOF_NAMES, " : "__oneof_names_$(dtypename), ")
+        print(io, isempty(realfldtypes) ? "ProtoBuf.DEF_FIELD_TYPES" : "__ftype_$(dtypename)")
         println(io, ")")
     end
     # generate hash, equality and isequal methods
@@ -375,6 +391,8 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
     println(io, "")
     push!(exports, dtypename)
     ismapentry && (mapentries[dtypename] = (map_key_type, map_val_type))
+
+    deferedmode && (full_dtypename in keys(_deferred)) && delete!(_deferred, full_dtypename)
 
     if !isdeferred(full_dtypename)
         @logmsg("resolved $full_dtypename")
@@ -532,8 +550,8 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     @logmsg("generating types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
-            generate(io, errio, message_type, scope, syntax, exports, depends, mapentries)
-            (errio.size > 0) && return 
+            generate(io, errio, message_type, scope, syntax, exports, depends, mapentries, false)
+            (errio.size > 0) && return
         end
     end
 
@@ -545,6 +563,15 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
             service = protofile.service[idx]
             generate(io, errio, service, scope, idx, exports)
             (errio.size > 0) && return
+        end
+    end
+
+    # generate deferred message types
+    @logmsg("generating deferred types")
+    if isfilled(protofile, :message_type)
+        for message_type in protofile.message_type
+            generate(io, errio, message_type, scope, syntax, exports, depends, mapentries, true)
+            (errio.size > 0) && return 
         end
     end
 

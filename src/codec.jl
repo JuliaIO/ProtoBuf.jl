@@ -537,18 +537,20 @@ const DEF_PACK = Symbol[]
 const DEF_WTYPES = Dict{Symbol,Symbol}()
 const DEF_ONEOFS = Int[]
 const DEF_ONEOF_NAMES = Symbol[]
+const DEF_FIELD_TYPES = Dict{Symbol,String}()
 
-meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, DEF_REQ, DEF_FNUM, DEF_VAL, true, DEF_PACK, DEF_WTYPES, DEF_ONEOFS, DEF_ONEOF_NAMES)
-function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true, pack::Array=DEF_PACK, wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES)
+meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, DEF_REQ, DEF_FNUM, DEF_VAL, true, DEF_PACK, DEF_WTYPES, DEF_ONEOFS, DEF_ONEOF_NAMES, DEF_FIELD_TYPES)
+function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true, pack::Array=DEF_PACK, wtypes::Dict=DEF_WTYPES,
+                oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES, field_types::Dict{Symbol,String}=DEF_FIELD_TYPES)
     haskey(_metacache, typ) && return _metacache[typ]
     d = Dict{Symbol,Any}()
     for (k,v) in defaults
         d[k] = v
     end
-    meta(typ, convert(Vector{Symbol}, required), convert(Vector{Int}, numbers), d, cache, convert(Vector{Symbol}, pack), wtypes, oneofs, oneof_names)
+    meta(typ, convert(Vector{Symbol}, required), convert(Vector{Int}, numbers), d, cache, convert(Vector{Symbol}, pack), wtypes, oneofs, oneof_names, field_types)
 end
 function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Vector{Symbol}=DEF_PACK,
-                wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES)
+                wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES, field_types::Dict{Symbol,String}=DEF_FIELD_TYPES)
     haskey(_metacache, typ) && return _metacache[typ]
 
     m = ProtoMeta(typ, ProtoMetaAttribs[])
@@ -558,8 +560,8 @@ function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, default
     names = fld_names(typ)
     types = typ.types
     for fldidx in 1:length(names)
-        fldtyp = types[fldidx]
         fldname = names[fldidx]
+        fldtyp = (fldname in keys(field_types)) ? eval(typ.name.module, parse(field_types[fldname])) : types[fldidx]
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
         isarr = issubtype(fldtyp, Array) && !(fldtyp === Vector{UInt8})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
