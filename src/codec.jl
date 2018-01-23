@@ -697,6 +697,11 @@ function show(io::IO, m::ProtoMeta)
 end
 
 
+"""
+The abstract type from which all generated protobuf structs extend.
+"""
+abstract type ProtoType end
+
 ##
 # Enum Lookup
 

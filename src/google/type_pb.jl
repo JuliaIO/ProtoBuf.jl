@@ -11,7 +11,7 @@ struct __enum_Syntax <: ProtoEnum
 end #type __enum_Syntax
 const Syntax = __enum_Syntax()
 
-mutable struct Option
+mutable struct Option <: ProtoType
     name::AbstractString
     value::_Any
     Option(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -20,7 +20,7 @@ hash(v::Option) = ProtoBuf.protohash(v)
 isequal(v1::Option, v2::Option) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Option, v2::Option) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct EnumValue
+mutable struct EnumValue <: ProtoType
     name::AbstractString
     number::Int32
     options::Array{Option,1}
@@ -63,7 +63,7 @@ struct __enum_Field_Cardinality <: ProtoEnum
 end #type __enum_Field_Cardinality
 const Field_Cardinality = __enum_Field_Cardinality()
 
-mutable struct Field
+mutable struct Field <: ProtoType
     kind::Int32
     cardinality::Int32
     number::Int32
@@ -82,7 +82,7 @@ hash(v::Field) = ProtoBuf.protohash(v)
 isequal(v1::Field, v2::Field) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Field, v2::Field) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct _Enum
+mutable struct _Enum <: ProtoType
     name::AbstractString
     enumvalue::Array{EnumValue,1}
     options::Array{Option,1}
@@ -94,7 +94,7 @@ hash(v::_Enum) = ProtoBuf.protohash(v)
 isequal(v1::_Enum, v2::_Enum) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::_Enum, v2::_Enum) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct _Type
+mutable struct _Type <: ProtoType
     name::AbstractString
     fields::Array{Field,1}
     oneofs::Array{AbstractString,1}

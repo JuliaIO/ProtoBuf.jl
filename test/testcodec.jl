@@ -14,28 +14,28 @@ end
 
 print_hdr(tname) = println("testing $tname...")
 
-mutable struct TestType
+mutable struct TestType <: ProtoType
     val::Any
 end
 
-mutable struct TestStr
+mutable struct TestStr <: ProtoType
     val::AbstractString
 end
 ==(t1::TestStr, t2::TestStr) = (t1.val == t2.val)
 
-mutable struct TestOptional
+mutable struct TestOptional <: ProtoType
     sVal1::TestStr
     sVal2::TestStr
     iVal2::Array{Int64,1}
 end
 
-mutable struct TestNested
+mutable struct TestNested <: ProtoType
     fld1::TestType
     fld2::TestOptional
     fld3::Array{TestStr}
 end
 
-mutable struct TestDefaults
+mutable struct TestDefaults <: ProtoType
     iVal1::Int64
     sVal2::AbstractString
     iVal2::Array{Int64,1}
@@ -44,7 +44,7 @@ mutable struct TestDefaults
     TestDefaults() = new()
 end
 
-mutable struct TestOneofs
+mutable struct TestOneofs <: ProtoType
     iVal1::Int64
     iVal2::Int64
     iVal3::Int64
@@ -52,14 +52,14 @@ mutable struct TestOneofs
     TestOneofs() = new()
 end
 
-mutable struct TestMaps
+mutable struct TestMaps <: ProtoType
     d1::Dict{Int,Int}
     d2::Dict{Int32,String}
     d3::Dict{String,String}
     TestMaps() = new()
 end
 
-mutable struct TestFilled
+mutable struct TestFilled <: ProtoType
     fld1::TestType
     fld2::TestType
     TestFilled() = new()

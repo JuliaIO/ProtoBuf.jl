@@ -10,7 +10,7 @@ struct __enum_NullValue <: ProtoEnum
 end #type __enum_NullValue
 const NullValue = __enum_NullValue()
 
-mutable struct Struct
+mutable struct Struct <: ProtoType
     fields::Dict{AbstractString,Any} # map entry
     Struct(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type Struct
@@ -18,7 +18,7 @@ hash(v::Struct) = ProtoBuf.protohash(v)
 isequal(v1::Struct, v2::Struct) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::Struct, v2::Struct) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct ListValue
+mutable struct ListValue <: ProtoType
     values::Array{Any,1}
     ListValue(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type ListValue
@@ -26,7 +26,7 @@ hash(v::ListValue) = ProtoBuf.protohash(v)
 isequal(v1::ListValue, v2::ListValue) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::ListValue, v2::ListValue) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct Value
+mutable struct Value <: ProtoType
     null_value::Int32
     number_value::Float64
     string_value::AbstractString

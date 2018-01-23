@@ -11,7 +11,7 @@ clear = fillunset
 
 has_field(obj::Any, fld::Symbol) = isfilled(obj, fld)
 
-function copy!(to::T, from::T) where T
+function copy!(to::T, from::T) where T <: ProtoType
     fillunset(to)
     fill = filled(from)
     fnames = fld_names(T)
