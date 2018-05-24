@@ -18,12 +18,38 @@ If a package contains a message which has the same name as the package itself, o
 
 ProtoBuf `map` types are generated as Julia `Dict` types by default. They can also be generated as `Array` of `key-value`s by setting the `JULIA_PROTOBUF_MAP_AS_ARRAY=1` environment variable when running `protoc`.
 
+### Windows Specifics of Code Generation
+
+On Windows, the procedure of compiling the .jl from .proto files is similar:
+
+Using the following cmd (without spaces around the equality sign)
+
+`protoc -I=<Folder with .proto-Files> --plugin=protoc-gen-julia=<Absolute PATH to protoc-gen-julia-File>\protoc-gen-julia_win.bat --julia_out=<Existing Folder where generated .jl files will be stored>   <Path of proto-Files which you want to compile>`
+
+Example for .proto-files located in fhe folder `test\proto`:
+`cd C:\Users\<Username>\.julia\v0.6\ProtoBuf\test`
+
+`protoc -I=proto    --plugin=protoc-gen-julia=C:\Users\UELIWECH\.julia\v0.6\ProtoBuf\plugin\protoc-gen-julia_win.bat --julia_out=jlout proto/PROTOFILENAME.proto`
+
+
+If you want to set the system parameter (as mentioned above) use the following commands (it is important have not whitespaces around the equality sign):
+
+`set JULIA_PROTOBUF_MODULE_POSTFIX=1`
+`set JULIA_PROTOBUF_MAP_AS_ARRAY=1`
+
+You can test if it is set correctly by using the echo call.
+`echo %Variable_Name%`
+
+
+
+
+
 ### Julia Type Mapping
 
 .proto Type | Julia Type        | Notes
 ---         | ---               | ---
-double      | Float64           | 
-float       | Float32           | 
+double      | Float64           |
+float       | Float32           |
 int32       | Int32             | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead.
 int64       | Int64             | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead.
 uint32      | UInt32            | Uses variable-length encoding.
@@ -34,7 +60,7 @@ fixed32     | UInt32            | Always four bytes. More efficient than uint32 
 fixed64     | UInt64            | Always eight bytes. More efficient than uint64 if values are often greater than 2^56.
 sfixed32    | Int32             | Always four bytes.
 sfixed64    | Int64             | Always eight bytes.
-bool        | Bool              | 
+bool        | Bool              |
 string      | ByteString        | A string must always contain UTF-8 encoded or 7-bit ASCII text.
 bytes       | Array{UInt8,1}    | May contain any arbitrary sequence of bytes.
 map         | Dict              | Can be generated as `Array` of `key-value` by setting environment variable `JULIA_PROTOBUF_MAP_AS_ARRAY=1`
@@ -77,4 +103,3 @@ Service stubs are Julia types. Stubs can be constructed by passing an RPC channe
 - Extensions are not supported yet.
 - Groups are not supported. They are deprecated anyway.
 - Enums are declared as `Int32` types in the generated code, but a separate Julia type is generated with fields same as the enum values which can be used for validation. The types representing enums extend from the abstract type `ProtoEnum` and the `lookup` method can be used to verify valid values.
-
