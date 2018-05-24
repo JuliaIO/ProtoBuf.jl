@@ -28,7 +28,8 @@ Using the following cmd (without spaces around the equality sign)
 
 Example for .proto-files located in fhe folder `test\proto`:
 `cd C:\Users\<Username>\.julia\v0.6\ProtoBuf\test`
-`protoc -I=proto    --plugin=protoc-gen-julia=C:\Users\UELIWECH\.julia\v0.6\ProtoBuf\plugin\protoc-gen-julia_win.bat --julia_out=jlout proto/a.proto`
+
+`protoc -I=proto    --plugin=protoc-gen-julia=C:\Users\UELIWECH\.julia\v0.6\ProtoBuf\plugin\protoc-gen-julia_win.bat --julia_out=jlout proto/PROTOFILENAME.proto`
 
 
 If you want to set the system parameter (as mentioned above) use the following commands (it is important have not whitespaces around the equality sign):
