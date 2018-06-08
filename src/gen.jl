@@ -189,11 +189,17 @@ function generate(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope
     nothing
 end
 
-function short_type_name(full_type_name::AbstractString, depends::Vector{AbstractString})
+function field_type_name(full_type_name::AbstractString, depends::Vector{AbstractString})
     comps = split(full_type_name, '.')
-    type_name = pop!(comps)
-    while !isempty(comps) && !(join(comps, '.') in depends)
-        type_name = (pop!(comps) * "." * type_name)
+    if isempty(comps)
+        type_name = full_type_name
+    else
+        package_name = join(comps[1:(end - 1)], '.')
+        if package_name == GOOGLE_PROTO3_EXTENSIONS
+            type_name = "ProtoBuf.$full_type_name"
+        else
+            type_name = full_type_name
+        end
     end
     @logmsg("check $full_type_name against $depends || found $type_name")
     return type_name
@@ -310,7 +316,7 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
                     println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                     return
                 else
-                    defval = (field._type == FieldDescriptorProto_Type.TYPE_ENUM) ? "$(short_type_name(enum_typ_name, depends)).$(field.default_value)" : "$(field.default_value)"
+                    defval = (field._type == FieldDescriptorProto_Type.TYPE_ENUM) ? "$(field_type_name(enum_typ_name, depends)).$(field.default_value)" : "$(field.default_value)"
                     push!(defvals, ":$fldname => $defval")
                 end
             end
@@ -322,19 +328,19 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
             gen_typ_name = ""
             if !(isresolved(dtypename, typ_name, full_typ_name, exports) || full_typ_name in _all_resolved)
                 if deferedmode
-                    gen_typ_name = "Any"
+                    gen_typ_name = "Base.Any"
                 else
                     defer(full_dtypename, io, full_typ_name)
                 end
             end
 
-            typ_name = short_type_name(typ_name, depends)
+            typ_name = field_type_name(typ_name, depends)
             is_typ_mapentry = typ_name in keys(mapentries)
             if is_typ_mapentry && !_map_as_array
                 k,v = mapentries[typ_name]
-                typ_name = "Dict{$k,$v}"
+                typ_name = "Base.Dict{$k,$v}"
             elseif FieldDescriptorProto_Label.LABEL_REPEATED == field.label
-                typ_name = "Vector{$typ_name}"
+                typ_name = "Base.Vector{$typ_name}"
             end
 
             if isempty(gen_typ_name)
@@ -527,9 +533,14 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
             (fullscopename == dependency) && continue
             !isempty(parentscope) && startswith(dependency, parentscope) && (dependency = ".$(dependency[length(parentscope)+1:end])")
             if dependency == GOOGLE_PROTO3_EXTENSIONS
-                dependency = "ProtoBuf." * dependency
+                dependency = "ProtoBuf"
+            else
+                comps = split(dependency, '.')
+                if !isempty(comps)
+                    dependency = comps[1]
+                end
             end
-            println(io, "using $dependency")
+            println(io, "import $dependency")
         end
     end
     println(io, "")
