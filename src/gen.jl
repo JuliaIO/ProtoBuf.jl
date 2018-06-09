@@ -531,7 +531,6 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
         parentscope = (isdefined(scope, :parent) && scope.parent.is_module) ? fullname(scope.parent) : ""
         for dependency in using_pkgs
             (fullscopename == dependency) && continue
-            !isempty(parentscope) && startswith(dependency, parentscope) && (dependency = ".$(dependency[length(parentscope)+1:end])")
             if dependency == GOOGLE_PROTO3_EXTENSIONS
                 dependency = "ProtoBuf"
             else
