@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-mkdir -p out
-
 if [ -z "$PROTOC" ]
 then
     PROTOC=protoc
@@ -19,11 +17,15 @@ JULIA_VER=`${JULIA} -e "using Compat.InteractiveUtils; versioninfo()" | grep "Ju
 echo $JULIA_VER
 
 ERR=0
-SRC="test/proto"
-WELL_KNOWN_PROTO_SRC="gen"
-GEN="${PROTOC} --proto_path=${SRC} --proto_path=${WELL_KNOWN_PROTO_SRC} --julia_out=out"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SRC="${DIR}/proto"
+OUT="${DIR}/out"
+WELL_KNOWN_PROTO_SRC="${DIR}/../gen"
+GEN="${PROTOC} --proto_path=${SRC} --proto_path=${WELL_KNOWN_PROTO_SRC} --julia_out=${OUT}"
 CHK="${JULIA} -e"
+mkdir -p ${OUT}
 
+cd ${DIR}
 echo "- t1.proto" && ${GEN} ${SRC}/t1.proto && ${CHK} 'include("out/t1_pb.jl")'
 ERR=$(($ERR + $?))
 echo "- t2.proto" && ${GEN} ${SRC}/t2.proto && ${CHK} 'include("out/t2_pb.jl")'
