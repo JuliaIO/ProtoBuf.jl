@@ -102,7 +102,7 @@ function findmodule(name::AbstractString)
             mpkg = pkg
         end
     end
-    (mpkg, replace((0 == mlen) ? name : name[(mlen+2):end], '.', '_'))
+    (mpkg, replace((0 == mlen) ? name : name[(mlen+2):end], '.'=>'_'))
 end
 
 
@@ -413,7 +413,7 @@ end
 
 function protofile_name_to_module_name(n::AbstractString)
     name = splitext(basename(n))[1]
-    name = replace(name, '.', '_')
+    name = replace(name, '.'=>'_')
     name = string(name, "_pb")
     return name
 end
@@ -539,7 +539,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
                     dependency = comps[1]
                 end
             end
-            println(io, "import $dependency")
+            println(io, "import Main.$dependency")
         end
     end
     println(io, "")
@@ -704,9 +704,9 @@ function gen()
     try
         global _module_postfix = in("--module-postfix-enabled", ARGS)
         global _map_as_array = in("--map-as-array", ARGS)
-        writeproto(STDOUT, codegen(STDIN))
+        writeproto(stdout, codegen(stdin))
     catch ex
-        println(STDERR, "Exception while generating Julia code")
+        println(stderr, "Exception while generating Julia code")
         rethrow()
     end
 end
