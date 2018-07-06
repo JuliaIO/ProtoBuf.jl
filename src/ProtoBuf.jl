@@ -7,11 +7,12 @@ if VERSION < v"0.7.0-DEV.4442"
     finalizer(f::Function, o) = finalizer(o, f)
 end
 
-import Base.show, Base.copy!
+import Base: show, copy!, hash, isequal, ==
 
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, protobuild
 export filled, isfilled, isfilled_default, which_oneof, fillset, fillset_default, fillunset
 export show, copy!, set_field, set_field!, get_field, clear, add_field, add_field!, has_field, isinitialized
+export hash, isequal, ==
 export ProtoEnum, ProtoType, lookup, enumstr
 export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescriptor, ServiceDescriptor, ProtoService,
        AbstractProtoServiceStub, GenericProtoServiceStub, ProtoServiceStub, ProtoServiceBlockingStub,
