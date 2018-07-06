@@ -14,6 +14,7 @@ module ProtoBufCompareSer
 using ProtoBuf
 using JSON
 using Compat
+using Compat.Random
 
 import ProtoBuf.meta
 
@@ -40,13 +41,13 @@ mutable struct TestType
             rand(-100:100), rand(1:100),
             rand(-100:100), rand(1:100),
             Float32(rand()*100), Float64(rand()*100),
-            randstring(100), 
+            Compat.Random.randstring(100), 
             convert(Array{Bool,1}, rand(Bool,100)),
             round.(Int32, 127*rand(50)),
             round.(Int64, 127*rand(50)),
             rand(Float32, 50),
             rand(Float64, 50),
-            [randstring(10) for i in 1:50]
+            [Compat.Random.randstring(10) for i in 1:50]
             )
     end
 end # type TestType
@@ -94,13 +95,13 @@ t = TestType(true)
 nloops = 10000
 
 println("nloops: $nloops")
-gc()
+GC.gc()
 println("julia serialization...")
 @time println("ser byte sz: $(julia_ser(t, nloops))")
-gc()
+GC.gc()
 println("protobuf serialization...")
 @time println("ser byte sz: $(proto_ser(t, nloops))")
-gc()
+GC.gc()
 println("JSON serialization...")
 @time println("ser byte sz: $(json_ser(t, nloops))")
 

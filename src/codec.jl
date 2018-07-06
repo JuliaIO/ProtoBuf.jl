@@ -177,7 +177,7 @@ read_fixed(io::IO, typ::Type{Float64}) = reinterpret(Float64, _read_fixed(io, co
 function _read_fixed(io::IO, ret::T, N::Int) where T <: Unsigned
     for n in 0:(N-1)
         byte = convert(T, read(io, UInt8))
-        ret |= (byte << 8*n)
+        ret |= (byte << (8*n))
     end
     ret
 end
@@ -190,15 +190,14 @@ end
 
 function read_bytes(io::IO)
     n = _read_uleb(io, UInt64)
-    #data = Array(UInt8, n)
-    data = Vector{UInt8}(n)
+    data = Vector{UInt8}(undef, n)
     read!(io, data)
     data
 end
 read_bytes(io::IO, ::Type{Vector{UInt8}}) = read_bytes(io)
 
 write_string(io::IO, x::AbstractString) = write_string(io, String(x))
-write_string(io::IO, x::String) = write_bytes(io, Vector{UInt8}(x))
+write_string(io::IO, x::String) = write_bytes(io, @static isdefined(Base, :codeunits) ? unsafe_wrap(Vector{UInt8}, x) : Vector{UInt8}(x))
 
 read_string(io::IO) = String(read_bytes(io))
 read_string(io::IO, ::Type{T}) where {T <: AbstractString} = convert(T, read_string(io))
@@ -409,8 +408,7 @@ function read_map(io, dict::Dict{K,V}) where {K,V}
     dmeta = mapentry_meta(Dict{K,V})
     key_wtyp, key_wfn, key_rfn, key_jtyp = WIRETYPES[dmeta.numdict[1].ptyp]
     val_wtyp, val_wfn, val_rfn, val_jtyp = WIRETYPES[dmeta.numdict[2].ptyp]
-    key = Nullable{K}()
-    val = Nullable{V}()
+    key_val = Vector{Union{K,V}}(undef, 2)
 
     while !eof(iob)
         fldnum, wiretyp = _read_key(iob)
@@ -420,15 +418,15 @@ function read_map(io, dict::Dict{K,V}) where {K,V}
         attrib = dmeta.numdict[fldnum]
 
         if fldnum == 1
-            key = Nullable{K}(read_field(iob, nothing, attrib, key_wtyp, K))
+            key_val[1] = read_field(iob, nothing, attrib, key_wtyp, K)
         elseif fldnum == 2
-            val = Nullable{V}(read_field(iob, nothing, attrib, val_wtyp, V))
+            key_val[2] = read_field(iob, nothing, attrib, val_wtyp, V)
         else
             skip_field(iob, wiretyp)
         end
     end
-    @logmsg("read map key: $(get(key))=$(get(val))")
-    dict[get(key)] = get(val)
+    @logmsg("read map key: $(key_val[1])=$(key_val[2])")
+    dict[key_val[1]] = key_val[2]
     dict
 end
 
@@ -452,9 +450,9 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
         arr_val = ((container != nothing) && isdefined(container, fld)) ? convert(Vector{jtyp}, getfield(container, fld)) : jtyp[]
         # Readers should accept repeated fields in both packed and expanded form.
         # Allows compatibility with old writers when [packed = true] is added later.
-        # Only repeated fields of primitive numeric types (isbits == true) can be declared "packed".
+        # Only repeated fields of primitive numeric types (isbitstype == true) can be declared "packed".
         # Maps can not be repeated
-        if isbits(jtyp) && (wiretyp == WIRETYP_LENDELIM)
+        if isbitstype(jtyp) && (wiretyp == WIRETYP_LENDELIM)
             read_lendelim_packed(io, arr_val, rfn, jtyp)
         elseif ptyp == :obj
             push!(arr_val, read_lendelim_obj(io, instantiate(jtyp), attrib.meta, rfn))
@@ -510,7 +508,7 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     fill = filled(obj)
     for attrib in meta.ordered
         fld = attrib.fld
-        idx = findfirst(fnames, fld)
+        idx = something(findfirst(isequal(fld), fnames))
         # TODO: do not fill if oneof the fields in the oneof
         if !isfilled(obj, fld) && (length(attrib.default) > 0) && !_isset_oneof(fill, meta.oneofs, idx)
             default = attrib.default[1]
@@ -526,8 +524,9 @@ end
 
 ##
 # helpers
-const _metacache = ObjectIdDict() #Dict{Type, ProtoMeta}()
-const _mapentry_metacache = ObjectIdDict()
+oiddict() = @static isdefined(Base, :IdDict) ? IdDict() : ObjectIdDict()
+const _metacache = oiddict() # dict of Type => ProtoMeta
+const _mapentry_metacache = oiddict()
 const _fillcache = Dict{UInt,BitArray{2}}()
 
 const DEF_REQ = Symbol[]
@@ -561,9 +560,9 @@ function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, default
     types = typ.types
     for fldidx in 1:length(names)
         fldname = names[fldidx]
-        fldtyp = (fldname in keys(field_types)) ? eval(typ.name.module, parse(field_types[fldname])) : types[fldidx]
+        fldtyp = (fldname in keys(field_types)) ? Core.eval(typ.name.module, parse(field_types[fldname])) : types[fldidx]
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
-        isarr = issubtype(fldtyp, Array) && !(fldtyp === Vector{UInt8})
+        isarr = (fldtyp <: Array) && !(fldtyp === Vector{UInt8})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
 
         elemtyp = isarr ? eltype(fldtyp) : fldtyp
@@ -584,15 +583,15 @@ function mapentry_meta(typ::Type{Dict{K,V}}) where {K,V}
     _mapentry_metacache[typ] = m
 
     attribs = ProtoMetaAttribs[]
-    push!(attribs, ProtoMetaAttribs(1, "key", wiretype(K), 0, false, defaultval(K), nothing))
+    push!(attribs, ProtoMetaAttribs(1, :key, wiretype(K), 0, false, defaultval(K), nothing))
 
-    isarr = issubtype(V, Array) && !(V === Vector{UInt8})
+    isarr = (V <: Array) && !(V === Vector{UInt8})
     repeat = isarr ? 2 : 0
     packed = isarr
     wtyp = wiretype(V)
     vmeta = (wtyp == :obj) ? meta(V) :
             (wtyp == :map) ? mapentry_meta(V) : nothing
-    push!(attribs, ProtoMetaAttribs(2, "value", wtyp, repeat, packed, defaultval(V), vmeta))
+    push!(attribs, ProtoMetaAttribs(2, :value, wtyp, repeat, packed, defaultval(V), vmeta))
 
     _setmeta(m, typ, attribs, DEF_ONEOFS, DEF_ONEOF_NAMES)
     m
@@ -604,7 +603,7 @@ function _unset_oneofs(fill::BitArray{2}, oneofs::Vector{Int}, idx::Int)
         # unset other fields in the oneof group
         for uidx = 1:length(oneofs)
             if (oneofs[uidx] == oneofidx) && (uidx !== idx)
-                fill[1:2,uidx] = false
+                fill[1:2,uidx] .= false
             end
         end
     end
@@ -630,7 +629,7 @@ fillset_default(obj, fld::Symbol) = _fillset(obj, fld, true, true)
 function _fillset(obj, fld::Symbol, val::Bool, isdefault::Bool)
     fill = filled(obj)
     fnames = fld_names(typeof(obj))
-    idx = findfirst(fnames, fld)
+    idx = something(findfirst(isequal(fld), fnames))
     fill[1,idx] = val
     (!val || isdefault) && (fill[2,idx] = val)
     val && _unset_oneofs(fill, meta(typeof(obj)).oneofs, idx)
@@ -638,11 +637,11 @@ function _fillset(obj, fld::Symbol, val::Bool, isdefault::Bool)
 end
 
 function filled(obj)
-    oid = object_id(obj)
+    oid = objectid(obj)
     haskey(_fillcache, oid) && return _fillcache[oid]
 
     fnames = fld_names(typeof(obj))
-    fill = fill!(BitArray(2, length(fnames)), false)
+    fill = fill!(BitArray(undef, 2, length(fnames)), false)
     oneofs = meta(typeof(obj)).oneofs
     for idx in 1:length(fnames)
         if isdefined(obj, fnames[idx])
@@ -652,7 +651,7 @@ function filled(obj)
     end
     if !isimmutable(obj)
         _fillcache[oid] = fill
-        finalizer(obj, obj->delete!(_fillcache, object_id(obj)))
+        finalizer(obj->delete!(_fillcache, objectid(obj)), obj)
     end
     fill
 end
@@ -661,7 +660,7 @@ isfilled(obj, fld::Symbol) = _isfilled(obj, fld, false)
 isfilled_default(obj, fld::Symbol) = _isfilled(obj, fld, true)
 function _isfilled(obj, fld::Symbol, isdefault::Bool)
     fnames = fld_names(typeof(obj))
-    idx = findfirst(fnames, fld)
+    idx = something(findfirst(isequal(fld), fnames))
     filled(obj)[isdefault ? 2 : 1, idx]
 end
 
@@ -683,7 +682,7 @@ function which_oneof(obj, oneof::Symbol)
     fill = filled(obj)
     fnames = fld_names(typeof(obj))
     oneofs = m.oneofs
-    oneof_idx = findfirst(m.oneof_names, oneof)
+    oneof_idx = something(findfirst(isequal(oneof), m.oneof_names))
 
     for idx in 1:length(oneofs)
         (oneofs[idx] == oneof_idx) && fill[1,idx] && (return fnames[idx])

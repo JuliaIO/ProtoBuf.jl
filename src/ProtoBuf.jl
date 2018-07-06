@@ -2,6 +2,11 @@ __precompile__(true)
 
 module ProtoBuf
 
+if VERSION < v"0.7.0-DEV.4442"
+    import Base: finalizer
+    finalizer(f::Function, o) = finalizer(o, f)
+end
+
 import Base.show, Base.copy!
 
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, protobuild

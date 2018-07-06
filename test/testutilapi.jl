@@ -1,7 +1,7 @@
 module ProtoBufTestApis
 using ProtoBuf
 using Compat
-using Base.Test
+using Compat.Test
 import ProtoBuf.meta
 
 print_hdr(tname) = println("testing $tname...")

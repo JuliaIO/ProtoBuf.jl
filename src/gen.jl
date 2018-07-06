@@ -11,7 +11,7 @@ import ProtoBuf: meta, @logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 export gen
 
 const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Vector{UInt8}, UInt32, Int32, Int32, Int64, Int32, Int64]
-const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0;]
+const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0]
 
 isprimitive(fldtype) = (1 <= fldtype <= 8) || (13 <= fldtype <= 18)
 
@@ -142,7 +142,7 @@ end
 function resolve(iob::IOBuffer, name::AbstractString)
     fully_resolved = AbstractString[]
     for (typ,dw) in _deferred
-        idx = findfirst(dw.depends, name)
+        idx = something(findfirst(isequal(name), dw.depends), 0)
         (idx == 0) && continue
         splice!(dw.depends, idx)
         isempty(dw.depends) && push!(fully_resolved, typ)
