@@ -2,7 +2,6 @@
 using Compat
 using ProtoBuf
 import ProtoBuf.meta
-import Base: hash, isequal, ==
 
 struct __enum_Syntax <: ProtoEnum
     SYNTAX_PROTO2::Int32
@@ -16,9 +15,6 @@ mutable struct Option <: ProtoType
     value::_Any
     Option(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type Option
-hash(v::Option) = ProtoBuf.protohash(v)
-isequal(v1::Option, v2::Option) = ProtoBuf.protoisequal(v1, v2)
-==(v1::Option, v2::Option) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct EnumValue <: ProtoType
     name::AbstractString
@@ -26,9 +22,6 @@ mutable struct EnumValue <: ProtoType
     options::Array{Option,1}
     EnumValue(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type EnumValue
-hash(v::EnumValue) = ProtoBuf.protohash(v)
-isequal(v1::EnumValue, v2::EnumValue) = ProtoBuf.protoisequal(v1, v2)
-==(v1::EnumValue, v2::EnumValue) = ProtoBuf.protoeq(v1, v2)
 
 struct __enum_Field_Kind <: ProtoEnum
     TYPE_UNKNOWN::Int32
@@ -78,9 +71,6 @@ mutable struct Field <: ProtoType
 end #type Field
 const __fnum_Field = Int[1,2,3,4,6,7,8,9,10,11]
 meta(t::Type{Field}) = meta(t, ProtoBuf.DEF_REQ, __fnum_Field, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
-hash(v::Field) = ProtoBuf.protohash(v)
-isequal(v1::Field, v2::Field) = ProtoBuf.protoisequal(v1, v2)
-==(v1::Field, v2::Field) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct _Enum <: ProtoType
     name::AbstractString
@@ -90,9 +80,6 @@ mutable struct _Enum <: ProtoType
     syntax::Int32
     _Enum(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type _Enum
-hash(v::_Enum) = ProtoBuf.protohash(v)
-isequal(v1::_Enum, v2::_Enum) = ProtoBuf.protoisequal(v1, v2)
-==(v1::_Enum, v2::_Enum) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct _Type <: ProtoType
     name::AbstractString
@@ -103,8 +90,5 @@ mutable struct _Type <: ProtoType
     syntax::Int32
     _Type(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type _Type
-hash(v::_Type) = ProtoBuf.protohash(v)
-isequal(v1::_Type, v2::_Type) = ProtoBuf.protoisequal(v1, v2)
-==(v1::_Type, v2::_Type) = ProtoBuf.protoeq(v1, v2)
 
 export Syntax, _Type, Field_Kind, Field_Cardinality, Field, _Enum, EnumValue, Option

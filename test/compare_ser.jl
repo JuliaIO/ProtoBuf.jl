@@ -15,6 +15,7 @@ using ProtoBuf
 using JSON
 using Compat
 using Compat.Random
+using Compat.Serialization
 
 import ProtoBuf.meta
 

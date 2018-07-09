@@ -21,7 +21,7 @@ export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescrip
 using Compat
 
 fld_type(o::T, fld) where {T} = fieldtype(T, fld)
-fld_names(x) = x.name.names
+fld_names(x) = (x.name.names...,) # (avoid https://github.com/JuliaLang/julia/issues/27995) x.name.names
 
 # enable logging only during debugging
 macro logmsg(s)

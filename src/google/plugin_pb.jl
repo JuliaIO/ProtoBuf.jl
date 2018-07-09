@@ -2,7 +2,6 @@
 using Compat
 using ProtoBuf
 import ProtoBuf.meta
-import Base: hash, isequal, ==
 using ProtoBuf.GoogleProtoBuf
 
 mutable struct CodeGeneratorRequest <: ProtoType
@@ -13,9 +12,6 @@ mutable struct CodeGeneratorRequest <: ProtoType
 end #type CodeGeneratorRequest
 const __fnum_CodeGeneratorRequest = Int[1,2,15]
 meta(t::Type{CodeGeneratorRequest}) = meta(t, ProtoBuf.DEF_REQ, __fnum_CodeGeneratorRequest, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
-hash(v::CodeGeneratorRequest) = ProtoBuf.protohash(v)
-isequal(v1::CodeGeneratorRequest, v2::CodeGeneratorRequest) = ProtoBuf.protoisequal(v1, v2)
-==(v1::CodeGeneratorRequest, v2::CodeGeneratorRequest) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct CodeGeneratorResponse_File <: ProtoType
     name::AbstractString
@@ -25,9 +21,6 @@ mutable struct CodeGeneratorResponse_File <: ProtoType
 end #type CodeGeneratorResponse_File
 const __fnum_CodeGeneratorResponse_File = Int[1,2,15]
 meta(t::Type{CodeGeneratorResponse_File}) = meta(t, ProtoBuf.DEF_REQ, __fnum_CodeGeneratorResponse_File, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
-hash(v::CodeGeneratorResponse_File) = ProtoBuf.protohash(v)
-isequal(v1::CodeGeneratorResponse_File, v2::CodeGeneratorResponse_File) = ProtoBuf.protoisequal(v1, v2)
-==(v1::CodeGeneratorResponse_File, v2::CodeGeneratorResponse_File) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct CodeGeneratorResponse <: ProtoType
     error::AbstractString
@@ -36,8 +29,5 @@ mutable struct CodeGeneratorResponse <: ProtoType
 end #type CodeGeneratorResponse
 const __fnum_CodeGeneratorResponse = Int[1,15]
 meta(t::Type{CodeGeneratorResponse}) = meta(t, ProtoBuf.DEF_REQ, __fnum_CodeGeneratorResponse, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
-hash(v::CodeGeneratorResponse) = ProtoBuf.protohash(v)
-isequal(v1::CodeGeneratorResponse, v2::CodeGeneratorResponse) = ProtoBuf.protoisequal(v1, v2)
-==(v1::CodeGeneratorResponse, v2::CodeGeneratorResponse) = ProtoBuf.protoeq(v1, v2)
 
 export CodeGeneratorRequest, CodeGeneratorResponse_File, CodeGeneratorResponse
