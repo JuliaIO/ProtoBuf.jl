@@ -50,6 +50,7 @@ function _protobuild(obj::T, nv) where T
 end
 
 # hash method that considers fill status of types
+hash(v::T) where {T<:ProtoType} = protohash(v)
 function protohash(v)
     h = 0
     fill = filled(v)
@@ -61,6 +62,7 @@ function protohash(v)
 end
 
 # equality method that considers fill status of types
+==(v1::T, v2::T) where {T<:ProtoType} = protoeq(v1, v2)
 function protoeq(v1::T, v2::T) where T
     fillv1 = filled(v1)
     fillv2 = filled(v2)
@@ -76,6 +78,7 @@ function protoeq(v1::T, v2::T) where T
 end
 
 # isequal method that considers fill status of types
+isequal(v1::T, v2::T) where {T<:ProtoType} = protoisequal(v1, v2)
 function protoisequal(v1::T, v2::T) where T
     fillv1 = filled(v1)
     fillv2 = filled(v2)

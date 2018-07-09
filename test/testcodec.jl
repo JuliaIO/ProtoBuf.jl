@@ -1,7 +1,10 @@
+using Compat
+
 module ProtoBufTestCodec
 using ProtoBuf
 using Compat
-using Base.Test
+using Compat.Test
+using Compat.Random
 import Base: ==
 
 import ProtoBuf.meta
@@ -117,8 +120,8 @@ function mk_test_meta(fldnum::Int, ptyp::Symbol)
     m
 end
 
-assert_equal(::Type{Array{T,1}}, ::Type{Array{U,1}}) where {T,U} = @test issubtype(T,U) || issubtype(U,T)
-assert_equal(T::Type, U::Type) = @test issubtype(T,U) || issubtype(U,T)
+assert_equal(::Type{Array{T,1}}, ::Type{Array{U,1}}) where {T,U} = @test (T <: U) || (U <: T)
+assert_equal(T::Type, U::Type) = @test (T <: U) || (U <: T)
 assert_equal(val1::Bool, val2::Bool) = @test val1 == val2
 assert_equal(val1::AbstractString, val2::AbstractString) = @test val1 == val2
 assert_equal(val1::Number, val2::Number) = @test val1 == val2
@@ -221,7 +224,7 @@ function test_types()
 
     print_hdr("string")
     for idx in 1:100
-        testval.val = randstring(50)
+        testval.val = Compat.Random.randstring(50)
         fldnum = @_rand_int(Int, 100, 1)
         meta = mk_test_meta(fldnum, :string)
         writeproto(pb, testval, meta) 
@@ -237,7 +240,7 @@ function test_repeats()
 
     print_hdr("repeated int64")
     for idx in 1:100
-        testval.val = collect(Int64, randstring(50))
+        testval.val = collect(Int64, Compat.Random.randstring(50))
         readval.val = Int64[]
         fldnum = @_rand_int(Int, 100, 1)
         meta = mk_test_meta(fldnum, :int64)
@@ -249,7 +252,7 @@ function test_repeats()
 
     print_hdr("repeated and packed int64")
     for idx in 1:100
-        testval.val = collect(Int64, randstring(50))
+        testval.val = collect(Int64, Compat.Random.randstring(50))
         readval.val = Int64[]
         fldnum = @_rand_int(Int, 100, 1)
         meta = mk_test_meta(fldnum, :int64)
@@ -262,7 +265,7 @@ function test_repeats()
 
     print_hdr("repeated string")
     for idx in 1:100
-        testval.val = [randstring(5) for i in 1:10] 
+        testval.val = [Compat.Random.randstring(5) for i in 1:10] 
         readval.val = AbstractString[]
         fldnum = @_rand_int(Int, 100, 1)
         meta = mk_test_meta(fldnum, :string)
@@ -281,7 +284,7 @@ function test_optional()
 
     for idx in 1:100
         testval.sVal1 = TestStr(string(@_rand_int(Int, 100, 0)))
-        testval.sVal2 = TestStr(randstring(5))
+        testval.sVal2 = TestStr(Compat.Random.randstring(5))
         testval.iVal2 = Int64[@_rand_int(Int,100,0) for i in 1:10]
         sVal1Opt = rand(Bool)
         sVal2Opt = rand(Bool)
@@ -313,7 +316,7 @@ function test_nested()
     for idx in 1:100
         testfld1.val = @_rand_int(Int64, 10^9, 0)
         testfld2.sVal1 = TestStr(string(@_rand_int(Int, 100, 0)))
-        testfld2.sVal2 = TestStr(randstring(5))
+        testfld2.sVal2 = TestStr(Compat.Random.randstring(5))
         testfld2.iVal2 = Int64[@_rand_int(Int, 100, 0) for i in 1:10]
 
         o1 = rand(Bool)
@@ -496,9 +499,8 @@ ProtoBufTestCodec.test_optional()
 ProtoBufTestCodec.test_nested()
 ProtoBufTestCodec.test_defaults()
 ProtoBufTestCodec.test_misc()
-gc()
+GC.gc()
 println("_metacache has $(length(ProtoBuf._metacache)) entries")
 #println(ProtoBuf._metacache)
 println("_fillcache has $(length(ProtoBuf._fillcache)) entries")
 #println(ProtoBuf._fillcache)
-

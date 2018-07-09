@@ -1,6 +1,13 @@
 using Compat
-using Base.Test
-import Base: TCPServer, close
+using Compat.Test
+
+if VERSION < v"0.7.0-DEV.4442"
+    import Base: TCPServer, close
+else
+    using Compat.Sockets
+    import Compat.Sockets: TCPServer, close
+end
+
 import ProtoBuf: call_method, write_bytes, read_bytes
 
 include("testsvc_pb.jl")
@@ -11,7 +18,7 @@ mutable struct TestRpcController <: ProtoRpcController
 end
 
 debug_log(controller::TestRpcController, msg) = controller.debug && println(msg)
-error_log(controller::TestRpcController, msg) = println(STDERR, msg)
+error_log(controller::TestRpcController, msg) = println(stderr, msg)
 
 # RpcChannel implementation for our test protocol
 # The protocol is to write and read:

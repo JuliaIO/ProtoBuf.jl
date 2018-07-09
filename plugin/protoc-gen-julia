@@ -2,6 +2,11 @@
 
 FLAGS=""
 
+if [ -z "$JULIA" ]
+then
+    JULIA=julia
+fi
+
 if [ ${JULIA_PROTOBUF_MODULE_POSTFIX:-0} -eq 1 ]; then
     FLAGS="${FLAGS} --module-postfix-enabled"
 fi
@@ -12,7 +17,7 @@ fi
 
 if [ -z ${FLAGS} ]
 then
-    julia ${COVERAGE} -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'
+    ${JULIA} ${COVERAGE} -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'
 else
-    julia ${COVERAGE} -e 'using ProtoBuf; using ProtoBuf.Gen; gen()' -- ${FLAGS}
+    ${JULIA} ${COVERAGE} -e 'using ProtoBuf; using ProtoBuf.Gen; gen()' -- ${FLAGS}
 fi

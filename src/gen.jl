@@ -11,7 +11,7 @@ import ProtoBuf: meta, @logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 export gen
 
 const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Vector{UInt8}, UInt32, Int32, Int32, Int64, Int32, Int64]
-const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0;]
+const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0]
 
 isprimitive(fldtype) = (1 <= fldtype <= 8) || (13 <= fldtype <= 18)
 
@@ -102,7 +102,7 @@ function findmodule(name::AbstractString)
             mpkg = pkg
         end
     end
-    (mpkg, replace((0 == mlen) ? name : name[(mlen+2):end], '.', '_'))
+    (mpkg, replace((0 == mlen) ? name : name[(mlen+2):end], '.'=>'_'))
 end
 
 
@@ -142,7 +142,7 @@ end
 function resolve(iob::IOBuffer, name::AbstractString)
     fully_resolved = AbstractString[]
     for (typ,dw) in _deferred
-        idx = findfirst(dw.depends, name)
+        idx = something(findfirst(isequal(name), dw.depends), 0)
         (idx == 0) && continue
         splice!(dw.depends, idx)
         isempty(dw.depends) && push!(fully_resolved, typ)
@@ -389,10 +389,6 @@ function generate(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, sy
         print(io, isempty(realfldtypes) ? "ProtoBuf.DEF_FIELD_TYPES" : "__ftype_$(dtypename)")
         println(io, ")")
     end
-    # generate hash, equality and isequal methods
-    println(io, "hash(v::$(dtypename)) = ProtoBuf.protohash(v)")
-    println(io, "isequal(v1::$(dtypename), v2::$(dtypename)) = ProtoBuf.protoisequal(v1, v2)")
-    println(io, "==(v1::$(dtypename), v2::$(dtypename)) = ProtoBuf.protoeq(v1, v2)")
 
     println(io, "")
     push!(exports, dtypename)
@@ -413,7 +409,7 @@ end
 
 function protofile_name_to_module_name(n::AbstractString)
     name = splitext(basename(n))[1]
-    name = replace(name, '.', '_')
+    name = replace(name, '.'=>'_')
     name = string(name, "_pb")
     return name
 end
@@ -516,7 +512,6 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
     println(io, "using Compat")
     println(io, "using ProtoBuf")
     println(io, "import ProtoBuf.meta")
-    println(io, "import Base: hash, isequal, ==")
     if isfilled(protofile, :dependency)
         protofile_imports[protofile.name] = protofile.dependency
         using_pkgs = Set{AbstractString}()
@@ -539,7 +534,7 @@ function generate(io::IO, errio::IO, protofile::FileDescriptorProto)
                     dependency = comps[1]
                 end
             end
-            println(io, "import $dependency")
+            println(io, "import Main.$dependency")
         end
     end
     println(io, "")
@@ -704,9 +699,9 @@ function gen()
     try
         global _module_postfix = in("--module-postfix-enabled", ARGS)
         global _map_as_array = in("--map-as-array", ARGS)
-        writeproto(STDOUT, codegen(STDIN))
+        writeproto(stdout, codegen(stdin))
     catch ex
-        println(STDERR, "Exception while generating Julia code")
+        println(stderr, "Exception while generating Julia code")
         rethrow()
     end
 end
