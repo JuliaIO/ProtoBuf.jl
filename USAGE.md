@@ -5,16 +5,15 @@ Reading and writing data structures using ProtoBuf is similar to serialization a
 ````
 julia> using ProtoBuf                       # include protoc generated package here
 
-julia> type MyType                          # a Julia composite type
-         intval::Int                        # probably generated from protoc
-         strval::ASCIIString
-         MyType() = new()
-         MyType(i,s) = new(i,s)
+julia> mutable struct MyType                # a Julia composite type generated from protoc
+         intval::Int
+         strval::String
+         MyType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
        end
 
 julia> iob = PipeBuffer();
 
-julia> writeproto(iob, MyType(10, "hello world"));   # write an instance of it
+julia> writeproto(iob, MyType(intval=10, strval="hello world"));   # write an instance of it
 
 julia> readproto(iob, MyType())  # read it back into another instance
 MyType(10,"hello world")
@@ -30,7 +29,7 @@ import ProtoBuf.meta
 meta(t::Type{MyType}) = meta(t,                          # the type which this is for
 		Symbol[:intval],                                 # required fields
 		Int[8, 10],                                      # field numbers
-		Dict{Symbol,Any}({:strval => "default value"}))  # default values
+		Dict{Symbol,Any}(:strval => "default value"))  # default values
 ````
 
 Without any specialized `meta` method:
@@ -59,24 +58,26 @@ Types used as protocol buffer structures are regular Julia types and the Julia s
 The `protobuild` method makes it easier to set large types with many fields:
 - `protobuild{T}(::Type{T}, nvpairs::Dict{Symbol}()=Dict{Symbol,Any}())`
 
+Types generated through the Julia protoc plugin generates constructors that use `protobuild` and expect keyword arguments for the type members.
+
 ````
 julia> using ProtoBuf
 
-julia> type MyType                # a Julia composite type
+julia> mutable struct MyType      # a Julia composite type
            intval::Int
-           MyType() = (a=new(); clear(a); a)
-           MyType(i) = new(i)
+           # fillunset (documented below is similar to clear)
+           # ProtoBuf._protobuild is an internal method similar to protobuild
+           MyType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
        end
 
-julia> type OptType               # and another one to contain it
+julia> mutable struct OptType     # and another one to contain it
            opt::MyType
-           OptType() = (a=new(); clear(a); a)
-           OptType(o) = new(o)
+           OptType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
        end
 
 julia> iob = PipeBuffer();
 
-julia> writeproto(iob, OptType(MyType(10)));
+julia> writeproto(iob, OptType(opt=MyType(intval=10)));
 
 julia> readval = readproto(iob, OptType());
 
@@ -101,14 +102,14 @@ julia> using ProtoBuf
 
 julia> import ProtoBuf.meta
 
-julia> type TestType
+julia> mutable struct TestType
            val::Any
        end
 
-julia> type TestFilled
+julia> mutable struct TestFilled
            fld1::TestType
            fld2::TestType
-           TestFilled() = (a=new(); clear(a); a)
+           TestFilled(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
        end
 
 julia> meta(t::Type{TestFilled}) = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}());
@@ -126,13 +127,11 @@ true
 ````
 
 ## Equality &amp; Hash Value
-It is possible for fields marked as optional to be in an &quot;unset&quot; state. Even bits type fields (`isbits(T) == true`) can be in this state though they may have valid contents. Such fields should then not be compared for equality or used for computing hash values. All ProtoBuf compatible types must override `hash`, `isequal` and `==` methods to handle this. The following unexported utility methods can be used for this purpose:
+It is possible for fields marked as optional to be in an &quot;unset&quot; state. Even bits type fields (`isbitstype(T) == true`) can be in this state though they may have valid contents. Such fields should then not be compared for equality or used for computing hash values. All ProtoBuf compatible types, by virtue of extending abstract `ProtoType` type, override `hash`, `isequal` and `==` methods to handle this. The following unexported utility methods can be used for this purpose, in cases where it is not possible to extend `ProtoType`:
 
 - `protohash(v)` : hash method that considers fill status of types
 - `protoeq{T}(v1::T, v2::T)` : equality method that considers fill status of types
 - `protoisequal{T}(v1::T, v2::T)` : isequal method that considers fill status of types
-
-The code generator already generates code for the types it generates overriding `hash`, `isequal` and `==` appropriately.
 
 ## Other Methods
 - `copy!{T}(to::T, from::T)` : shallow copy of objects
