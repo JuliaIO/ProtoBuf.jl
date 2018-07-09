@@ -2,7 +2,6 @@
 using Compat
 using ProtoBuf
 import ProtoBuf.meta
-import Base: hash, isequal, ==
 
 struct __enum_NullValue <: ProtoEnum
     NULL_VALUE::Int32
@@ -14,17 +13,11 @@ mutable struct Struct <: ProtoType
     fields::Dict{AbstractString,Any} # map entry
     Struct(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type Struct
-hash(v::Struct) = ProtoBuf.protohash(v)
-isequal(v1::Struct, v2::Struct) = ProtoBuf.protoisequal(v1, v2)
-==(v1::Struct, v2::Struct) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct ListValue <: ProtoType
     values::Array{Any,1}
     ListValue(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type ListValue
-hash(v::ListValue) = ProtoBuf.protohash(v)
-isequal(v1::ListValue, v2::ListValue) = ProtoBuf.protoisequal(v1, v2)
-==(v1::ListValue, v2::ListValue) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct Value <: ProtoType
     null_value::Int32
@@ -38,9 +31,6 @@ end #type Value
 const __oneofs_Value = Int[1,1,1,1,1,1]
 const __oneof_names_Value = [Symbol("kind")]
 meta(t::Type{Value}) = meta(t, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, true, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, __oneofs_Value, __oneof_names_Value)
-hash(v::Value) = ProtoBuf.protohash(v)
-isequal(v1::Value, v2::Value) = ProtoBuf.protoisequal(v1, v2)
-==(v1::Value, v2::Value) = ProtoBuf.protoeq(v1, v2)
 
 function meta(t::Type{ListValue})
     haskey(ProtoBuf._metacache, t) && (return ProtoBuf._metacache[t])

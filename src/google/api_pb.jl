@@ -2,7 +2,6 @@
 using Compat
 using ProtoBuf
 import ProtoBuf.meta
-import Base: hash, isequal, ==
 
 mutable struct Method <: ProtoType
     name::AbstractString
@@ -14,18 +13,12 @@ mutable struct Method <: ProtoType
     syntax::Int32
     Method(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type Method
-hash(v::Method) = ProtoBuf.protohash(v)
-isequal(v1::Method, v2::Method) = ProtoBuf.protoisequal(v1, v2)
-==(v1::Method, v2::Method) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct Mixin <: ProtoType
     name::AbstractString
     root::AbstractString
     Mixin(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type Mixin
-hash(v::Mixin) = ProtoBuf.protohash(v)
-isequal(v1::Mixin, v2::Mixin) = ProtoBuf.protoisequal(v1, v2)
-==(v1::Mixin, v2::Mixin) = ProtoBuf.protoeq(v1, v2)
 
 mutable struct Api <: ProtoType
     name::AbstractString
@@ -37,8 +30,5 @@ mutable struct Api <: ProtoType
     syntax::Int32
     Api(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type Api
-hash(v::Api) = ProtoBuf.protohash(v)
-isequal(v1::Api, v2::Api) = ProtoBuf.protoisequal(v1, v2)
-==(v1::Api, v2::Api) = ProtoBuf.protoeq(v1, v2)
 
 export Api, Method, Mixin
