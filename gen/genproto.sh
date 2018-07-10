@@ -3,7 +3,12 @@
 # Note: needs the protobuf3 compiler
 if [ -z "$PROTOC" ]
 then
-    PROTOC=protoc
+    if [ -z "$PROTOC3" ]
+    then
+        PROTOC=protoc
+    else
+        PROTOC=$PROTOC3
+    fi
 fi
 
 PROTOC_VER=`${PROTOC} --version | cut -d" " -f2 | cut -d"." -f1`
