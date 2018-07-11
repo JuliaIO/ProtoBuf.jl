@@ -9,26 +9,26 @@ mutable struct Method <: ProtoType
     request_streaming::Bool
     response_type_url::AbstractString
     response_streaming::Bool
-    options::Array{Option,1}
+    options::Base.Vector{Option}
     syntax::Int32
     Method(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
-end #type Method
+end #mutable struct Method
 
 mutable struct Mixin <: ProtoType
     name::AbstractString
     root::AbstractString
     Mixin(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
-end #type Mixin
+end #mutable struct Mixin
 
 mutable struct Api <: ProtoType
     name::AbstractString
-    methods::Array{Method,1}
-    options::Array{Option,1}
+    methods::Base.Vector{Method}
+    options::Base.Vector{Option}
     version::AbstractString
     source_context::SourceContext
-    mixins::Array{Mixin,1}
+    mixins::Base.Vector{Mixin}
     syntax::Int32
     Api(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
-end #type Api
+end #mutable struct Api
 
 export Api, Method, Mixin

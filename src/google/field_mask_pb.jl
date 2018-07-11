@@ -4,8 +4,8 @@ using ProtoBuf
 import ProtoBuf.meta
 
 mutable struct FieldMask <: ProtoType
-    paths::Array{AbstractString,1}
+    paths::Base.Vector{AbstractString}
     FieldMask(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
-end #type FieldMask
+end #mutable struct FieldMask
 
 export FieldMask

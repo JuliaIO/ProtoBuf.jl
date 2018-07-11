@@ -33,18 +33,13 @@ syntax = "proto3";
 package google.protobuf;
 
 option csharp_namespace = "Google.Protobuf.WellKnownTypes";
+option cc_enable_arenas = true;
 option go_package = "github.com/golang/protobuf/ptypes/struct;structpb";
 option java_package = "com.google.protobuf";
 option java_outer_classname = "StructProto";
 option java_multiple_files = true;
-option java_generate_equals_and_hash = true;
 option objc_class_prefix = "GPB";
 
-// `AnyValue` is an alias for `Value`.
-// This is a custom modification for Julia code to work around the
-// circular reference problem between `Struct`, `ListValue` and `Value`.
-// `AnyValue` must be replaced with the Julia `Any` type.
-message AnyValue {}
 
 // `Struct` represents a structured data value, consisting of fields
 // which map to dynamically typed values. In some languages, `Struct`
@@ -56,9 +51,7 @@ message AnyValue {}
 // The JSON representation for `Struct` is JSON object.
 message Struct {
   // Unordered map of dynamically typed values.
-  // The value type was originally `Value`. It has been replaced 
-  // with `AnyValue` for Julia code generation as described above.
-  map<string, AnyValue> fields = 1;
+  map<string, Value> fields = 1;
 }
 
 // `Value` represents a dynamically typed value which can be either
@@ -99,7 +92,5 @@ enum NullValue {
 // The JSON representation for `ListValue` is JSON array.
 message ListValue {
   // Repeated field of dynamically typed values.
-  // The element type was originally `Value`. It has been replaced 
-  // with `AnyValue` for Julia code generation as described above.
-  repeated AnyValue values = 1;
+  repeated Value values = 1;
 }

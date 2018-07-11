@@ -160,7 +160,7 @@ function field_type_name(full_type_name::String)
             type_name = join(comps, '.')
         end
     end
-    @logmsg("resolved $full_type_name to $type_name")
+    @logmsg("usable type name for $full_type_name is $type_name")
     type_name
 end
 
@@ -215,7 +215,7 @@ function resolve(iob::IOBuffer, name::String)
 
     # write all fully resolved entities
     for typ in fully_resolved
-        @logmsg("resolved $typ")
+        @logmsg("fully resolved $typ")
         print(iob, String(take!(_deferred[typ].iob)))
         delete!(_deferred, typ)
         push!(_all_resolved, typ)
@@ -427,11 +427,15 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
                 end
             end
 
-            typ_name = field_type_name(typ_name) #, depends)
+            typ_name = field_type_name(typ_name)
             is_typ_mapentry = typ_name in keys(mapentries)
             if is_typ_mapentry && !_map_as_array
                 k,v = mapentries[typ_name]
                 typ_name = "Base.Dict{$k,$v}"
+                if deferedmode
+                    # because we do not know if Dict key and value types are resolved yet
+                    gen_typ_name = "Base.Dict"
+                end
             elseif FieldDescriptorProto_Label.LABEL_REPEATED == field.label
                 typ_name = "Base.Vector{$typ_name}"
             end
@@ -454,7 +458,7 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
         end
     end
     println(io, "    $(dtypename)(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)")
-    println(io, "end #mutable struct $(dtypename)", ismapentry ? " (mapentry)" : "")
+    println(io, "end #mutable struct $(dtypename)", ismapentry ? " (mapentry)" : "", deferedmode ? " (has cyclic type dependency)" : "")
 
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums);]
@@ -490,9 +494,9 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     deferedmode && (full_dtypename in keys(_deferred)) && delete!(_deferred, full_dtypename)
 
     if !isdeferred(full_dtypename)
-        @logmsg("resolved $full_dtypename")
+        @logmsg("resolved (!deferred) $full_dtypename")
         print(outio, String(take!(io)))
-        resolve(outio, full_dtypename)
+        deferedmode || resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
     

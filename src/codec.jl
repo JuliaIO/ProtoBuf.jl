@@ -365,7 +365,7 @@ function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
             @logmsg("writeproto writing field: $fld")
             n += writeproto(io, getfield(obj, fld), attrib)
         else
-            @logmsg("firld not set: $fld")
+            @logmsg("field not set: $fld")
             (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
         end
     end
