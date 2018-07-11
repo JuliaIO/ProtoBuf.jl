@@ -1,7 +1,6 @@
 # syntax: proto2
 using Compat
 using ProtoBuf
-using ProtoBuf.GoogleProtoBuf
 import ProtoBuf.meta
 
 mutable struct Version <: ProtoType
