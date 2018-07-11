@@ -611,15 +611,19 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
             # google extenstions are included with ProtoBuf
             if dependency == GOOGLE_PROTO3_EXTENSIONS
                 dependency = "ProtoBuf." * dependency
+                add_import(dependency)
+            else
+                comps = @static (VERSION < v"0.7.0-DEV.4724") ? split(dependency, '.'; keep=false) : split(dependency, '.'; keepempty=false)
+                if startswith(dependency, parentscope*".")
+                    comps[1] = ".." * comps[1]
+                elseif !isempty(fullscopename)
+                    comps[1] = "._ProtoBuf_Top_." * comps[1]
+                end
+                add_import(comps[1])
+                #for idx in 1:length(comps)
+                #    add_import(join(comps[1:idx], '.'))
+                #end
             end
-            comps = @static (VERSION < v"0.7.0-DEV.4724") ? split(dependency, '.'; keep=false) : split(dependency, '.'; keepempty=false)
-            if startswith(dependency, parentscope*".")
-                comps[1] = ".." * comps[1]
-            end
-            add_import(comps[1])
-            #for idx in 1:length(comps)
-            #    add_import(join(comps[1:idx], '.'))
-            #end
         end
     end
     for imp in dep_imports
@@ -691,6 +695,8 @@ function print_package(io::IO, s::Scope, indent="")
     s.is_module || return
     println(io, "$(indent)module $(s.name)")
     nested = indent*"  "
+    println(io, "$(nested)using Compat")
+    println(io, "$(nested)const _ProtoBuf_Top_ = @static isdefined(parentmodule(@__MODULE__), :_ProtoBuf_Top_) ? (parentmodule(@__MODULE__))._ProtoBuf_Top_ : parentmodule(@__MODULE__)")
     children = Set(s.children)
     for f in s.files
         if haskey(protofile_imports,f)
