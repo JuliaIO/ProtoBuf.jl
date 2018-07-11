@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+import "p1proto.proto";
+
+package P2.Proto;
+
+message obj {
+    required P1.Proto.Description description = 1;
+    repeated string parameters = 2;
+    optional P1.Proto.Selection selection = 3 [default = z];
+}

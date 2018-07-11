@@ -616,10 +616,10 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
             if startswith(dependency, parentscope*".")
                 comps[1] = ".." * comps[1]
             end
-            #add_import(comps[1])
-            for idx in 1:length(comps)
-                add_import(join(comps[1:idx], '.'))
-            end
+            add_import(comps[1])
+            #for idx in 1:length(comps)
+            #    add_import(join(comps[1:idx], '.'))
+            #end
         end
     end
     for imp in dep_imports

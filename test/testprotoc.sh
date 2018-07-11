@@ -34,6 +34,8 @@ echo "- recursive.proto" && ${GEN} ${SRC}/recursive.proto && ${CHK} 'include("ou
 ERR=$(($ERR + $?))
 echo "- a.proto, b.proto" && ${GEN} ${SRC}/a.proto ${SRC}/b.proto && ${CHK} 'include("out/AB.jl"); using .AB; using .AB.A, .AB.B'
 ERR=$(($ERR + $?))
+echo "- p1proto.proto, p2proto.proto" && ${GEN} ${SRC}/p1proto.proto ${SRC}/p2proto.proto && ${CHK} 'include("out/P1.jl"); include("out/P2.jl"); using .P1; using .P2'
+ERR=$(($ERR + $?))
 echo "- module_type_name_collision.proto" && JULIA_PROTOBUF_MODULE_POSTFIX=1 ${GEN} ${SRC}/module_type_name_collision.proto && ${CHK} 'include("out/Foo_pb.jl"); using .Foo_pb'
 ERR=$(($ERR + $?))
 echo "- packed2.proto" && ${GEN} ${SRC}/packed2.proto && ${CHK} 'include("out/packed2_pb.jl")'
