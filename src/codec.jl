@@ -10,6 +10,11 @@ const WIRETYP_GRPSTART = 3   # deprecated
 const WIRETYP_GRPEND   = 4   # deprecated
 const WIRETYP_32BIT    = 5
 
+"""
+The abstract type from which all generated protobuf structs extend.
+"""
+abstract type ProtoType end
+
 # TODO: wiretypes should become julia types, so that methods can be parameterized on them
 const WIRETYPES = Dict{Symbol,Tuple}(
     :int32          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
@@ -388,6 +393,7 @@ function read_lendelim_obj(io, val, meta::ProtoMeta, reader)
 end
 
 instantiate(t::Type) = ccall(:jl_new_struct_uninit, Any, (Any,), t)
+instantiate(t::T) where {T <: ProtoType} = T()
 
 function skip_field(io::IO, wiretype::Integer)
     if wiretype == WIRETYP_LENDELIM
@@ -695,11 +701,6 @@ function show(io::IO, m::ProtoMeta)
     println(io, m.ordered)
 end
 
-
-"""
-The abstract type from which all generated protobuf structs extend.
-"""
-abstract type ProtoType end
 
 ##
 # Enum Lookup
