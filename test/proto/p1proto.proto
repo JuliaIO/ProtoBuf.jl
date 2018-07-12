@@ -1,0 +1,15 @@
+syntax = "proto2";
+
+package P1.Proto;
+
+message Description {
+    required string id = 1;
+    required string name = 2;
+    required double date = 3;
+}
+
+enum Selection {
+    x = 1;
+    y = 2;
+    z = 3;
+}
