@@ -149,7 +149,7 @@ function findmodule(name::String)
 end
 
 function field_type_name(full_type_name::String)
-    comps = @static (VERSION < v"0.7.0-DEV.4724") ? split(full_type_name, '.'; keep=false) : split(full_type_name, '.'; keepempty=false)
+    comps = Compat.split(full_type_name, '.'; keepempty=false)
     if isempty(comps)
         type_name = full_type_name
     else
@@ -617,7 +617,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
                 dependency = "ProtoBuf." * dependency
                 add_import(dependency)
             else
-                comps = @static (VERSION < v"0.7.0-DEV.4724") ? split(dependency, '.'; keep=false) : split(dependency, '.'; keepempty=false)
+                comps = Compat.split(dependency, '.'; keepempty=false)
                 if startswith(dependency, parentscope*".")
                     comps[1] = ".." * comps[1]
                 elseif !isempty(fullscopename)
