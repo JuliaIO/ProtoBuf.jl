@@ -566,7 +566,7 @@ function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, default
     types = typ.types
     for fldidx in 1:length(names)
         fldname = names[fldidx]
-        fldtyp = (fldname in keys(field_types)) ? Core.eval(typ.name.module, parse(field_types[fldname])) : types[fldidx]
+        fldtyp = (fldname in keys(field_types)) ? Core.eval(typ.name.module, (@static (VERSION < v"0.7.0-alpha") ? parse : Meta.parse)(field_types[fldname])) : types[fldidx]
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
         isarr = (fldtyp <: Array) && !(fldtyp === Vector{UInt8})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
