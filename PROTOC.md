@@ -18,6 +18,17 @@ If a package contains a message which has the same name as the package itself, o
 
 ProtoBuf `map` types are generated as Julia `Dict` types by default. They can also be generated as `Array` of `key-value`s by setting the `JULIA_PROTOBUF_MAP_AS_ARRAY=1` environment variable when running `protoc`.
 
+### From within Julia
+For convenience, ProtoBuf.jl exports a `protoc(args)` command that will setup the `PATH` correctly to make sure `protoc` can find the
+plugin as well as making sure that that the plugin can find the correct julia installation. To make use of this feature for the example
+above, simply run  (from a Julia REPL):
+
+```
+julia> using ProtoBuf
+
+julia> run(ProtoBuf.protoc(`-I=proto --julia_out=jlout proto/plugin.proto`))
+```
+
 ### Windows Specifics of Code Generation
 
 On Windows, the procedure of compiling the .jl from .proto files is similar:
