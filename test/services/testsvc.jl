@@ -1,12 +1,6 @@
-using Compat
-using Compat.Test
-
-if VERSION < v"0.7.0-DEV.4442"
-    import Base: TCPServer, close
-else
-    using Compat.Sockets
-    import Compat.Sockets: TCPServer, close
-end
+using Test
+using Sockets
+import Sockets: TCPServer, close
 
 import ProtoBuf: call_method, write_bytes, read_bytes
 
@@ -30,7 +24,7 @@ end
 close(channel::TestRpcChannel) = close(channel.sock)
 
 mutable struct SvcHeader
-    method::Compat.String
+    method::String
     SvcHeader() = (o=new(); fillunset(o); o)
 end
 

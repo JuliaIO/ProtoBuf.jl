@@ -13,9 +13,8 @@
 module ProtoBufCompareSer
 using ProtoBuf
 using JSON
-using Compat
-using Compat.Random
-using Compat.Serialization
+using Random
+using Serialization
 
 import ProtoBuf.meta
 
@@ -42,13 +41,13 @@ mutable struct TestType
             rand(-100:100), rand(1:100),
             rand(-100:100), rand(1:100),
             Float32(rand()*100), Float64(rand()*100),
-            Compat.Random.randstring(100), 
+            randstring(100), 
             convert(Array{Bool,1}, rand(Bool,100)),
             round.(Int32, 127*rand(50)),
             round.(Int64, 127*rand(50)),
             rand(Float32, 50),
             rand(Float64, 50),
-            [Compat.Random.randstring(10) for i in 1:50]
+            [randstring(10) for i in 1:50]
             )
     end
 end # type TestType

@@ -14,7 +14,7 @@ PROTOC_VER=`${PROTOC} --version | cut -d" " -f2 | cut -d"." -f1`
 echo "compiler version $PROTOC_VER"
 
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-JULIA_VER=`${JULIA} -e "(VERSION > v\"0.7-\") && (import Pkg; Pkg.activate(joinpath(ENV[\"SCRIPT_DIR\"], \"..\"))); using Compat.InteractiveUtils; versioninfo()" | grep "Julia Version"`
+JULIA_VER=`${JULIA} -e "(VERSION > v\"0.7-\") && (import Pkg; Pkg.activate(joinpath(ENV[\"SCRIPT_DIR\"], \"..\"))); using InteractiveUtils; versioninfo()" | grep "Julia Version"`
 echo $JULIA_VER
 
 ERR=0
@@ -44,10 +44,10 @@ ERR=$(($ERR + $?))
 
 if [ ${PROTOC_VER} -eq "3" ]
 then
-    echo "- map3.proto (as dict)" && ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Compat.Test; @test string(MapTest.types[3].name) == \"Dict\"'"
+    echo "- map3.proto (as dict)" && ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Test; @test string(MapTest.types[3].name) == \"Dict\"'"
     ERR=$(($ERR + $?))
     mv out/map3_pb.jl out/map3_dict_pb.jl
-    echo "- map3.proto (as array)" && JULIA_PROTOBUF_MAP_AS_ARRAY=1 ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Compat.Test; @test string(MapTest.types[3].name) == \"Array\"'"
+    echo "- map3.proto (as array)" && JULIA_PROTOBUF_MAP_AS_ARRAY=1 ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Test; @test string(MapTest.types[3].name) == \"Array\"'"
     ERR=$(($ERR + $?))
     mv out/map3_pb.jl out/map3_array_pb.jl
     echo "- oneof3.proto" && ${GEN} ${SRC}/oneof3.proto && eval " ${CHK} 'include(\"out/oneof3_pb.jl\")'"

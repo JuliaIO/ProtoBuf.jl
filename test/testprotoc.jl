@@ -1,5 +1,3 @@
-using Compat
-
 # ensure stdlib is in load path
 function ensure_stdlib()
     if "JULIA_LOAD_PATH" in keys(ENV)
@@ -18,7 +16,7 @@ function ensure_stdlib()
     nothing
 end
 
-if Compat.Sys.iswindows()
+if Sys.iswindows()
     println("testing protobuf compiler plugin not enabled on windows")
 else
     test_script = joinpath(@__DIR__, "testprotoc.sh")
@@ -43,7 +41,7 @@ else
         for protoc_compiler in protoc_compilers
             modified_env["PROTOC"] = protoc_compiler
             modified_env["PATH"] = path_env
-            modified_env["JULIA"] = joinpath(Compat.Sys.BINDIR, Base.julia_exename())
+            modified_env["JULIA"] = joinpath(Sys.BINDIR, Base.julia_exename())
             println("testing protoc compiler plugin with ", protoc_compiler)
             run(setenv(`$test_script`, modified_env))
         end

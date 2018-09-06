@@ -1,3 +1,5 @@
+using Test
+
 include("testtypevers.jl")
 include("testutilapi.jl")
 include("testwellknown.jl")

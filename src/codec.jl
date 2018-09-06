@@ -105,7 +105,7 @@ function _read_uleb(io::IO, ::Type{Int32})
     # but Julia can be tolerant like the C protobuf implementation (unlike python)
 
     if n > _max_n[sizeof(res < 0 ? Int64 : Int32)]
-        @logmsg("overflow reading $T. returning 0")
+        @debug("overflow reading $T. returning 0")
         return Int32(0)
     end
 
@@ -116,7 +116,7 @@ function _read_uleb(io::IO, ::Type{T}) where T <: Integer
     n, res = _read_uleb_base(io, T)
     # in case of overflow, consider it as missing field and return default value
     if n > _max_n[sizeof(T)]
-        @logmsg("overflow reading $T. returning 0")
+        @debug("overflow reading $T. returning 0")
         return zero(T)
     end
     res
@@ -252,10 +252,10 @@ function write_map(io::IO, fldnum::Int, dict::Dict)
 
     n = 0
     for key in keys(dict)
-        @logmsg("write_map writing key: $key")
+        @debug("write_map writing key: $key")
         val = dict[key]
         writeproto(iob, key, dmeta.ordered[1])
-        @logmsg("write_map writing val: $val")
+        @debug("write_map writing val: $val")
         writeproto(iob, val, dmeta.ordered[2])
         n += _write_key(io, fldnum, WIRETYP_LENDELIM)
         n += write_bytes(io, take!(iob))
@@ -363,14 +363,14 @@ end
 
 function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n = 0
-    @logmsg("writeproto writing an obj with meta: $meta")
+    @debug("writeproto writing an obj with meta: $meta")
     for attrib in meta.ordered
         fld = attrib.fld
         if isfilled(obj, fld)
-            @logmsg("writeproto writing field: $fld")
+            @debug("writeproto writing field: $fld")
             n += writeproto(io, getfield(obj, fld), attrib)
         else
-            @logmsg("field not set: $fld")
+            @debug("field not set: $fld")
             (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
         end
     end
@@ -418,7 +418,7 @@ function read_map(io, dict::Dict{K,V}) where {K,V}
 
     while !eof(iob)
         fldnum, wiretyp = _read_key(iob)
-        @logmsg("reading map fldnum: $fldnum")
+        @debug("reading map fldnum: $fldnum")
 
         fldnum = Int(fldnum)
         attrib = dmeta.numdict[fldnum]
@@ -431,7 +431,7 @@ function read_map(io, dict::Dict{K,V}) where {K,V}
             skip_field(iob, wiretyp)
         end
     end
-    @logmsg("read map key: $(key_val[1])=$(key_val[2])")
+    @debug("read map key: $(key_val[1])=$(key_val[2])")
     dict[key_val[1]] = key_val[2]
     dict
 end
@@ -476,24 +476,24 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
             val_map = ((container != nothing) && isdefined(container, fld)) ? convert(jtyp, getfield(container, fld)) : jtyp()
             return read_map(io, val_map)
         else
-            @logmsg("reading type $jtyp")
+            @debug("reading type $jtyp")
             return rfn(io, jtyp)
         end
     end
 end
 
 function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
-    @logmsg("readproto begin: $(typeof(obj))")
+    @debug("readproto begin: $(typeof(obj))")
     fillunset(obj)
     fldnums = collect(keys(meta.numdict))
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
-        @logmsg("reading fldnum: $(typeof(obj)).$fldnum")
+        @debug("reading fldnum: $(typeof(obj)).$fldnum")
 
         fldnum = Int(fldnum)
         # ignore unknown fields
         if !(fldnum in fldnums)
-            @logmsg("skipping unknown field: $(typeof(obj)).$fldnum")
+            @debug("skipping unknown field: $(typeof(obj)).$fldnum")
             skip_field(io, wiretyp)
             continue
         end
@@ -519,11 +519,11 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         if !isfilled(obj, fld) && (length(attrib.default) > 0) && !_isset_oneof(fill, meta.oneofs, idx)
             default = attrib.default[1]
             setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
-            @logmsg("readproto set default: $(typeof(obj)).$fld = $default")
+            @debug("readproto set default: $(typeof(obj)).$fld = $default")
             fillset_default(obj, fld)
         end
     end
-    @logmsg("readproto end: $(typeof(obj))")
+    @debug("readproto end: $(typeof(obj))")
     obj
 end
 
