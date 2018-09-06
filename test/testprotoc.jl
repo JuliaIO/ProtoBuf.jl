@@ -1,5 +1,23 @@
 using Compat
 
+# ensure stdlib is in load path
+function ensure_stdlib()
+    if "JULIA_LOAD_PATH" in keys(ENV)
+        _add_path = false
+        comps = split(ENV["JULIA_LOAD_PATH"], ":")
+        for needed in split("@:@v#.#:@stdlib", ":")
+            if !(needed in comps)
+                push!(comps, needed)
+                _add_path = true
+            end
+        end
+        if _add_path
+            @show ENV["JULIA_LOAD_PATH"] = join(comps, ":")
+        end
+    end
+    nothing
+end
+
 if Compat.Sys.iswindows()
     println("testing protobuf compiler plugin not enabled on windows")
 else
@@ -34,6 +52,9 @@ else
         pathenv = get(ENV, "PATH", "")
         test_protos = joinpath(@__DIR__, "proto")
         test_proto = joinpath(test_protos, "plugin.proto")
+
+        ensure_stdlib()
+
         for protoc_compiler in protoc_compilers
             # set path to pick up compiler
             ENV["PATH"] = string(dirname(protoc_compiler), ":", pathenv)
