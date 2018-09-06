@@ -17,7 +17,12 @@ before_install:
   - sudo apt-get install curl
   - sudo ./test/setup_protoc3.sh
   - export PROTOC2=protoc
-  - export PROTOC3=/proto3/protobuf-3.6.0/install/bin/protoc
+  - export PROTOC3=/proto3/protobuf-3.6.1/install/bin/protoc
+# above assumptions that apt install of protobuf-compiler is v2 may not hold good in future
+# should switch to the below mechanism when that happens
+#  - sudo ./test/setup_protoc2.sh
+#  - export PROTOC2=/proto2/protobuf-2.6.1/install/bin/protoc
+#  - export PATH=${PROTOC2}:${PATH}
 after_success:
   - julia -e 'cd(Pkg.dir("ProtoBuf")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder());'
   - julia -e 'cd(Pkg.dir("ProtoBuf")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'

@@ -29,5 +29,16 @@ else
             println("testing protoc compiler plugin with ", protoc_compiler)
             run(setenv(`$test_script`, modified_env))
         end
+
+        # test ProtoBuf.protoc
+        pathenv = get(ENV, "PATH", "")
+        test_protos = joinpath(@__DIR__, "proto")
+        test_proto = joinpath(test_protos, "plugin.proto")
+        for protoc_compiler in protoc_compilers
+            # set path to pick up compiler
+            ENV["PATH"] = string(dirname(protoc_compiler), ":", pathenv)
+            println("testing ProtoBuf.protoc with ", protoc_compiler)
+            run(ProtoBuf.protoc(`-I=$test_protos --julia_out=/tmp $test_proto`))
+        end
     end
 end
