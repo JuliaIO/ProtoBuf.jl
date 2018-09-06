@@ -1,0 +1,8 @@
+name = "ProtoBuf"
+uuid = "3349acd9-ac6a-5e09-bcdb-63829b23a429"
+keywords = ["protobuf", "protoc"]
+license = "MIT"
+desc = "Julia protobuf implementation"
+
+[deps]
+Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"

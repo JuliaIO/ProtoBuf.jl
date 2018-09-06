@@ -16,9 +16,8 @@ before_install:
   - sudo apt-get install protobuf-compiler
   - sudo apt-get install curl
   - sudo ./test/setup_protoc3.sh
-script:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - PROTOC2=protoc PROTOC3=/proto3/protobuf-3.6.0/install/bin/protoc julia --check-bounds=yes -e '(VERSION > v"0.7.0-") && (using Pkg); Pkg.clone(pwd()); Pkg.build("ProtoBuf"); Pkg.test("ProtoBuf"; coverage=true)'
+  - export PROTOC2=protoc
+  - export PROTOC3=/proto3/protobuf-3.6.0/install/bin/protoc
 after_success:
   - julia -e 'cd(Pkg.dir("ProtoBuf")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder());'
   - julia -e 'cd(Pkg.dir("ProtoBuf")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
