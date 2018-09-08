@@ -1,5 +1,4 @@
 # syntax: proto2
-using Compat
 using ProtoBuf
 import ProtoBuf.meta
 

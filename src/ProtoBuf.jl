@@ -1,11 +1,4 @@
-VERSION < v"0.7.0-beta2.199" && __precompile__(true)
-
 module ProtoBuf
-
-if VERSION < v"0.7.0-DEV.4442"
-    import Base: finalizer
-    finalizer(f::Function, o) = finalizer(o, f)
-end
 
 import Base: show, copy!, hash, isequal, ==
 
@@ -18,21 +11,8 @@ export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescrip
        AbstractProtoServiceStub, GenericProtoServiceStub, ProtoServiceStub, ProtoServiceBlockingStub,
        find_method, get_request_type, get_response_type, get_descriptor_for_type, call_method
 
-using Compat
-
 fld_type(o::T, fld) where {T} = fieldtype(T, fld)
-fld_names(x) = (x.name.names...,) # (avoid https://github.com/JuliaLang/julia/issues/27995) x.name.names
-
-# enable logging only during debugging
-macro logmsg(s)
-end
-#macro logmsg(s)
-#    quote
-#        open("/tmp/protobuf.log", "a") do f
-#            println(f, $(esc(s)))
-#        end
-#    end
-#end
+fld_names(x) = x.name.names
 
 include("codec.jl")
 include("svc.jl")

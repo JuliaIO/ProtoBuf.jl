@@ -3,7 +3,7 @@
 PROTO3_ROOT=/proto3
 mkdir $PROTO3_ROOT
 
-PROTO3_VER=3.6.0
+PROTO3_VER=3.6.1
 PROTO3_PATH=$PROTO3_ROOT/protobuf-$PROTO3_VER
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then

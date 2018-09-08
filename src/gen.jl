@@ -1,11 +1,10 @@
 module Gen
 
-using Compat
 using ProtoBuf
 using ProtoBuf.GoogleProtoBuf
 using ProtoBuf.GoogleProtoBufCompiler
 
-import ProtoBuf: meta, @logmsg, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
+import ProtoBuf: meta, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
@@ -149,7 +148,7 @@ function findmodule(name::String)
 end
 
 function field_type_name(full_type_name::String)
-    comps = Compat.split(full_type_name, '.'; keepempty=false)
+    comps = split(full_type_name, '.'; keepempty=false)
     if isempty(comps)
         type_name = full_type_name
     else
@@ -160,7 +159,7 @@ function field_type_name(full_type_name::String)
             type_name = join(comps, '.')
         end
     end
-    @logmsg("usable type name for $full_type_name is $type_name")
+    @debug("usable type name for $full_type_name is $type_name")
     type_name
 end
 
@@ -180,7 +179,7 @@ const _deferred = Dict{String,DeferredWrite}()
 const _all_resolved = Set{String}()
 
 function defer(name::String, iob::IOBuffer, depends::String)
-    @logmsg("defer $name due to $depends")
+    @debug("defer $name due to $depends")
     if isdeferred(name)
         depsnow = _deferred[name].depends
         !(depends in depsnow) && push!(depsnow, depends)
@@ -215,7 +214,7 @@ function resolve(iob::IOBuffer, name::String)
 
     # write all fully resolved entities
     for typ in fully_resolved
-        @logmsg("fully resolved $typ")
+        @debug("fully resolved $typ")
         print(iob, String(take!(_deferred[typ].iob)))
         delete!(_deferred, typ)
         push!(_all_resolved, typ)
@@ -282,7 +281,7 @@ function generate_enum(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::
     _modul,enumname = splitmodule_chkkeyword(fullname(scope, enumtype.name))
     push!(scope.syms, enumname)
 
-    @logmsg("begin enum $(enumname)")
+    @debug("begin enum $(enumname)")
     println(io, "struct __enum_", enumname, " <: ProtoEnum")
     values = Int32[]
     for value::EnumValueDescriptorProto in enumtype.value
@@ -296,7 +295,7 @@ function generate_enum(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::
     println(io, "const ", enumname, " = __enum_", enumname, "()")
     println(io, "")
     push!(exports, enumname)
-    @logmsg("end enum $(enumname)")
+    @debug("end enum $(enumname)")
     nothing
 end
 
@@ -307,7 +306,7 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     io = IOBuffer()
     modul,dtypename = splitmodule_chkkeyword(full_dtypename)
     full_dtypename = (modul=="") ? dtypename : "$(modul).$(dtypename)"
-    @logmsg("begin type $(full_dtypename)")
+    @debug("begin type $(full_dtypename)")
 
     scope = Scope(dtype.name, scope)
 
@@ -473,7 +472,7 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
         println(io, "const __oneof_names_$(dtypename) = [$(join(oneof_names, ','))]")
     end
     if !isempty(reqflds) || !isempty(defvals) || (fldnums != [1:length(fldnums);]) || !isempty(packedflds) || !isempty(wtypes) || !isempty(oneofs) || !isempty(realfldtypes)
-        @logmsg("generating meta for type $(dtypename)")
+        @debug("generating meta for type $(dtypename)")
         print(io, "meta(t::Type{$dtypename}) = meta(t, ")
         print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "__req_$(dtypename), ")
         print(io, (fldnums == _d_fldnums) ? "ProtoBuf.DEF_FNUM, " : "__fnum_$(dtypename), ")
@@ -494,13 +493,13 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     deferedmode && (full_dtypename in keys(_deferred)) && delete!(_deferred, full_dtypename)
 
     if !isdeferred(full_dtypename)
-        @logmsg("resolved (!deferred) $full_dtypename")
+        @debug("resolved (!deferred) $full_dtypename")
         print(outio, String(take!(io)))
         deferedmode || resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
     
-    @logmsg("end type $(full_dtypename)")
+    @debug("end type $(full_dtypename)")
     nothing
 end
 
@@ -561,10 +560,10 @@ function generate_svc(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::S
 end
 
 function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
-    @logmsg("generate begin for $(protofile.name), package $(protofile.package)")
+    @debug("generate begin for $(protofile.name), package $(protofile.package)")
 
     svcs = isfilled(protofile, :options) ? has_gen_services(protofile.options) : false
-    @logmsg("generate services: $svcs")
+    @debug("generate services: $svcs")
 
     scope = top_scope
     if !isempty(protofile.package)
@@ -574,7 +573,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     push!(scope.files, protofile.name)
-    @logmsg("generated scope for $(protofile.name), package $(protofile.package)")
+    @debug("generated scope for $(protofile.name), package $(protofile.package)")
 
     # generate module begin
     if !isempty(scope.name)
@@ -587,9 +586,8 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     println(io, "# syntax: $(syntax)")
 
     depends = Vector{String}()
-    @logmsg("generating imports")
+    @debug("generating imports")
     # generate imports
-    println(io, "using Compat")
     println(io, "using ProtoBuf")
     dep_imports = Vector{String}()
     add_import = (imp) -> begin
@@ -617,7 +615,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
                 dependency = "ProtoBuf." * dependency
                 add_import(dependency)
             else
-                comps = Compat.split(dependency, '.'; keepempty=false)
+                comps = split(dependency, '.'; keepempty=false)
                 if startswith(dependency, parentscope*".")
                     comps[1] = ".." * comps[1]
                 elseif !isempty(fullscopename)
@@ -639,7 +637,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     mapentries = Dict{String, Tuple{String,String}}()
 
     # generate top level enums
-    @logmsg("generating enums")
+    @debug("generating enums")
     if isfilled(protofile, :enum_type)
         for enum_type in protofile.enum_type
             generate_enum(io, errio, enum_type, scope, exports)
@@ -648,7 +646,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate message types
-    @logmsg("generating types")
+    @debug("generating types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
             generate_msgtype(io, errio, message_type, scope, syntax, exports, depends, mapentries, false)
@@ -657,7 +655,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate service stubs
-    @logmsg("generating services")
+    @debug("generating services")
     if svcs && isfilled(protofile, :service)
         nservices = length(protofile.service)
         for idx in 1:nservices
@@ -668,7 +666,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     end
 
     # generate deferred message types
-    @logmsg("generating deferred types")
+    @debug("generating deferred types")
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
             generate_msgtype(io, errio, message_type, scope, syntax, exports, depends, mapentries, true)
@@ -691,7 +689,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     # mention mapentries
     !isempty(mapentries) && println(io, "# mapentries: ", join(mapentries, ", "))
 
-    @logmsg("generate end for $(protofile.name)")
+    @debug("generate end for $(protofile.name)")
     nothing
 end
 
@@ -699,7 +697,6 @@ function print_package(io::IO, s::Scope, indent="")
     s.is_module || return
     println(io, "$(indent)module $(s.name)")
     nested = indent*"  "
-    println(io, "$(nested)using Compat")
     println(io, "$(nested)const _ProtoBuf_Top_ = @static isdefined(parentmodule(@__MODULE__), :_ProtoBuf_Top_) ? (parentmodule(@__MODULE__))._ProtoBuf_Top_ : parentmodule(@__MODULE__)")
     children = Set(s.children)
     for f in s.files
@@ -735,19 +732,19 @@ end
 function codegen(srcio::IO)
     errio = IOBuffer()
     resp = ProtoBuf.instantiate(CodeGeneratorResponse)
-    @logmsg("generate begin")
+    @debug("generate begin")
     while !eof(srcio)
         req = readreq(srcio)
 
         if !isfilled(req, :file_to_generate)
-            @logmsg("no files to generate!!")
+            @debug("no files to generate!!")
             continue
         end
 
-        @logmsg("generate request for $(length(req.file_to_generate)) proto files")
-        @logmsg("$(req.file_to_generate)")
+        @debug("generate request for $(length(req.file_to_generate)) proto files")
+        @debug("$(req.file_to_generate)")
 
-        #isfilled(req, :parameter) && @logmsg("parameter $(req.parameter)")
+        #isfilled(req, :parameter) && @debug("parameter $(req.parameter)")
 
         for protofile in req.proto_file
             io = IOBuffer()
@@ -765,7 +762,7 @@ function codegen(srcio::IO)
             end
         end
     end
-    @logmsg("generate end")
+    @debug("generate end")
     resp
 end
 #--------------------------------------------------------------------
