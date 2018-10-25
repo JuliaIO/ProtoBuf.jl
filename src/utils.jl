@@ -1,5 +1,7 @@
 # utility methods
 
+import Base: deepcopy
+
 isinitialized(obj::Any) = isfilled(obj)
 
 set_field!(obj::Any, fld::Symbol, val) = (setfield!(obj, fld, val); fillset(obj, fld); nothing)
@@ -22,6 +24,12 @@ function copy!(to::T, from::T) where T <: ProtoType
         end
     end
     nothing
+end
+
+function deepcopy(from::T) where { T <: ProtoType }
+    ret = T()
+    copy!(ret, from)
+    ret
 end
 
 function add_field!(obj::Any, fld::Symbol, val)
