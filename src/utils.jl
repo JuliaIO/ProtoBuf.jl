@@ -2,7 +2,7 @@
 
 isinitialized(obj::Any) = isfilled(obj)
 
-Base.setproperty!(obj::ProtoType, fld::Symbol, val) = (Core.setfield!(obj, fld, val); fillset(obj, fld); val)
+setproperty!(obj::ProtoType, fld::Symbol, val) = (Core.setfield!(obj, fld, val); fillset(obj, fld); val)
 @deprecate set_field!(obj::Any, fld::Symbol, val) setproperty!(obj, fld, val)
 
 get_field(obj::Any, fld::Symbol) = isfilled(obj, fld) ? getfield(obj, fld) : error("uninitialized field $fld")
@@ -22,6 +22,20 @@ function copy!(to::T, from::T) where T <: ProtoType
         end
     end
     nothing
+end
+
+function deepcopy(from::T) where T <: ProtoType
+    to = T()
+    fillunset(to)
+    fill = filled(from)
+    fnames = fld_names(T)
+    for idx in 1:length(fnames)
+        if fill[1, idx]
+            name = fnames[idx]
+            setproperty!(to, name, deepcopy(getfield(from, name)))
+        end
+    end
+    to
 end
 
 function add_field!(obj::Any, fld::Symbol, val)

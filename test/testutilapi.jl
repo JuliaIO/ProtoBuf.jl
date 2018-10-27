@@ -38,8 +38,17 @@ function test_apis()
     @test t.a == "hello"
     @test t.b == false
 end
+
+function test_deepcopy()
+    ts = ProtoBuf.google.protobuf.Timestamp()
+    ts.seconds = 123
+    @test !has_field(ts, :nanos)
+    ts2 = deepcopy(ts)
+    @test !has_field(ts2, :nanos)
+end
+
 end # module ProtoBufTestApis
 
 print_hdr("utility api methods")
 ProtoBufTestApis.test_apis()
-
+ProtoBufTestApis.test_deepcopy()
