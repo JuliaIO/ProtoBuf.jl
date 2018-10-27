@@ -334,7 +334,7 @@ function test_nested()
 
         writeproto(pb, testval, meta)
         readfld2.iVal2 = Int64[]
-        readval.fld3 = TestType[]
+        readval.fld3 = TestStr[]
         readproto(pb, readval, meta)
 
         assert_equal(testval, readval)
@@ -363,19 +363,19 @@ function test_oneofs()
     @test isfilled(testval, :iVal3)
     @test which_oneof(testval, :optval) === :iVal3
 
-    set_field!(testval, :iVal2, 10)
+    testval.iVal2 = 10
     @test isfilled(testval, :iVal1)
     @test isfilled(testval, :iVal2)
     @test !isfilled(testval, :iVal3)
     @test which_oneof(testval, :optval) === :iVal2
 
-    set_field!(testval, :iVal1, 10)
+    testval.iVal1 = 10
     @test isfilled(testval, :iVal1)
     @test isfilled(testval, :iVal2)
     @test !isfilled(testval, :iVal3)
     @test which_oneof(testval, :optval) === :iVal2
 
-    set_field!(testval, :iVal3, 10)
+    testval.iVal3 = 10
     @test isfilled(testval, :iVal1)
     @test !isfilled(testval, :iVal2)
     @test isfilled(testval, :iVal3)
@@ -394,28 +394,28 @@ function test_maps()
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d1, Dict{Int,Int}())
+    testval.d1 = Dict{Int,Int}()
     writeproto(pb, testval)
     readproto(pb, readval)
     @test !isfilled(readval, :d1)
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d2, Dict{Int32,String}())
+    testval.d2 = Dict{Int32,String}()
     writeproto(pb, testval)
     readproto(pb, readval)
     @test !isfilled(readval, :d2)
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d3, Dict{String,String}())
+    testval.d3 = Dict{String,String}()
     writeproto(pb, testval)
     readproto(pb, readval)
     @test !isfilled(readval, :d3)
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d1, Dict{Int,Int}())
+    testval.d1 = Dict{Int,Int}()
     testval.d1[1] = 1
     testval.d1[2] = 2
     writeproto(pb, testval)
@@ -425,7 +425,7 @@ function test_maps()
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d2, Dict{Int32,String}())
+    testval.d2 = Dict{Int32,String}()
     testval.d2[Int32(1)] = convert(String, "One")
     testval.d2[Int32(2)] = convert(String, "Two")
     writeproto(pb, testval)
@@ -435,7 +435,7 @@ function test_maps()
 
     testval = TestMaps()
     readval = TestMaps()
-    set_field!(testval, :d3, Dict{String,String}())
+    testval.d3 = Dict{String,String}()
     testval.d3["1"] = "One"
     testval.d3["2"] = "Two"
     writeproto(pb, testval)

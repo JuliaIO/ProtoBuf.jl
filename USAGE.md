@@ -46,11 +46,9 @@ meta(t::Type{MyType}) = meta(t, [], [8,10], Dict())
 ````
 
 ## Setting and Getting Fields
-Types used as protocol buffer structures are regular Julia types and the Julia syntax to set and get fields can be used on them. But with fields that are set as optional, it is quite likely that some of them may not have been present in the instance that was read. Similarly, fields that need to be sent need to be explicitly marked as being set. The following methods are exported to assist doing this:
+Types used as protocol buffer structures are regular Julia types and the Julia syntax to set and get fields can be used on them. But with fields that are set as optional, it is quite likely that some of them may not have been present in the instance that was read. The following methods are exported to assist doing this:
 
 - `get_field(obj::Any, fld::Symbol)` : Gets `obj.fld` if it has been set. Throws an error otherwise.
-- `set_field!(obj::Any, fld::Symbol, val)` : Sets `obj.fld = val` and marks the field as being set. The value would be written on the wire when `obj` is serialized. Fields can also be set the regular way, but then they must be marked as being set using the `fillset` method.
-- `add_field!(obj::Any, fld::Symbol, val)` : Adds an element with value `val` to a repeated field `fld`. Essentially appends `val` to the array `obj.fld`.
 - `has_field(obj::Any, fld::Symbol)` : Checks whether field `fld` has been set in `obj`.
 - `clear(obj::Any, fld::Symbol)` : Marks field `fld` of `obj` as unset.
 - `clear(obj::Any)` : Marks all fields of `obj` as unset.
@@ -63,14 +61,14 @@ Types generated through the Julia protoc plugin generates constructors that use 
 ````
 julia> using ProtoBuf
 
-julia> mutable struct MyType      # a Julia composite type
+julia> mutable struct MyType <: ProtoType  # a Julia composite type
            intval::Int
            # fillunset (documented below is similar to clear)
            # ProtoBuf._protobuild is an internal method similar to protobuild
            MyType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
        end
 
-julia> mutable struct OptType     # and another one to contain it
+julia> mutable struct OptType <: ProtoType # and another one to contain it
            opt::MyType
            OptType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
        end
@@ -102,11 +100,11 @@ julia> using ProtoBuf
 
 julia> import ProtoBuf.meta
 
-julia> mutable struct TestType
+julia> mutable struct TestType <: ProtoType
            val::Any
        end
 
-julia> mutable struct TestFilled
+julia> mutable struct TestFilled <: ProtoType
            fld1::TestType
            fld2::TestType
            TestFilled(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -120,7 +118,7 @@ TestFilled(#undef,#undef)
 julia> isinitialized(tf)      # false, since fld1 is not set
 false
 
-julia> set_field!(tf, :fld1, TestType(""))
+julia> tf.fld1 = TestType("");
 
 julia> isinitialized(tf)      # true, even though fld2 is not set yet
 true

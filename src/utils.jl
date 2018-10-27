@@ -2,8 +2,8 @@
 
 isinitialized(obj::Any) = isfilled(obj)
 
-set_field!(obj::Any, fld::Symbol, val) = (setfield!(obj, fld, val); fillset(obj, fld); nothing)
-@deprecate set_field(obj::Any, fld::Symbol, val) set_field!(obj, fld, val)
+Base.setproperty!(obj::ProtoType, fld::Symbol, val) = (Core.setfield!(obj, fld, val); fillset(obj, fld); val)
+@deprecate set_field!(obj::Any, fld::Symbol, val) setproperty!(obj, fld, val)
 
 get_field(obj::Any, fld::Symbol) = isfilled(obj, fld) ? getfield(obj, fld) : error("uninitialized field $fld")
 
@@ -18,7 +18,7 @@ function copy!(to::T, from::T) where T <: ProtoType
     for idx in 1:length(fnames)
         if fill[1, idx]
             name = fnames[idx]
-            set_field!(to, name, getfield(from, name))
+            setproperty!(to, name, getfield(from, name))
         end
     end
     nothing
@@ -44,7 +44,7 @@ protobuild(::Type{T}, nv::Dict{Symbol}=Dict{Symbol,Any}()) where {T} = _protobui
 function _protobuild(obj::T, nv) where T
     for (n,v) in nv
         fldtyp = fld_type(obj, n)
-        set_field!(obj, n, isa(v, fldtyp) ? v : convert(fldtyp, v))
+        setproperty!(obj, n, isa(v, fldtyp) ? v : convert(fldtyp, v))
     end
     obj
 end

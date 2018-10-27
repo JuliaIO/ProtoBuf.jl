@@ -5,7 +5,7 @@ import ProtoBuf.meta
 
 print_hdr(tname) = println("testing $tname...")
 
-mutable struct TestType
+mutable struct TestType <: ProtoType
     a::AbstractString
     b::Bool
     TestType() = (o=new(); fillunset(o); o)
@@ -20,14 +20,12 @@ function test_apis()
 
     @test false == try get_field(t, :a); true; catch; false; end
 
-    set_field!(t, :b, true)
+    t.b = true
     @test has_field(t, :b)
     @test (get_field(t, :b) == true)
 
     @test !isinitialized(t)
-    t.a = "hello"
-    @test !isinitialized(t)
-    set_field!(t, :a, "hello world")
+    t.a = "hello world"
     @test isinitialized(t)
     @test (get_field(t, :a) ==  "hello world")
 
