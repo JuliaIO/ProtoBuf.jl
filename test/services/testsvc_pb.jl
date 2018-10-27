@@ -3,7 +3,7 @@ using ProtoBuf
 import ProtoBuf.meta
 import Base: hash, isequal, ==
 
-mutable struct BinaryOpReq
+mutable struct BinaryOpReq <: ProtoType
     i1::Int64
     i2::Int64
     BinaryOpReq(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
@@ -12,7 +12,7 @@ hash(v::BinaryOpReq) = ProtoBuf.protohash(v)
 isequal(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoisequal(v1, v2)
 ==(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoeq(v1, v2)
 
-mutable struct BinaryOpResp
+mutable struct BinaryOpResp <: ProtoType
     result::Int64
     BinaryOpResp(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
 end #type BinaryOpResp

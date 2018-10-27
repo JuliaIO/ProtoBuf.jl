@@ -23,7 +23,7 @@ mutable struct TestRpcChannel <: ProtoRpcChannel
 end
 close(channel::TestRpcChannel) = close(channel.sock)
 
-mutable struct SvcHeader
+mutable struct SvcHeader <: ProtoType
     method::String
     SvcHeader() = (o=new(); fillunset(o); o)
 end
@@ -31,7 +31,7 @@ end
 function write_request(channel::TestRpcChannel, controller::TestRpcController, service::ServiceDescriptor, method::MethodDescriptor, request)
     io = channel.sock
     hdr = SvcHeader()
-    set_field!(hdr, :method, method.name)
+    hdr.method = method.name
 
     iob = IOBuffer()
 
@@ -119,13 +119,13 @@ end
 # implementations of our test services
 function Add(req::BinaryOpReq)
     resp = BinaryOpResp()
-    set_field!(resp, :result, req.i1 + req.i2)
+    resp.result = req.i1 + req.i2
     resp
 end
 
 function Mul(req::BinaryOpReq)
     resp = BinaryOpResp()
-    set_field!(resp, :result, req.i1 * req.i2)
+    resp.result = req.i1 * req.i2
     resp
 end
 
@@ -164,8 +164,8 @@ function run_client(debug::Bool)
     let channel=TestRpcChannel(connect(9999)), stub=TestMathBlockingStub(channel)
         for i in 1:10
             inp = BinaryOpReq()
-            set_field!(inp, :i1, Int64(rand(Int8)))
-            set_field!(inp, :i2, Int64(rand(Int8)))
+            inp.i1 = Int64(rand(Int8))
+            inp.i2 = Int64(rand(Int8))
 
             out = Add(stub, controller, inp)
             chk_results(out, inp.i1+inp.i2)
@@ -179,8 +179,8 @@ function run_client(debug::Bool)
     debug_log(controller, "testing non blocking stub...")
     for i in 1:10
         inp = BinaryOpReq()
-        set_field!(inp, :i1, Int64(rand(Int8)))
-        set_field!(inp, :i2, Int64(rand(Int8)))
+        inp.i1 = Int64(rand(Int8))
+        inp.i2 = Int64(rand(Int8))
        
         nresults -= 1
         let channel=TestRpcChannel(connect(9999)), stub=TestMathStub(channel), expected=inp.i1+inp.i2
