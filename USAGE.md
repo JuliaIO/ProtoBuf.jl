@@ -5,7 +5,7 @@ Reading and writing data structures using ProtoBuf is similar to serialization a
 ````
 julia> using ProtoBuf                       # include protoc generated package here
 
-julia> mutable struct MyType                # a Julia composite type generated from protoc
+julia> mutable struct MyType <: ProtoType   # a Julia composite type generated from protoc
          intval::Int
          strval::String
          MyType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
