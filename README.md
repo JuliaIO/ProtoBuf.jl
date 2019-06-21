@@ -1,10 +1,6 @@
 # ProtoBuf.jl
 
 [![Build Status](https://travis-ci.org/JuliaIO/ProtoBuf.jl.png)](https://travis-ci.org/JuliaIO/ProtoBuf.jl)
-[![ProtoBuf](http://pkg.julialang.org/badges/ProtoBuf_0.3.svg)](http://pkg.julialang.org/?pkg=ProtoBuf&ver=0.3)
-[![ProtoBuf](http://pkg.julialang.org/badges/ProtoBuf_0.4.svg)](http://pkg.julialang.org/?pkg=ProtoBuf&ver=0.4)
-[![ProtoBuf](http://pkg.julialang.org/badges/ProtoBuf_0.5.svg)](http://pkg.julialang.org/?pkg=ProtoBuf&ver=0.5)
-[![ProtoBuf](http://pkg.julialang.org/badges/ProtoBuf_0.6.svg)](http://pkg.julialang.org/?pkg=ProtoBuf)
 
 [![Coverage Status](https://coveralls.io/repos/github/JuliaIO/ProtoBuf.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaIO/ProtoBuf.jl?branch=master)
 
