@@ -8,6 +8,8 @@ import ProtoBuf: meta, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
 export gen
 
+include("comments.jl")
+
 const JTYPES              = [Float64, Float32, Int64, UInt64, Int32, UInt64,  UInt32,  Bool, AbstractString, Any, Any, Vector{UInt8}, UInt32, Int32, Int32, Int64, Int32, Int64]
 const JTYPE_DEFAULTS      = [0,       0,       0,     0,      0,     0,       0,       false, "",    nothing, nothing, UInt8[], 0,     0,     0,       0,       0,     0]
 
@@ -30,10 +32,10 @@ _map_as_array = false
 # begin keyword handling
 #--------------------------------------------------------------------
 const _keywords = [
-    "if", "else", "elseif", "while", "for", "begin", "end", "quote", 
+    "if", "else", "elseif", "while", "for", "begin", "end", "quote",
     "try", "catch", "return", "local", "abstract", "function", "macro",
-    "ccall", "finally", "typealias", "break", "continue", "type", 
-    "global", "module", "using", "import", "export", "const", "let", 
+    "ccall", "finally", "typealias", "break", "continue", "type",
+    "global", "module", "using", "import", "export", "const", "let",
     "bitstype", "do", "baremodule", "importall", "immutable",
     "Type", "Enum", "Any", "DataType", "Base"
 ]
@@ -115,7 +117,7 @@ function qualify_in_hierarchy(name::String, scope::Scope)
     if name in scope.syms
         return fullname(scope, name)
     elseif isdefined(scope, :parent)
-        return qualify_in_hierarchy(name, scope.parent) 
+        return qualify_in_hierarchy(name, scope.parent)
     else
         error("unresolved name $name at scope $(scope.name)")
     end
@@ -277,17 +279,24 @@ end
 #--------------------------------------------------------------------
 # begin code generation
 #--------------------------------------------------------------------
-function generate_enum(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Vector{String})
+function generate_enum(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::Scope, exports::Vector{String}, commentpath, commentmap::CommentMap_t)
     _modul,enumname = splitmodule_chkkeyword(fullname(scope, enumtype.name))
     push!(scope.syms, enumname)
 
     @debug("begin enum $(enumname)")
+    comments = getcomments(commentmap, commentpath)
+    gen_comments_leading(io, comments)
+
     println(io, "struct __enum_", enumname, " <: ProtoEnum")
     values = Int32[]
-    for value::EnumValueDescriptorProto in enumtype.value
+    for (i, value::EnumValueDescriptorProto) in enumerate(enumtype.value)
         # If we find that the field name is a keyword prepend it with `_`
         fldname = chk_keyword(value.name)
-        println(io, "    ", fldname, "::Int32")
+        let comments = getcomments(commentmap, commentpath_enumvalue(commentpath, i))
+            gen_comments_leading(io, comments, indent="    ")
+            println(io, "    ", fldname, "::Int32")
+            gen_comments_trailing(io, comments)
+        end
         push!(values, value.number)
     end
     println(io, "    __enum_", enumname, "() = new(", join(values,','), ")")
@@ -296,10 +305,12 @@ function generate_enum(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::
     println(io, "")
     push!(exports, enumname)
     @debug("end enum $(enumname)")
+
+    gen_comments_trailing(io, comments)
     nothing
 end
 
-function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::String, exports::Vector{String}, depends::Vector{String}, mapentries::Dict{String,Tuple{String,String}}, deferedmode::Bool)
+function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::String, exports::Vector{String}, depends::Vector{String}, mapentries::Dict{String,Tuple{String,String}}, commentpath, commentmap::CommentMap_t, deferedmode::Bool)
     full_dtypename = fullname(scope, dtype.name)
     deferedmode && !isdeferred(full_dtypename) && return
 
@@ -330,13 +341,18 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
 
     # generate nested types
     if isfilled(dtype, :nested_type)
-        for nested_type::DescriptorProto in dtype.nested_type
-            generate_msgtype(io, errio, nested_type, scope, syntax, exports, depends, mapentries, deferedmode)
+        for (i, nested_type::DescriptorProto) in enumerate(dtype.nested_type)
+            generate_msgtype(io, errio, nested_type, scope, syntax, exports, depends,
+                             mapentries, commentpath_submessage(commentpath, i), commentmap,
+                             deferedmode)
             (errio.size > 0) && return
         end
     end
 
     # generate this type
+    comments = getcomments(commentmap, commentpath)
+    gen_comments_leading(io, comments)
+
     println(io, "mutable struct $(dtypename) <: ProtoType")
     reqflds = String[]
     packedflds = String[]
@@ -413,7 +429,7 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
                 end
             end
 
-            packed = (isfilled(field, :options) && field.options.packed) || 
+            packed = (isfilled(field, :options) && field.options.packed) ||
                      ((syntax == "proto3") && (FieldDescriptorProto_Label.LABEL_REPEATED == field.label) && isprimitive(field._type))
             packed && push!(packedflds, ":"*fldname)
 
@@ -445,7 +461,17 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
                 push!(realfldtypes, ":$fldname => \"$(typ_name)\"")
             end
 
-            println(io, "    $(fldname)::$gen_typ_name", is_typ_mapentry ? " # map entry" : "")
+            let comments = getcomments(commentmap, commentpath_messagefield(commentpath, fld_idx))
+                gen_comments_leading(io, comments, indent="    ")
+
+                is_typ_mapentry && println("    # ---- map entry ----")
+                # Append trailing comments on the same line (print, not println)
+                print(io, "    $(fldname)::$gen_typ_name")
+                # Print closing endline if no comments were printed
+                if !gen_comments_trailing(io, comments, indent="  ")
+                    println(io)
+                end
+            end
 
             if ismapentry
                 if field.number == 1
@@ -458,6 +484,8 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     end
     println(io, "    $(dtypename)(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)")
     println(io, "end #mutable struct $(dtypename)", ismapentry ? " (mapentry)" : "", deferedmode ? " (has cyclic type dependency)" : "")
+
+    gen_comments_trailing(io, comments)
 
     # generate the meta for this type if required
     _d_fldnums = [1:length(fldnums);]
@@ -498,12 +526,12 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
         deferedmode || resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
-    
+
     @debug("end type $(full_dtypename)")
     nothing
 end
 
-function generate_svc(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope, svcidx::Int, exports::Vector{String})
+function generate_svc(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope, svcidx::Int, exports::Vector{String}, commentmap::CommentMap_t)
     nmethods = isfilled(stype, :method) ? length(stype.method) : 0
 
     # generate method and service descriptors
@@ -604,7 +632,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
                 push!(depends, _packages[dependency])
             end
         end
-    
+
         fullscopename = scope.is_module ? fullname(scope) : ""
         parentscope = (isdefined(scope, :parent) && scope.parent.is_module) ? fullname(scope.parent) : ""
         for dependency in using_pkgs
@@ -636,20 +664,22 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     exports = Vector{String}()
     mapentries = Dict{String, Tuple{String,String}}()
 
+    commentmap = parsecomments(protofile)
+
     # generate top level enums
     @debug("generating enums")
     if isfilled(protofile, :enum_type)
-        for enum_type in protofile.enum_type
-            generate_enum(io, errio, enum_type, scope, exports)
-            (errio.size > 0) && return 
+        for (i, enum_type) in enumerate(protofile.enum_type)
+            generate_enum(io, errio, enum_type, scope, exports, commentpath_enum(commentpath, i), commentmap)
+            (errio.size > 0) && return
         end
     end
 
     # generate message types
     @debug("generating types")
     if isfilled(protofile, :message_type)
-        for message_type in protofile.message_type
-            generate_msgtype(io, errio, message_type, scope, syntax, exports, depends, mapentries, false)
+        for (i, message_type) in enumerate(protofile.message_type)
+            generate_msgtype(io, errio, message_type, scope, syntax, exports, depends, mapentries, commentpath_message(i), commentmap, false)
             (errio.size > 0) && return
         end
     end
@@ -660,7 +690,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
         nservices = length(protofile.service)
         for idx in 1:nservices
             service = protofile.service[idx]
-            generate_svc(io, errio, service, scope, idx, exports)
+            generate_svc(io, errio, service, scope, idx, exports, commentmap)
             (errio.size > 0) && return
         end
     end
@@ -668,9 +698,9 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     # generate deferred message types
     @debug("generating deferred types")
     if isfilled(protofile, :message_type)
-        for message_type in protofile.message_type
-            generate_msgtype(io, errio, message_type, scope, syntax, exports, depends, mapentries, true)
-            (errio.size > 0) && return 
+        for (i, message_type) in enumerate(protofile.message_type)
+            generate_msgtype(io, errio, message_type, scope, syntax, exports, depends, mapentries, commentpath_message(i), commentmap, true)
+            (errio.size > 0) && return
         end
     end
 
