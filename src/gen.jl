@@ -30,10 +30,10 @@ _map_as_array = false
 # begin keyword handling
 #--------------------------------------------------------------------
 const _keywords = [
-    "if", "else", "elseif", "while", "for", "begin", "end", "quote", 
+    "if", "else", "elseif", "while", "for", "begin", "end", "quote",
     "try", "catch", "return", "local", "abstract", "function", "macro",
-    "ccall", "finally", "typealias", "break", "continue", "type", 
-    "global", "module", "using", "import", "export", "const", "let", 
+    "ccall", "finally", "typealias", "break", "continue", "type",
+    "global", "module", "using", "import", "export", "const", "let",
     "bitstype", "do", "baremodule", "importall", "immutable",
     "Type", "Enum", "Any", "DataType", "Base"
 ]
@@ -115,7 +115,7 @@ function qualify_in_hierarchy(name::String, scope::Scope)
     if name in scope.syms
         return fullname(scope, name)
     elseif isdefined(scope, :parent)
-        return qualify_in_hierarchy(name, scope.parent) 
+        return qualify_in_hierarchy(name, scope.parent)
     else
         error("unresolved name $name at scope $(scope.name)")
     end
@@ -407,13 +407,20 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
                 elseif field._type == FieldDescriptorProto_Type.TYPE_BYTES
                     println(errio, "Default values for byte array types are not supported. Field: $(dtypename).$(fldname) has default value [$(field.default_value)]")
                     return
-                else
-                    defval = (field._type == FieldDescriptorProto_Type.TYPE_ENUM) ? "$(field_type_name(enum_typ_name)).$(field.default_value)" : "$(field.default_value)"
+                elseif field._type == FieldDescriptorProto_Type.TYPE_ENUM
+                    push!(defvals, ":$fldname => $(field_type_name(enum_typ_name)).$(field.default_value)")
+                elseif field._type == FieldDescriptorProto_Type.TYPE_DOUBLE
+                    defval = replace(replace(field.default_value, "inf" => "Inf"), "nan" => "NaN")
                     push!(defvals, ":$fldname => $defval")
+                elseif field._type == FieldDescriptorProto_Type.TYPE_FLOAT
+                    defval = replace(replace(field.default_value, "inf" => "Inf32"), "nan" => "NaN32")
+                    push!(defvals, ":$fldname => $defval")
+                else
+                    push!(defvals, ":$fldname => $(field.default_value)")
                 end
             end
 
-            packed = (isfilled(field, :options) && field.options.packed) || 
+            packed = (isfilled(field, :options) && field.options.packed) ||
                      ((syntax == "proto3") && (FieldDescriptorProto_Label.LABEL_REPEATED == field.label) && isprimitive(field._type))
             packed && push!(packedflds, ":"*fldname)
 
@@ -498,7 +505,7 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
         deferedmode || resolve(outio, full_dtypename)
         push!(_all_resolved, full_dtypename)
     end
-    
+
     @debug("end type $(full_dtypename)")
     nothing
 end
@@ -604,7 +611,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
                 push!(depends, _packages[dependency])
             end
         end
-    
+
         fullscopename = scope.is_module ? fullname(scope) : ""
         parentscope = (isdefined(scope, :parent) && scope.parent.is_module) ? fullname(scope.parent) : ""
         for dependency in using_pkgs
@@ -641,7 +648,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     if isfilled(protofile, :enum_type)
         for enum_type in protofile.enum_type
             generate_enum(io, errio, enum_type, scope, exports)
-            (errio.size > 0) && return 
+            (errio.size > 0) && return
         end
     end
 
@@ -670,7 +677,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     if isfilled(protofile, :message_type)
         for message_type in protofile.message_type
             generate_msgtype(io, errio, message_type, scope, syntax, exports, depends, mapentries, true)
-            (errio.size > 0) && return 
+            (errio.size > 0) && return
         end
     end
 

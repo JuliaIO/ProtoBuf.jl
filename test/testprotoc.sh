@@ -41,6 +41,8 @@ echo "- module_type_name_collision.proto" && JULIA_PROTOBUF_MODULE_POSTFIX=1 ${G
 ERR=$(($ERR + $?))
 echo "- packed2.proto" && ${GEN} ${SRC}/packed2.proto && eval " ${CHK} 'include(\"out/packed2_pb.jl\")'"
 ERR=$(($ERR + $?))
+echo "- inf_nan.proto" && ${GEN} ${SRC}/inf_nan.proto && eval " ${CHK} 'include(\"out/inf_nan_pb.jl\")'"
+ERR=$(($ERR + $?))
 
 if [ ${PROTOC_VER} -eq "3" ]
 then
