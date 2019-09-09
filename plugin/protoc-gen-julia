@@ -16,7 +16,7 @@ if [ ${JULIA_PROTOBUF_MAP_AS_ARRAY:-0} -eq 1 ]; then
 fi
 
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-JULIA_GEN="${JULIA} ${COVERAGE} -e 'if VERSION >= v\"0.7-\"; import Pkg; Pkg.activate(joinpath(ENV[\"SCRIPT_DIR\"], \"..\")); end; using ProtoBuf; using ProtoBuf.Gen; gen()'"
+JULIA_GEN="${JULIA} ${COVERAGE} --project=${SCRIPT_DIR}/.. -e 'using ProtoBuf; using ProtoBuf.Gen; gen()'"
 if [ -z ${FLAGS} ]
 then
     eval " ${JULIA_GEN}"
