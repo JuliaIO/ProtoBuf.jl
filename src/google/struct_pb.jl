@@ -1,7 +1,4 @@
 # syntax: proto3
-using ProtoBuf
-import ProtoBuf.meta
-
 struct __enum_NullValue <: ProtoEnum
     NULL_VALUE::Int32
     __enum_NullValue() = new(0)

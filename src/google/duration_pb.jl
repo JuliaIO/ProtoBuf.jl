@@ -1,7 +1,4 @@
 # syntax: proto3
-using ProtoBuf
-import ProtoBuf.meta
-
 mutable struct Duration <: ProtoType
     seconds::Int64
     nanos::Int32

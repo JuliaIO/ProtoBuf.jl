@@ -105,7 +105,7 @@ function _read_uleb(io::IO, ::Type{Int32})
     # but Julia can be tolerant like the C protobuf implementation (unlike python)
 
     if n > _max_n[sizeof(res < 0 ? Int64 : Int32)]
-        @debug("overflow reading $T. returning 0")
+        @debug("overflow reading Int32. returning 0")
         return Int32(0)
     end
 
@@ -116,7 +116,7 @@ function _read_uleb(io::IO, ::Type{T}) where T <: Integer
     n, res = _read_uleb_base(io, T)
     # in case of overflow, consider it as missing field and return default value
     if n > _max_n[sizeof(T)]
-        @debug("overflow reading $T. returning 0")
+        @debug("overflow reading integer type. returning 0", T)
         return zero(T)
     end
     res
@@ -252,10 +252,10 @@ function write_map(io::IO, fldnum::Int, dict::Dict)
 
     n = 0
     for key in keys(dict)
-        @debug("write_map writing key: $key")
+        @debug("write_map", key)
         val = dict[key]
         writeproto(iob, key, dmeta.ordered[1])
-        @debug("write_map writing val: $val")
+        @debug("write_map", val)
         writeproto(iob, val, dmeta.ordered[2])
         n += _write_key(io, fldnum, WIRETYP_LENDELIM)
         n += write_bytes(io, take!(iob))
@@ -363,14 +363,14 @@ end
 
 function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n = 0
-    @debug("writeproto writing an obj with meta: $meta")
+    @debug("writeproto writing an obj", meta)
     for attrib in meta.ordered
         fld = attrib.fld
         if isfilled(obj, fld)
-            @debug("writeproto writing field: $fld")
+            @debug("writeproto", field=fld)
             n += writeproto(io, getfield(obj, fld), attrib)
         else
-            @debug("field not set: $fld")
+            @debug("not set", field=fld)
             (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
         end
     end
@@ -418,7 +418,7 @@ function read_map(io, dict::Dict{K,V}) where {K,V}
 
     while !eof(iob)
         fldnum, wiretyp = _read_key(iob)
-        @debug("reading map fldnum: $fldnum")
+        @debug("reading map", fldnum)
 
         fldnum = Int(fldnum)
         attrib = dmeta.numdict[fldnum]
@@ -431,7 +431,7 @@ function read_map(io, dict::Dict{K,V}) where {K,V}
             skip_field(iob, wiretyp)
         end
     end
-    @debug("read map key: $(key_val[1])=$(key_val[2])")
+    @debug("read map", key=key_val[1], val=key_val[2])
     dict[key_val[1]] = key_val[2]
     dict
 end
@@ -444,7 +444,7 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
     rfn = eval(read_fn)
     isrepeat = (attrib.occurrence == 2)
 
-    if jtyp_specific != nothing
+    if jtyp_specific !== nothing
         jtyp = jtyp_specific
     elseif ptyp == :obj
         jtyp = attrib.meta.jtype
@@ -453,7 +453,7 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
     end
 
     if isrepeat
-        arr_val = ((container != nothing) && isdefined(container, fld)) ? convert(Vector{jtyp}, getfield(container, fld)) : jtyp[]
+        arr_val = ((container !== nothing) && isdefined(container, fld)) ? convert(Vector{jtyp}, getfield(container, fld)) : jtyp[]
         # Readers should accept repeated fields in both packed and expanded form.
         # Allows compatibility with old writers when [packed = true] is added later.
         # Only repeated fields of primitive numeric types (isbitstype == true) can be declared "packed".
@@ -470,30 +470,30 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
         (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
 
         if ptyp == :obj
-            val_obj = ((container != nothing) && isdefined(container, fld)) ? getfield(container, fld) : instantiate(jtyp)
+            val_obj = ((container !== nothing) && isdefined(container, fld)) ? getfield(container, fld) : instantiate(jtyp)
             return read_lendelim_obj(io, val_obj, attrib.meta, rfn)
         elseif ptyp == :map
-            val_map = ((container != nothing) && isdefined(container, fld)) ? convert(jtyp, getfield(container, fld)) : jtyp()
+            val_map = ((container !== nothing) && isdefined(container, fld)) ? convert(jtyp, getfield(container, fld)) : jtyp()
             return read_map(io, val_map)
         else
-            @debug("reading type $jtyp")
+            @debug("reading", jtyp)
             return rfn(io, jtyp)
         end
     end
 end
 
 function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
-    @debug("readproto begin: $(typeof(obj))")
+    @debug("readproto begin", typ=typeof(obj))
     fillunset(obj)
     fldnums = collect(keys(meta.numdict))
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
-        @debug("reading fldnum: $(typeof(obj)).$fldnum")
+        @debug("reading", typ=typeof(obj), fldnum)
 
         fldnum = Int(fldnum)
         # ignore unknown fields
         if !(fldnum in fldnums)
-            @debug("skipping unknown field: $(typeof(obj)).$fldnum")
+            @debug("skipping unknown field", typ=typeof(obj), fldnum)
             skip_field(io, wiretyp)
             continue
         end
@@ -519,20 +519,19 @@ function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         if !isfilled(obj, fld) && (length(attrib.default) > 0) && !_isset_oneof(fill, meta.oneofs, idx)
             default = attrib.default[1]
             setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
-            @debug("readproto set default: $(typeof(obj)).$fld = $default")
+            @debug("readproto set default", typ=typeof(obj), fld, default)
             fillset_default(obj, fld)
         end
     end
-    @debug("readproto end: $(typeof(obj))")
+    @debug("readproto end", typ=typeof(obj))
     obj
 end
 
 
 ##
 # helpers
-oiddict() = @static isdefined(Base, :IdDict) ? IdDict() : ObjectIdDict()
-const _metacache = oiddict() # dict of Type => ProtoMeta
-const _mapentry_metacache = oiddict()
+const _metacache = IdDict() # dict of Type => ProtoMeta
+const _mapentry_metacache = IdDict()
 const _fillcache = Dict{UInt,BitArray{2}}()
 
 const DEF_REQ = Symbol[]
@@ -566,7 +565,7 @@ function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, default
     types = typ.types
     for fldidx in 1:length(names)
         fldname = names[fldidx]
-        fldtyp = (fldname in keys(field_types)) ? Core.eval(typ.name.module, (@static (VERSION < v"0.7.0-alpha") ? parse : Meta.parse)(field_types[fldname])) : types[fldidx]
+        fldtyp = (fldname in keys(field_types)) ? Core.eval(typ.name.module, Meta.parse(field_types[fldname])) : types[fldidx]
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
         isarr = (fldtyp <: Array) && !(fldtyp === Vector{UInt8})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0

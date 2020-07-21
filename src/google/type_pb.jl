@@ -1,7 +1,4 @@
 # syntax: proto3
-using ProtoBuf
-import ProtoBuf.meta
-
 struct __enum_Syntax <: ProtoEnum
     SYNTAX_PROTO2::Int32
     SYNTAX_PROTO3::Int32

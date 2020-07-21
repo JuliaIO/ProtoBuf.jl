@@ -1,8 +1,8 @@
 module Gen
 
-using ProtoBuf
-using ProtoBuf.GoogleProtoBuf
-using ProtoBuf.GoogleProtoBufCompiler
+using ..ProtoBuf
+using ..ProtoBuf.GoogleProtoBuf
+using ..ProtoBuf.GoogleProtoBufCompiler
 using Logging
 
 import ProtoBuf: meta, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK

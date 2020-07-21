@@ -3,7 +3,6 @@
 isinitialized(obj::Any) = isfilled(obj)
 
 setproperty!(obj::ProtoType, fld::Symbol, val) = (Core.setfield!(obj, fld, val); fillset(obj, fld); val)
-@deprecate set_field!(obj::Any, fld::Symbol, val) setproperty!(obj, fld, val)
 
 get_field(obj::Any, fld::Symbol) = isfilled(obj, fld) ? getfield(obj, fld) : error("uninitialized field $fld")
 
@@ -51,7 +50,6 @@ function add_field!(obj::Any, fld::Symbol, val)
     push!(getfield(obj, fld), val)
     nothing
 end
-@deprecate add_field(obj::Any, fld::Symbol, val) add_field!(obj, fld, val)
 
 protobuild(::Type{T}, nv::Dict{Symbol}=Dict{Symbol,Any}()) where {T} = _protobuild(T(), collect(nv))
 

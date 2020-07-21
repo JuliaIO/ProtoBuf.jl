@@ -1,7 +1,4 @@
 # syntax: proto3
-using ProtoBuf
-import ProtoBuf.meta
-
 mutable struct _Any <: ProtoType
     type_url::AbstractString
     value::Array{UInt8,1}

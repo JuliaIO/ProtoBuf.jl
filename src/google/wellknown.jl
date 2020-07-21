@@ -1,5 +1,10 @@
 module google
+    using ..ProtoBuf
+    import ..ProtoBuf: meta
     module protobuf
+        using ..ProtoBuf
+        import ..ProtoBuf: meta
+
         include("empty_pb.jl")
         include("any_pb.jl")
         include("timestamp_pb.jl")

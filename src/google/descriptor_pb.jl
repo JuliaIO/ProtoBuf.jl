@@ -1,7 +1,4 @@
 # syntax: proto2
-using ProtoBuf
-import ProtoBuf.meta
-
 mutable struct UninterpretedOption_NamePart <: ProtoType
     name_part::AbstractString
     is_extension::Bool

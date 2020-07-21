@@ -1,7 +1,4 @@
 # syntax: proto3
-using ProtoBuf
-import ProtoBuf.meta
-
 mutable struct DoubleValue <: ProtoType
     value::Float64
     DoubleValue(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)

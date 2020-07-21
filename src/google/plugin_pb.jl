@@ -1,7 +1,4 @@
 # syntax: proto2
-using ProtoBuf
-import ProtoBuf.meta
-
 mutable struct Version <: ProtoType
     major::Int32
     minor::Int32

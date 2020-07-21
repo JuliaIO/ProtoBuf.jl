@@ -1,7 +1,4 @@
 # syntax: proto3
-using ProtoBuf
-import ProtoBuf.meta
-
 mutable struct Method <: ProtoType
     name::AbstractString
     request_type_url::AbstractString
