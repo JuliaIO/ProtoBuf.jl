@@ -3,6 +3,7 @@ module Gen
 using ProtoBuf
 using ProtoBuf.GoogleProtoBuf
 using ProtoBuf.GoogleProtoBufCompiler
+using Logging
 
 import ProtoBuf: meta, DEF_REQ, DEF_FNUM, DEF_VAL, DEF_PACK
 
@@ -777,16 +778,42 @@ end
 #--------------------------------------------------------------------
 
 
+function debug_log_filename(filename=nothing)
+    for arg in ARGS
+        if startswith(arg, "--debug-gen")
+            parts = split(arg, '=')
+            filename = (length(parts) == 2) ? strip(last(parts)) : "juliaprotoc.log"
+            break
+        end
+    end
+    filename
+end
+
+function with_debug(f)
+    debug_log_file = debug_log_filename()
+    if debug_log_file === nothing
+        f()
+    else
+        open(debug_log_file, "a") do logstream
+            with_logger(SimpleLogger(logstream, Logging.Debug)) do
+                f()
+            end
+        end
+    end
+end
+
 ##
 # the main read - write method
 function gen()
-    try
-        global _module_postfix = in("--module-postfix-enabled", ARGS)
-        global _map_as_array = in("--map-as-array", ARGS)
-        writeproto(stdout, codegen(stdin))
-    catch ex
-        println(stderr, "Exception while generating Julia code")
-        rethrow()
+    global _module_postfix = in("--module-postfix-enabled", ARGS)
+    global _map_as_array = in("--map-as-array", ARGS)
+    with_debug() do
+        try
+            writeproto(stdout, codegen(stdin))
+        catch ex
+            println(stderr, "Exception while generating Julia code")
+            rethrow()
+        end
     end
 end
 

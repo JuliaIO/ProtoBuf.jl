@@ -14,7 +14,7 @@ PROTOC_VER=`${PROTOC} --version | cut -d" " -f2 | cut -d"." -f1`
 echo "compiler version $PROTOC_VER"
 
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-JULIA_VER=`${JULIA} -e "(VERSION > v\"0.7-\") && (import Pkg; Pkg.activate(joinpath(ENV[\"SCRIPT_DIR\"], \"..\"))); using InteractiveUtils; versioninfo()" | grep "Julia Version"`
+JULIA_VER=`${JULIA} -e "import Pkg; Pkg.activate(joinpath(ENV[\"SCRIPT_DIR\"], \"..\")); using InteractiveUtils; versioninfo()" | grep "Julia Version"`
 echo $JULIA_VER
 
 ERR=0
@@ -23,8 +23,9 @@ SRC="${DIR}/proto"
 OUT="${DIR}/out"
 WELL_KNOWN_PROTO_SRC="${DIR}/../gen"
 GEN="${PROTOC} --proto_path=${SRC} --proto_path=${WELL_KNOWN_PROTO_SRC} --julia_out=${OUT}"
-CHK="${JULIA} -e '(VERSION > v\"0.7-\") && (import Pkg; Pkg.activate(joinpath(ENV[\"SCRIPT_DIR\"], \"..\")));' -e"
+CHK="${JULIA} -e 'import Pkg; Pkg.activate(joinpath(ENV[\"SCRIPT_DIR\"], \"..\"));' -e"
 mkdir -p ${OUT}
+#export JULIA_PROTOBUF_DEBUG=1
 
 cd ${DIR}
 echo "- t1.proto" && ${GEN} ${SRC}/t1.proto && eval " ${CHK} 'include(\"out/t1_pb.jl\")'"
@@ -63,3 +64,4 @@ then
 fi
 
 exit $ERR
+../plugin/protoc-gen-julia
