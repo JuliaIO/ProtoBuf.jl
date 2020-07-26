@@ -112,6 +112,13 @@ function enumstr(enumname, t::Int32)
     error(string("Invalid enum value ", t, " for ", typeof(enumname)))
 end
 
+function enumstr(enumname::T, t::Int32) where {T <: NamedTuple}
+    for name in propertynames(enumname)
+        (getproperty(enumname, name) == t) && (return string(name))
+    end
+    error(string("Invalid enum value ", t))
+end
+
 function protoc(args=``)
     ENV′ = copy(ENV)
     ENV′["PATH"] = string(joinpath(@__DIR__, "..", "plugin"), ":", ENV′["PATH"])

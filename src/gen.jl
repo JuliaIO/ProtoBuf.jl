@@ -283,17 +283,13 @@ function generate_enum(io::IO, errio::IO, enumtype::EnumDescriptorProto, scope::
     push!(scope.syms, enumname)
 
     @debug("begin enum $(enumname)")
-    println(io, "struct __enum_", enumname, " <: ProtoEnum")
-    values = Int32[]
+    println(io, "const ", enumname, " = (;[")
     for value::EnumValueDescriptorProto in enumtype.value
         # If we find that the field name is a keyword prepend it with `_`
         fldname = chk_keyword(value.name)
-        println(io, "    ", fldname, "::Int32")
-        push!(values, value.number)
+        println(io, "    Symbol(\"", fldname, "\") => ", value.number, ",")
     end
-    println(io, "    __enum_", enumname, "() = new(", join(values,','), ")")
-    println(io, "end #struct __enum_", enumname)
-    println(io, "const ", enumname, " = __enum_", enumname, "()")
+    println(io, "]...)")
     println(io, "")
     push!(exports, enumname)
     @debug("end enum $(enumname)")

@@ -77,6 +77,16 @@ mutable struct __enum_TestEnum <: ProtoEnum
 end
 const TestEnum = __enum_TestEnum()
 
+const TestEnum2 = (;[
+    Symbol("UNIVERSAL") => 0,
+    Symbol("WEB") => 1,
+    Symbol("IMAGES") => 2,
+    Symbol("LOCAL") => 3,
+    Symbol("NEWS") => 4,
+    Symbol("PRODUCTS") => 5,
+    Symbol("VIDEO") => 6,
+]...)
+
 # disable caching of meta since we manually modify them for the tests
 meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
 meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
@@ -483,6 +493,20 @@ function test_enums()
 
     @test enumstr(TestEnum, TestEnum.LOCAL) == "LOCAL"
     @test_throws ErrorException enumstr(TestEnum, Int32(12))
+end
+
+function test_enums2()
+    print_hdr("enums")
+    @test getfield(TestEnum2, lookup(TestEnum2, 0)) == TestEnum.UNIVERSAL
+    @test getfield(TestEnum2, lookup(TestEnum2, 1)) == TestEnum.WEB
+    @test getfield(TestEnum2, lookup(TestEnum2, 2)) == TestEnum.IMAGES
+    @test getfield(TestEnum2, lookup(TestEnum2, 3)) == TestEnum.LOCAL
+    @test getfield(TestEnum2, lookup(TestEnum2, 4)) == TestEnum.NEWS
+    @test getfield(TestEnum2, lookup(TestEnum2, 5)) == TestEnum.PRODUCTS
+    @test getfield(TestEnum2, lookup(TestEnum2, 6)) == TestEnum.VIDEO
+
+    @test enumstr(TestEnum2, TestEnum2.LOCAL) == "LOCAL"
+    @test_throws ErrorException enumstr(TestEnum2, Int32(12))
 end
 
 end # module ProtoBufTestCodec

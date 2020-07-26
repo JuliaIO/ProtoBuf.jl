@@ -712,3 +712,10 @@ function lookup(en::ProtoEnum, val)
     end
     error("Enum $(typeof(en)) has no value: $val")
 end
+
+function lookup(en::T, val) where {T <: NamedTuple}
+    for name in propertynames(en)
+        (val == getproperty(en, name)) && return name
+    end
+    error("Enum has no value $val")
+end
