@@ -483,13 +483,13 @@ end
 
 function test_enums()
     print_hdr("enums")
-    @test getfield(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
-    @test getfield(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
-    @test getfield(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
-    @test getfield(TestEnum, lookup(TestEnum, 3)) == TestEnum.LOCAL
-    @test getfield(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
-    @test getfield(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
-    @test getfield(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
+    @test getproperty(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
+    @test getproperty(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
+    @test getproperty(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
+    @test getproperty(TestEnum, lookup(TestEnum, 3)) == TestEnum.LOCAL
+    @test getproperty(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
+    @test getproperty(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
+    @test getproperty(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
 
     @test enumstr(TestEnum, TestEnum.LOCAL) == "LOCAL"
     @test_throws ErrorException enumstr(TestEnum, Int32(12))
@@ -497,13 +497,13 @@ end
 
 function test_enums2()
     print_hdr("enums")
-    @test getfield(TestEnum2, lookup(TestEnum2, 0)) == TestEnum.UNIVERSAL
-    @test getfield(TestEnum2, lookup(TestEnum2, 1)) == TestEnum.WEB
-    @test getfield(TestEnum2, lookup(TestEnum2, 2)) == TestEnum.IMAGES
-    @test getfield(TestEnum2, lookup(TestEnum2, 3)) == TestEnum.LOCAL
-    @test getfield(TestEnum2, lookup(TestEnum2, 4)) == TestEnum.NEWS
-    @test getfield(TestEnum2, lookup(TestEnum2, 5)) == TestEnum.PRODUCTS
-    @test getfield(TestEnum2, lookup(TestEnum2, 6)) == TestEnum.VIDEO
+    @test getproperty(TestEnum2, lookup(TestEnum2, 0)) == TestEnum.UNIVERSAL
+    @test getproperty(TestEnum2, lookup(TestEnum2, 1)) == TestEnum.WEB
+    @test getproperty(TestEnum2, lookup(TestEnum2, 2)) == TestEnum.IMAGES
+    @test getproperty(TestEnum2, lookup(TestEnum2, 3)) == TestEnum.LOCAL
+    @test getproperty(TestEnum2, lookup(TestEnum2, 4)) == TestEnum.NEWS
+    @test getproperty(TestEnum2, lookup(TestEnum2, 5)) == TestEnum.PRODUCTS
+    @test getproperty(TestEnum2, lookup(TestEnum2, 6)) == TestEnum.VIDEO
 
     @test enumstr(TestEnum2, TestEnum2.LOCAL) == "LOCAL"
     @test_throws ErrorException enumstr(TestEnum2, Int32(12))
