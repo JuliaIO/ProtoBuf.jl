@@ -15,33 +15,6 @@ The abstract type from which all generated protobuf structs extend.
 """
 abstract type ProtoType end
 
-# TODO: wiretypes should become julia types, so that methods can be parameterized on them
-const WIRETYPES = Dict{Symbol,Tuple}(
-    :int32          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
-    :int64          => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int64),
-    :uint32         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   UInt32),
-    :uint64         => (WIRETYP_VARINT,     :write_varint,  :read_varint,   UInt64),
-    :sint32         => (WIRETYP_VARINT,     :write_svarint, :read_svarint,  Int32),
-    :sint64         => (WIRETYP_VARINT,     :write_svarint, :read_svarint,  Int64),
-    :bool           => (WIRETYP_VARINT,     :write_bool,    :read_bool,     Bool),
-    :enum           => (WIRETYP_VARINT,     :write_varint,  :read_varint,   Int32),
-
-    :fixed64        => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    UInt64),
-    :sfixed64       => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Int64),
-    :double         => (WIRETYP_64BIT,      :write_fixed,   :read_fixed,    Float64),
-
-    :string         => (WIRETYP_LENDELIM,   :write_string,  :read_string,   AbstractString),
-    :bytes          => (WIRETYP_LENDELIM,   :write_bytes,   :read_bytes,    Vector{UInt8}),
-    :obj            => (WIRETYP_LENDELIM,   :writeproto,    :readproto,     Any),
-    :map            => (WIRETYP_LENDELIM,   :write_map,     :read_map,      Dict),
-
-    :fixed32        => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    UInt32),
-    :sfixed32       => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Int32),
-    :float          => (WIRETYP_32BIT,      :write_fixed,   :read_fixed,    Float32)
-)
-
-aliaswiretypes(wtype::Symbol) = wiretypes(WIRETYPES[wtype][4])
-
 wiretypes(::Type{Int32})                            = [:int32, :sint32, :enum, :sfixed32]
 wiretypes(::Type{Int64})                            = [:int64, :sint64, :sfixed64]
 wiretypes(::Type{UInt32})                           = [:uint32, :fixed32]
@@ -207,6 +180,81 @@ write_string(io::IO, x::String) = write_bytes(io, @static isdefined(Base, :codeu
 read_string(io::IO) = String(read_bytes(io))
 read_string(io::IO, ::Type{T}) where {T <: AbstractString} = convert(T, read_string(io))
 
+# TODO: wiretypes should become julia types, so that methods can be parameterized on them
+writeproto() = 0
+readproto() = nothing
+
+function write_map(io::IO, fldnum::Int, dict::Dict)
+    dmeta = mapentry_meta(typeof(dict))
+    iob = IOBuffer()
+
+    n = 0
+    for key in keys(dict)
+        @debug("write_map", key)
+        val = dict[key]
+        writeproto(iob, key, dmeta.ordered[1])
+        @debug("write_map", val)
+        writeproto(iob, val, dmeta.ordered[2])
+        n += _write_key(io, fldnum, WIRETYP_LENDELIM)
+        n += write_bytes(io, take!(iob))
+    end
+    n
+end
+
+function read_map(io, dict::Dict{K,V}) where {K,V}
+    iob = IOBuffer(read_bytes(io))
+
+    dmeta = mapentry_meta(Dict{K,V})
+    key_wtyp, key_wfn, key_rfn, key_jtyp = WIRETYPES[dmeta.numdict[1].ptyp]
+    val_wtyp, val_wfn, val_rfn, val_jtyp = WIRETYPES[dmeta.numdict[2].ptyp]
+    key_val = Vector{Union{K,V}}(undef, 2)
+
+    while !eof(iob)
+        fldnum, wiretyp = _read_key(iob)
+        @debug("reading map", fldnum)
+
+        fldnum = Int(fldnum)
+        attrib = dmeta.numdict[fldnum]
+
+        if fldnum == 1
+            key_val[1] = read_field(iob, nothing, attrib, key_wtyp, K)
+        elseif fldnum == 2
+            key_val[2] = read_field(iob, nothing, attrib, val_wtyp, V)
+        else
+            skip_field(iob, wiretyp)
+        end
+    end
+    @debug("read map", key=key_val[1], val=key_val[2])
+    dict[key_val[1]] = key_val[2]
+    dict
+end
+
+const WIRETYPES = Dict{Symbol,Tuple}(
+    :int32          => (WIRETYP_VARINT,     write_varint,  read_varint,   Int32),
+    :int64          => (WIRETYP_VARINT,     write_varint,  read_varint,   Int64),
+    :uint32         => (WIRETYP_VARINT,     write_varint,  read_varint,   UInt32),
+    :uint64         => (WIRETYP_VARINT,     write_varint,  read_varint,   UInt64),
+    :sint32         => (WIRETYP_VARINT,     write_svarint, read_svarint,  Int32),
+    :sint64         => (WIRETYP_VARINT,     write_svarint, read_svarint,  Int64),
+    :bool           => (WIRETYP_VARINT,     write_bool,    read_bool,     Bool),
+    :enum           => (WIRETYP_VARINT,     write_varint,  read_varint,   Int32),
+
+    :fixed64        => (WIRETYP_64BIT,      write_fixed,   read_fixed,    UInt64),
+    :sfixed64       => (WIRETYP_64BIT,      write_fixed,   read_fixed,    Int64),
+    :double         => (WIRETYP_64BIT,      write_fixed,   read_fixed,    Float64),
+
+    :string         => (WIRETYP_LENDELIM,   write_string,  read_string,   AbstractString),
+    :bytes          => (WIRETYP_LENDELIM,   write_bytes,   read_bytes,    Vector{UInt8}),
+    :obj            => (WIRETYP_LENDELIM,   writeproto,    readproto,     Any),
+    :map            => (WIRETYP_LENDELIM,   write_map,     read_map,      Dict),
+
+    :fixed32        => (WIRETYP_32BIT,      write_fixed,   read_fixed,    UInt32),
+    :sfixed32       => (WIRETYP_32BIT,      write_fixed,   read_fixed,    Int32),
+    :float          => (WIRETYP_32BIT,      write_fixed,   read_fixed,    Float32)
+)
+
+#aliaswiretypes(wtype::Symbol) = wiretypes(WIRETYPES[wtype][4])
+
 ##
 # read and write protobuf structures
 
@@ -246,30 +294,12 @@ function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Vector{ProtoMetaAttribs
     meta
 end
 
-function write_map(io::IO, fldnum::Int, dict::Dict)
-    dmeta = mapentry_meta(typeof(dict))
-    iob = IOBuffer()
-
-    n = 0
-    for key in keys(dict)
-        @debug("write_map", key)
-        val = dict[key]
-        writeproto(iob, key, dmeta.ordered[1])
-        @debug("write_map", val)
-        writeproto(iob, val, dmeta.ordered[2])
-        n += _write_key(io, fldnum, WIRETYP_LENDELIM)
-        n += write_bytes(io, take!(iob))
-    end
-    n
-end
-
 function writeproto(io::IO, val, attrib::ProtoMetaAttribs)
     fld = attrib.fldnum
     meta = attrib.meta
     ptyp = attrib.ptyp
-    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+    wiretyp, wfn, rfn, jtyp = WIRETYPES[ptyp]
     iob = IOBuffer()
-    wfn = eval(write_fn)
 
     n = 0
     wfn(iob, convert(jtyp, val), meta)
@@ -281,8 +311,7 @@ end
 function writeproto(io::IO, val::T, attrib::ProtoMetaAttribs) where T<:Number
     fld = attrib.fldnum
     ptyp = attrib.ptyp
-    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
-    wfn = eval(write_fn)
+    wiretyp, wfn, rfn, jtyp = WIRETYPES[ptyp]
 
     n = 0
     n += _write_key(io, fld, wiretyp)
@@ -293,7 +322,7 @@ end
 function writeproto(io::IO, val::T, attrib::ProtoMetaAttribs) where T<:AbstractString
     fld = attrib.fldnum
     ptyp = attrib.ptyp
-    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+    wiretyp, wfn, rfn, jtyp = WIRETYPES[ptyp]
 
     n = 0
     n += _write_key(io, fld, wiretyp)
@@ -306,7 +335,7 @@ writeproto(io::IO, val::Dict, attrib::ProtoMetaAttribs) = write_map(io, attrib.f
 function writeproto(io::IO, val::Vector{UInt8}, attrib::ProtoMetaAttribs)
     fld = attrib.fldnum
     ptyp = attrib.ptyp
-    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+    wiretyp, wfn, rfn, jtyp = WIRETYPES[ptyp]
 
     n = 0
     n += _write_key(io, fld, wiretyp)
@@ -316,8 +345,7 @@ end
 
 function writeproto(io::IO, val::Array{T}, attrib::ProtoMetaAttribs) where T
     ptyp = attrib.ptyp
-    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
-    wfn = eval(write_fn)
+    wiretyp, wfn, rfn, jtyp = WIRETYPES[ptyp]
 
     writeproto(io, val, attrib, wfn)
 end
@@ -326,7 +354,7 @@ function writeproto(io::IO, val::Array{T}, attrib::ProtoMetaAttribs, wfn::F) whe
     fld = attrib.fldnum
     meta = attrib.meta
     ptyp = attrib.ptyp
-    wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
+    wiretyp, _wfn, _rfn, jtyp = WIRETYPES[ptyp]
     iob = IOBuffer()
 
     n = 0
@@ -408,40 +436,11 @@ function skip_field(io::IO, wiretype::Integer)
     nothing
 end
 
-function read_map(io, dict::Dict{K,V}) where {K,V}
-    iob = IOBuffer(read_bytes(io))
-
-    dmeta = mapentry_meta(Dict{K,V})
-    key_wtyp, key_wfn, key_rfn, key_jtyp = WIRETYPES[dmeta.numdict[1].ptyp]
-    val_wtyp, val_wfn, val_rfn, val_jtyp = WIRETYPES[dmeta.numdict[2].ptyp]
-    key_val = Vector{Union{K,V}}(undef, 2)
-
-    while !eof(iob)
-        fldnum, wiretyp = _read_key(iob)
-        @debug("reading map", fldnum)
-
-        fldnum = Int(fldnum)
-        attrib = dmeta.numdict[fldnum]
-
-        if fldnum == 1
-            key_val[1] = read_field(iob, nothing, attrib, key_wtyp, K)
-        elseif fldnum == 2
-            key_val[2] = read_field(iob, nothing, attrib, val_wtyp, V)
-        else
-            skip_field(iob, wiretyp)
-        end
-    end
-    @debug("read map", key=key_val[1], val=key_val[2])
-    dict[key_val[1]] = key_val[2]
-    dict
-end
-
 function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_specific)
     ptyp = attrib.ptyp
     fld = attrib.fld
 
-    _wiretyp, write_fn, read_fn, jtyp = WIRETYPES[ptyp]
-    rfn = eval(read_fn)
+    _wiretyp, wfn, rfn, jtyp = WIRETYPES[ptyp]
     isrepeat = (attrib.occurrence == 2)
 
     if jtyp_specific !== nothing

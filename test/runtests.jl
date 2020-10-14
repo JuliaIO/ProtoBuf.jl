@@ -1,4 +1,4 @@
-using Test
+using ProtoBuf, Test
 
 include("testtypevers.jl")
 include("testutilapi.jl")
