@@ -37,20 +37,6 @@ function deepcopy(from::T) where T <: ProtoType
     to
 end
 
-function add_field!(obj::Any, fld::Symbol, val)
-    typ = typeof(obj)
-    attrib = meta(typ).symdict[fld]
-    (attrib.occurrence != 2) && error("$(typ).$(fld) is not a repeating field")
-
-    ptyp = attrib.ptyp
-    jtyp = WIRETYPES[ptyp][4]
-    (ptyp == :obj) && (jtyp = attrib.meta.jtype)
-
-    !isdefined(obj, fld) && setfield!(obj, fld, jtyp[])
-    push!(getfield(obj, fld), val)
-    nothing
-end
-
 protobuild(::Type{T}, nv::Dict{Symbol}=Dict{Symbol,Any}()) where {T} = _protobuild(T(), collect(nv))
 
 function _protobuild(obj::T, nv) where T

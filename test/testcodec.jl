@@ -461,14 +461,6 @@ function test_misc()
     copy!(readfld, testfld)
     assert_equal(readfld, testfld)
 
-    # test add_field!
-    readfld = TestOptional(TestStr("1"), TestStr(""), Int64[])
-    for iVal2 in testfld.iVal2
-        add_field!(readfld, :iVal2, iVal2)
-    end
-    assert_equal(readfld, testfld)
-    @test ProtoBuf.protoisequal(readfld, testfld)
-
     tf = TestFilled()
     @test !isfilled(tf)
     tf.fld1 = TestType("")

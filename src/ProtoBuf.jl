@@ -4,7 +4,7 @@ import Base: setproperty!, show, copy!, deepcopy, hash, isequal, ==
 
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, protobuild
 export filled, isfilled, isfilled_default, which_oneof, fillset, fillset_default, fillunset
-export setproperty!, show, copy!, deepcopy, get_field, clear, add_field!, has_field, isinitialized
+export setproperty!, show, copy!, deepcopy, get_field, clear, has_field, isinitialized
 export hash, isequal, ==
 export ProtoEnum, ProtoType, lookup, enumstr
 export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescriptor, ServiceDescriptor, ProtoService,
