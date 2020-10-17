@@ -6,35 +6,65 @@ import ProtoBuf.meta
 print_hdr(tname) = println("testing $tname...")
 
 mutable struct TestType <: ProtoType
-    a::AbstractString
-    b::Bool
-    TestType() = (o=new(); fillunset(o); o)
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function TestType(; kwargs...)
+        obj = new(meta(TestType), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
 end #type TestType
-meta(t::Type{TestType}) = meta(t, Symbol[:a], Int[], Dict{Symbol,Any}())
+const __meta_TestType = Ref{ProtoMeta}()
+function meta(::Type{TestType})
+    if !isassigned(__meta_TestType)
+        __meta_TestType[] = target = ProtoMeta(TestType)
+        allflds = Pair{Symbol,Union{Type,String}}[:a => AbstractString, :b => Bool]
+        meta(target, TestType, allflds, [:a], ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    end
+    __meta_TestType[]
+end
+function Base.getproperty(obj::TestType, name::Symbol)
+    if name === :a
+        return (obj.__protobuf_jl_internal_values[name])::AbstractString
+    elseif name === :b
+        return (obj.__protobuf_jl_internal_values[name])::Bool
+    else
+        getfield(obj, name)
+    end
+end
 
 function test_apis()
     t = TestType()
 
-    @test !has_field(t, :a)
-    @test !has_field(t, :b)
+    @test [:a, :b] == propertynames(t)
+    @test !hasproperty(t, :a)
+    @test !hasproperty(t, :b)
 
-    @test false == try get_field(t, :a); true; catch; false; end
+    @test_throws KeyError getproperty(t, :a)
 
     t.b = true
-    @test has_field(t, :b)
-    @test (get_field(t, :b) == true)
+    @test hasproperty(t, :b)
+    @test (getproperty(t, :b) == true)
 
     @test !isinitialized(t)
     t.a = "hello world"
     @test isinitialized(t)
-    @test (get_field(t, :a) ==  "hello world")
+    @test (t.a ==  "hello world")
 
     clear(t, :b)
     @test isinitialized(t)
     clear(t)
     @test !isinitialized(t)
 
-    t = protobuild(TestType, Dict(:a => "hello", :b => false))
+    t = TestType(; a="hello", b=false)
     @test t.a == "hello"
     @test t.b == false
 end
@@ -42,9 +72,10 @@ end
 function test_deepcopy()
     ts = ProtoBuf.google.protobuf.Timestamp()
     ts.seconds = 123
-    @test !has_field(ts, :nanos)
+    @test !hasproperty(ts, :nanos)
     ts2 = deepcopy(ts)
-    @test !has_field(ts2, :nanos)
+    @test !hasproperty(ts2, :nanos)
+    @test hasproperty(ts2, :seconds)
 end
 
 end # module ProtoBufTestApis

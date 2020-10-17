@@ -36,7 +36,6 @@ defaultval(::Type{Bool})                            = [false]
 defaultval(::Type{Vector{T}}) where {T}             = Any[T[]]
 defaultval(::Type)                                  = []
 
-
 function _write_uleb(io::IO, x::T) where T <: Integer
     nw = 0
     cont = true
@@ -107,7 +106,6 @@ function _read_zigzag(io::IO, ::Type{T}) where T <: Integer
     convert(T, iseven(zx) ? (zx >>> 1) : -signed((zx+1) >>> 1))
 end
 
-
 ##
 # read and write field keys
 _write_key(io::IO, fld::Int, wiretyp::Int) = _write_uleb(io, (fld << 3) | wiretyp)
@@ -117,7 +115,6 @@ function _read_key(io::IO)
     fld = key >>> 3
     (fld, wiretyp)
 end
-
 
 ##
 # read and write field values
@@ -260,8 +257,9 @@ const WIRETYPES = Dict{Symbol,Tuple}(
 
 mutable struct ProtoMetaAttribs
     fldnum::Int             # the field number in the structure
-    fld::Symbol
+    fld::Symbol             # field name
     ptyp::Symbol            # protobuf type
+    jtyp::Type              # Julia type
     occurrence::Int         # 0: optional, 1: required, 2: repeated
     packed::Bool            # if repeated, whether packed
     default::Array          # the default value, empty array if none is specified, first element is used if something is specified
@@ -276,10 +274,16 @@ mutable struct ProtoMeta
     oneofs::Vector{Int}
     oneof_names::Vector{Symbol}
 
-    ProtoMeta(jtype::Type, ordered::Vector{ProtoMetaAttribs}, oneofs::Vector{Int}=Int[], oneof_names::Vector{Symbol}=Symbol[]) = _setmeta(new(), jtype, ordered, oneofs, oneof_names)
+    function ProtoMeta(jtype::Type, ordered::Vector{ProtoMetaAttribs}, oneofs::Vector{Int}=Int[], oneof_names::Vector{Symbol}=Symbol[])
+        setprotometa!(new(), jtype, ordered, oneofs, oneof_names)
+    end
+
+    function ProtoMeta(jtype::Type)
+        new(jtype)
+    end
 end
 
-function _setmeta(meta::ProtoMeta, jtype::Type, ordered::Vector{ProtoMetaAttribs}, oneofs::Vector{Int}, oneof_names::Vector{Symbol})
+function setprotometa!(meta::ProtoMeta, jtype::Type, ordered::Vector{ProtoMetaAttribs}, oneofs::Vector{Int}, oneof_names::Vector{Symbol})
     symdict = Dict{Symbol,ProtoMetaAttribs}()
     numdict = Dict{Int,ProtoMetaAttribs}()
     for attrib in ordered
@@ -361,7 +365,7 @@ function writeproto(io::IO, val::Array{T}, attrib::ProtoMetaAttribs, wfn::F) whe
     (attrib.occurrence == 2) || error("expected meta attributes of $(attrib.fld) to specify an array")
     if attrib.packed
         # write elements as a length delimited field
-        if ptyp == :obj
+        if ptyp === :obj
             error("can not write object field $fld as packed")
         else
             for eachval in val
@@ -373,7 +377,7 @@ function writeproto(io::IO, val::Array{T}, attrib::ProtoMetaAttribs, wfn::F) whe
     else
         # write each element separately
         # maps can not be repeated
-        if ptyp == :obj
+        if ptyp === :obj
             for eachval in val
                 wfn(iob, convert(jtyp, eachval), meta)
                 n += _write_key(io, fld, WIRETYP_LENDELIM)
@@ -394,9 +398,9 @@ function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     @debug("writeproto writing an obj", meta)
     for attrib in meta.ordered
         fld = attrib.fld
-        if isfilled(obj, fld)
+        if hasproperty(obj, fld)
             @debug("writeproto", field=fld)
-            n += writeproto(io, getfield(obj, fld), attrib)
+            n += writeproto(io, getproperty(obj, fld), attrib)
         else
             @debug("not set", field=fld)
             (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
@@ -421,7 +425,7 @@ function read_lendelim_obj(io, val, meta::ProtoMeta, reader)
 end
 
 instantiate(t::Type) = ccall(:jl_new_struct_uninit, Any, (Any,), t)
-instantiate(t::T) where {T <: ProtoType} = T()
+instantiate(t::Type{T}) where {T <: ProtoType} = T()
 
 function skip_field(io::IO, wiretype::Integer)
     if wiretype == WIRETYP_LENDELIM
@@ -445,21 +449,21 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
 
     if jtyp_specific !== nothing
         jtyp = jtyp_specific
-    elseif ptyp == :obj
+    elseif ptyp === :obj
         jtyp = attrib.meta.jtype
-    elseif ptyp == :map
+    elseif ptyp === :map
         jtyp = attrib.meta.jtype
     end
 
     if isrepeat
-        arr_val = ((container !== nothing) && isdefined(container, fld)) ? convert(Vector{jtyp}, getfield(container, fld)) : jtyp[]
+        arr_val = ((container !== nothing) && hasproperty(container, fld)) ? convert(Vector{jtyp}, getproperty(container, fld)) : jtyp[]
         # Readers should accept repeated fields in both packed and expanded form.
         # Allows compatibility with old writers when [packed = true] is added later.
         # Only repeated fields of primitive numeric types (isbitstype == true) can be declared "packed".
         # Maps can not be repeated
         if isbitstype(jtyp) && (wiretyp == WIRETYP_LENDELIM)
             read_lendelim_packed(io, arr_val, rfn, jtyp)
-        elseif ptyp == :obj
+        elseif ptyp === :obj
             push!(arr_val, read_lendelim_obj(io, instantiate(jtyp), attrib.meta, rfn))
         else
             push!(arr_val, rfn(io, jtyp))
@@ -468,11 +472,11 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
     else
         (wiretyp != _wiretyp) && !isrepeat && error("cannot read wire type $wiretyp as $ptyp")
 
-        if ptyp == :obj
-            val_obj = ((container !== nothing) && isdefined(container, fld)) ? getfield(container, fld) : instantiate(jtyp)
+        if ptyp === :obj
+            val_obj = ((container !== nothing) && hasproperty(container, fld)) ? getproperty(container, fld) : instantiate(jtyp)
             return read_lendelim_obj(io, val_obj, attrib.meta, rfn)
-        elseif ptyp == :map
-            val_map = ((container !== nothing) && isdefined(container, fld)) ? convert(jtyp, getfield(container, fld)) : jtyp()
+        elseif ptyp === :map
+            val_map = ((container !== nothing) && hasproperty(container, fld)) ? convert(jtyp, getproperty(container, fld)) : jtyp()
             return read_map(io, val_map)
         else
             @debug("reading", jtyp)
@@ -483,56 +487,51 @@ end
 
 function readproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     @debug("readproto begin", typ=typeof(obj))
-    fillunset(obj)
-    fldnums = collect(keys(meta.numdict))
+    clear(obj)
     while !eof(io)
         fldnum, wiretyp = _read_key(io)
         @debug("reading", typ=typeof(obj), fldnum)
 
         fldnum = Int(fldnum)
+        attrib = get(meta.numdict, fldnum, nothing)
+
         # ignore unknown fields
-        if !(fldnum in fldnums)
+        if attrib === nothing
             @debug("skipping unknown field", typ=typeof(obj), fldnum)
             skip_field(io, wiretyp)
             continue
         end
-        attrib = meta.numdict[fldnum]
 
         val = read_field(io, obj, attrib, wiretyp, nothing)
         fld = attrib.fld
-        fillset(obj, fld)
-        if (attrib.occurrence == 2) || (attrib.ptyp == :obj) || (attrib.ptyp == :map)
-            setfield!(obj, fld, convert(fld_type(obj, fld), val))
+        if (attrib.occurrence == 2) || (attrib.ptyp === :obj) || (attrib.ptyp === :map)
+            setproperty!(obj, fld, convert(attrib.jtyp, val))
         else
-            setfield!(obj, fld, val)
+            setproperty!(obj, fld, val)
         end
     end
 
-    # populate defaults
-    fnames = fld_names(typeof(obj))
-    fill = filled(obj)
-    for attrib in meta.ordered
-        fld = attrib.fld
-        idx = something(findfirst(isequal(fld), fnames))
-        # TODO: do not fill if oneof the fields in the oneof
-        if !isfilled(obj, fld) && (length(attrib.default) > 0) && !_isset_oneof(fill, meta.oneofs, idx)
-            default = attrib.default[1]
-            setfield!(obj, fld, convert(fld_type(obj, fld), deepcopy(default)))
-            @debug("readproto set default", typ=typeof(obj), fld, default)
-            fillset_default(obj, fld)
-        end
-    end
+    setdefaultproperties!(obj, meta)
     @debug("readproto end", typ=typeof(obj))
+
     obj
 end
 
+function setdefaultproperties!(obj::ProtoType, meta::ProtoMeta=meta(typeof(obj)))
+    for (idx,attrib) in enumerate(meta.ordered)
+        fld = attrib.fld
+        # TODO: do not fill if oneof the fields in the oneof
+        if !hasproperty(obj, fld) && !isempty(attrib.default) && !_isset_oneof(obj, idx)
+            default = attrib.default[1]
+            setproperty!(obj, fld, convert(attrib.jtyp, deepcopy(default)))
+            @debug("readproto set default", typ=typeof(obj), fld, default)
+        end
+    end
+    obj
+ end
 
 ##
 # helpers
-const _metacache = IdDict() # dict of Type => ProtoMeta
-const _mapentry_metacache = IdDict()
-const _fillcache = Dict{UInt,BitArray{2}}()
-
 const DEF_REQ = Symbol[]
 const DEF_FNUM = Int[]
 const DEF_VAL = Dict{Symbol,Any}()
@@ -542,29 +541,15 @@ const DEF_ONEOFS = Int[]
 const DEF_ONEOF_NAMES = Symbol[]
 const DEF_FIELD_TYPES = Dict{Symbol,String}()
 
-meta(typ::Type) = haskey(_metacache, typ) ? _metacache[typ] : meta(typ, DEF_REQ, DEF_FNUM, DEF_VAL, true, DEF_PACK, DEF_WTYPES, DEF_ONEOFS, DEF_ONEOF_NAMES, DEF_FIELD_TYPES)
-function meta(typ::Type, required::Array, numbers::Array, defaults::Dict, cache::Bool=true, pack::Array=DEF_PACK, wtypes::Dict=DEF_WTYPES,
-                oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES, field_types::Dict{Symbol,String}=DEF_FIELD_TYPES)
-    haskey(_metacache, typ) && return _metacache[typ]
-    d = Dict{Symbol,Any}()
-    for (k,v) in defaults
-        d[k] = v
-    end
-    meta(typ, convert(Vector{Symbol}, required), convert(Vector{Int}, numbers), d, cache, convert(Vector{Symbol}, pack), wtypes, oneofs, oneof_names, field_types)
-end
-function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, defaults::Dict{Symbol,Any}, cache::Bool=true, pack::Vector{Symbol}=DEF_PACK,
-                wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES, field_types::Dict{Symbol,String}=DEF_FIELD_TYPES)
-    haskey(_metacache, typ) && return _metacache[typ]
+_resolve_type(relativeto::Type, typ::Type) = typ
+_resolve_type(relativeto::Type, typ::String) = Core.eval(relativeto.name.module, Meta.parse(typ))
 
-    m = ProtoMeta(typ, ProtoMetaAttribs[])
-    cache && (_metacache[typ] = m)
-
+function meta(target::ProtoMeta, typ::Type, all_fields::Vector{Pair{Symbol,Union{Type,String}}}, required::Vector{Symbol}, numbers::Vector{Int}, defaults::Dict{Symbol,Any},
+        pack::Vector{Symbol}=DEF_PACK, wtypes::Dict=DEF_WTYPES, oneofs::Vector{Int}=DEF_ONEOFS, oneof_names::Vector{Symbol}=DEF_ONEOF_NAMES)
     attribs = ProtoMetaAttribs[]
-    names = fld_names(typ)
-    types = typ.types
-    for fldidx in 1:length(names)
-        fldname = names[fldidx]
-        fldtyp = (fldname in keys(field_types)) ? Core.eval(typ.name.module, Meta.parse(field_types[fldname])) : types[fldidx]
+    for fldidx in 1:length(all_fields)
+        fldname = first(all_fields[fldidx])
+        fldtyp = _resolve_type(typ, last(all_fields[fldidx]))
         fldnum = isempty(numbers) ? fldidx : numbers[fldidx]
         isarr = (fldtyp <: Array) && !(fldtyp === Vector{UInt8})
         repeat = isarr ? 2 : (fldname in required) ? 1 : 0
@@ -576,18 +561,15 @@ function meta(typ::Type, required::Vector{Symbol}, numbers::Vector{Int}, default
 
         fldmeta = (wtyp == :obj) ? meta(elemtyp) :
                   (wtyp == :map) ? mapentry_meta(elemtyp) : nothing
-        push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, repeat, packed, default, fldmeta))
+        push!(attribs, ProtoMetaAttribs(fldnum, fldname, wtyp, fldtyp, repeat, packed, default, fldmeta))
     end
-    _setmeta(m, typ, attribs, oneofs, oneof_names)
-    m
+    setprotometa!(target, typ, attribs, oneofs, oneof_names)
 end
 
 function mapentry_meta(typ::Type{Dict{K,V}}) where {K,V}
-    m = ProtoMeta(typ, ProtoMetaAttribs[])
-    _mapentry_metacache[typ] = m
-
+    target = ProtoMeta(typ)
     attribs = ProtoMetaAttribs[]
-    push!(attribs, ProtoMetaAttribs(1, :key, wiretype(K), 0, false, defaultval(K), nothing))
+    push!(attribs, ProtoMetaAttribs(1, :key, wiretype(K), K, 0, false, defaultval(K), nothing))
 
     isarr = (V <: Array) && !(V === Vector{UInt8})
     repeat = isarr ? 2 : 0
@@ -595,103 +577,65 @@ function mapentry_meta(typ::Type{Dict{K,V}}) where {K,V}
     wtyp = wiretype(V)
     vmeta = (wtyp == :obj) ? meta(V) :
             (wtyp == :map) ? mapentry_meta(V) : nothing
-    push!(attribs, ProtoMetaAttribs(2, :value, wtyp, repeat, packed, defaultval(V), vmeta))
+    push!(attribs, ProtoMetaAttribs(2, :value, wtyp, V, repeat, packed, defaultval(V), vmeta))
 
-    _setmeta(m, typ, attribs, DEF_ONEOFS, DEF_ONEOF_NAMES)
-    m
-end
-
-function _unset_oneofs(fill::BitArray{2}, oneofs::Vector{Int}, idx::Int)
-    oneofidx = isempty(oneofs) ? 0 : oneofs[idx]
-    if oneofidx > 0
-        # unset other fields in the oneof group
-        for uidx = 1:length(oneofs)
-            if (oneofs[uidx] == oneofidx) && (uidx !== idx)
-                fill[1:2,uidx] .= false
-            end
-        end
-    end
-end
-
-function _isset_oneof(fill::BitArray{2}, oneofs::Vector{Int}, idx::Int)
-    oneofidx = isempty(oneofs) ? 0 : oneofs[idx]
-    if oneofidx > 0
-        # find if any field in the oneof group is set
-        for uidx = 1:length(oneofs)
-            if oneofs[uidx] == oneofidx
-                fill[1,uidx] && (return true)
-            end
-        end
-    end
-    false
-end
-
-fillunset(obj) = (fill!(filled(obj), false); nothing)
-fillunset(obj, fld::Symbol) = _fillset(obj, fld, false, false)
-fillset(obj, fld::Symbol) = _fillset(obj, fld, true, false)
-fillset_default(obj, fld::Symbol) = _fillset(obj, fld, true, true)
-function _fillset(obj, fld::Symbol, val::Bool, isdefault::Bool)
-    fill = filled(obj)
-    fnames = fld_names(typeof(obj))
-    idx = something(findfirst(isequal(fld), fnames))
-    fill[1,idx] = val
-    (!val || isdefault) && (fill[2,idx] = val)
-    val && _unset_oneofs(fill, meta(typeof(obj)).oneofs, idx)
-    nothing
-end
-
-function filled(obj)
-    oid = objectid(obj)
-    haskey(_fillcache, oid) && return _fillcache[oid]
-
-    fnames = fld_names(typeof(obj))
-    fill = fill!(BitArray(undef, 2, length(fnames)), false)
-    oneofs = meta(typeof(obj)).oneofs
-    for idx in 1:length(fnames)
-        if isdefined(obj, fnames[idx])
-            fill[1,idx] = true
-            _unset_oneofs(fill, oneofs, idx)
-        end
-    end
-    if !isimmutable(obj)
-        _fillcache[oid] = fill
-        finalizer(obj->delete!(_fillcache, objectid(obj)), obj)
-    end
-    fill
-end
-
-isfilled(obj, fld::Symbol) = _isfilled(obj, fld, false)
-isfilled_default(obj, fld::Symbol) = _isfilled(obj, fld, true)
-function _isfilled(obj, fld::Symbol, isdefault::Bool)
-    fnames = fld_names(typeof(obj))
-    idx = something(findfirst(isequal(fld), fnames))
-    filled(obj)[isdefault ? 2 : 1, idx]
+    setprotometa!(target, typ, attribs, DEF_ONEOFS, DEF_ONEOF_NAMES)
 end
 
 function isfilled(obj)
-    fill = filled(obj)
-    flds = meta(typeof(obj)).ordered
-    for idx in 1:length(flds)
-        fld = flds[idx]
-        if fld.occurrence == 1
-            fill[1,idx] || (return false)
-            (fld.meta != nothing) && !isfilled(getfield(obj, fld.fld)) && (return false)
+    fldattribs = meta(typeof(obj)).ordered
+    for idx in 1:length(fldattribs)
+        fldattrib = fldattribs[idx]
+        if fldattrib.occurrence == 1
+            fldname = fldattrib.fld
+            hasproperty(obj, fldname) || (return false)
+            (fldattrib.meta !== nothing) && !isfilled(getproperty(obj, fldname)) && (return false)
         end
     end
     true
 end
 
+function _isset_oneof(obj, idx::Int)
+    m = meta(typeof(obj))
+    oneofs = m.oneofs
+    oneof_idx = isempty(oneofs) ? 0 : oneofs[idx]
+    (oneof_idx > 0) || (return false)
+    _which_oneof(obj, m, oneof_idx) !== Symbol()
+end
+
 function which_oneof(obj, oneof::Symbol)
     m = meta(typeof(obj))
-    fill = filled(obj)
-    fnames = fld_names(typeof(obj))
-    oneofs = m.oneofs
     oneof_idx = something(findfirst(isequal(oneof), m.oneof_names))
+    _which_oneof(obj, m, oneof_idx)
+end
 
+function _which_oneof(obj, m, oneof_idx)
+    oneofs = m.oneofs
     for idx in 1:length(oneofs)
-        (oneofs[idx] == oneof_idx) && fill[1,idx] && (return fnames[idx])
+        if oneofs[idx] == oneof_idx
+            fldname = m.ordered[idx].fld
+            hasproperty(obj, fldname) && (return fldname)
+        end
     end
     Symbol()
+end
+
+function _unset_oneof(obj, objmeta, fld)
+    if !isempty(objmeta.oneofs)
+        fldidx = 1
+        while fldidx <= length(objmeta.ordered)
+            if objmeta.ordered[fldidx].fld === fld
+                break
+            else
+                fldidx += 1
+            end
+        end
+        nameidx = objmeta.oneofs[fldidx]
+        if nameidx > 0
+            oneofprop = which_oneof(obj, objmeta.oneof_names[nameidx])
+            (oneofprop === Symbol()) || clear(obj, oneofprop)
+        end
+    end
 end
 
 function show(io::IO, m::ProtoMeta)
@@ -699,19 +643,32 @@ function show(io::IO, m::ProtoMeta)
     println(io, m.ordered)
 end
 
+propertynames(obj::ProtoType) = [attrib.fld for attrib in obj.__protobuf_jl_internal_meta.ordered]
+hasproperty(obj::ProtoType, fld::Symbol) = haskey(obj.__protobuf_jl_internal_values, fld)
+function setproperty!(obj::ProtoType, fld::Symbol, val)
+    objmeta = obj.__protobuf_jl_internal_meta
+    symdict = objmeta.symdict
+    if fld in keys(symdict)
+        _unset_oneof(obj, objmeta, fld)
+        fldtype = symdict[fld].jtyp
+        obj.__protobuf_jl_internal_values[fld] = isa(val, fldtype) ? val : convert(fldtype, val)
+    else
+        setfield!(obj, fld, val)
+    end
+end
+
+function clear(obj::ProtoType)
+    empty!(obj.__protobuf_jl_internal_values)
+    nothing
+end
+
+function clear(obj::ProtoType, fld::Symbol)
+    delete!(obj.__protobuf_jl_internal_values, fld)
+    nothing
+end
 
 ##
 # Enum Lookup
-
-abstract type ProtoEnum end
-
-function lookup(en::ProtoEnum, val)
-    for name in fld_names(typeof(en))
-        (val == getfield(en, name)) && return name
-    end
-    error("Enum $(typeof(en)) has no value: $val")
-end
-
 function lookup(en::T, val) where {T <: NamedTuple}
     for name in propertynames(en)
         (val == getproperty(en, name)) && return name

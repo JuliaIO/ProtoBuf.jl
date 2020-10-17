@@ -47,10 +47,10 @@ ERR=$(($ERR + $?))
 
 if [ ${PROTOC_VER} -eq "3" ]
 then
-    echo "- map3.proto (as dict)" && ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Test; @test string(MapTest.types[3].name) == \"Dict\"'"
+    echo "- map3.proto (as dict)" && ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Test; @test meta(MapTest).ordered[3].jtyp <: Dict'"
     ERR=$(($ERR + $?))
     mv out/map3_pb.jl out/map3_dict_pb.jl
-    echo "- map3.proto (as array)" && JULIA_PROTOBUF_MAP_AS_ARRAY=1 ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Test; @test string(MapTest.types[3].name) == \"Array\"'"
+    echo "- map3.proto (as array)" && JULIA_PROTOBUF_MAP_AS_ARRAY=1 ${GEN} ${SRC}/map3.proto && eval " ${CHK} 'include(\"out/map3_pb.jl\"); using Test; @test meta(MapTest).ordered[3].jtyp <: Array'"
     ERR=$(($ERR + $?))
     mv out/map3_pb.jl out/map3_array_pb.jl
     echo "- oneof3.proto" && ${GEN} ${SRC}/oneof3.proto && eval " ${CHK} 'include(\"out/oneof3_pb.jl\")'"

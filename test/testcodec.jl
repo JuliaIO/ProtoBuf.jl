@@ -2,8 +2,6 @@ module ProtoBufTestCodec
 using ProtoBuf
 using Test
 using Random
-import Base: ==
-
 import ProtoBuf.meta
 
 macro _rand_int(T,mx,a)
@@ -14,118 +12,280 @@ end
 
 print_hdr(tname) = println("testing $tname...")
 
+const TestTypeJType = Ref{Type}(Int64)
+const TestTypeWType = Ref{Symbol}(:int64)
+const TestTypeFldNum = Ref{Int}(1)
+const TestTypePack = Ref{Vector{Symbol}}(ProtoBuf.DEF_PACK)
 mutable struct TestType <: ProtoType
-    val::Any
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function TestType(; kwargs...)
+        obj = new(meta(TestType), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end
+function meta(::Type{TestType})
+    allflds = Pair{Symbol,Union{Type,String}}[:val => TestTypeJType[]]
+    wtypes = Dict{Symbol,Symbol}(:val => TestTypeWType[])
+    meta(ProtoMeta(TestType), TestType, allflds, ProtoBuf.DEF_REQ, [TestTypeFldNum[]], ProtoBuf.DEF_VAL, TestTypePack[], wtypes, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::TestType, name::Symbol)
+    if name === :val
+        return (obj.__protobuf_jl_internal_values[name])::Any
+    else
+        getfield(obj, name)
+    end
 end
 
 mutable struct TestStr <: ProtoType
-    val::AbstractString
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function TestStr(; kwargs...)
+        obj = new(meta(TestStr), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
 end
-==(t1::TestStr, t2::TestStr) = (t1.val == t2.val)
+function meta(::Type{TestStr})
+    allflds = Pair{Symbol,Union{Type,String}}[:val => AbstractString]
+    meta(ProtoMeta(TestStr), TestStr, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::TestStr, name::Symbol)
+    if name === :val
+        return (obj.__protobuf_jl_internal_values[name])::AbstractString
+    else
+        getfield(obj, name)
+    end
+end
 
 mutable struct TestOptional <: ProtoType
-    sVal1::TestStr
-    sVal2::TestStr
-    iVal2::Array{Int64,1}
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function TestOptional(; kwargs...)
+        obj = new(meta(TestOptional), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end
+const TestOptionalReq = Symbol[]
+function meta(::Type{TestOptional})
+    allflds = Pair{Symbol,Union{Type,String}}[:sVal1 => TestStr, :sVal2 => TestStr, :iVal2 => Array{Int64,1}]
+    meta(ProtoMeta(TestOptional), TestOptional, allflds, TestOptionalReq, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::TestOptional, name::Symbol)
+    if name === :sVal1
+        return (obj.__protobuf_jl_internal_values[name])::TestStr
+    elseif name === :sVal2
+        return (obj.__protobuf_jl_internal_values[name])::TestStr
+    elseif name === :iVal2
+        return (obj.__protobuf_jl_internal_values[name])::Array{Int64,1}
+    else
+        getfield(obj, name)
+    end
 end
 
 mutable struct TestNested <: ProtoType
-    fld1::TestType
-    fld2::TestOptional
-    fld3::Array{TestStr}
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function TestNested(; kwargs...)
+        obj = new(meta(TestNested), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+
+end
+const TestNestedReq = Symbol[]
+function meta(::Type{TestNested})
+    allflds = Pair{Symbol,Union{Type,String}}[:fld1 => TestType, :fld2 => TestOptional, :fld3 => Array{TestStr,1}]
+    meta(ProtoMeta(TestNested), TestNested, allflds, TestNestedReq, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::TestNested, name::Symbol)
+    if name === :fld1
+        return (obj.__protobuf_jl_internal_values[name])::TestType
+    elseif name === :fld2
+        return (obj.__protobuf_jl_internal_values[name])::TestOptional
+    elseif name === :fld3
+        return (obj.__protobuf_jl_internal_values[name])::Array{TestStr,1}
+    else
+        getfield(obj, name)
+    end
 end
 
 mutable struct TestDefaults <: ProtoType
-    iVal1::Int64
-    sVal2::AbstractString
-    iVal2::Array{Int64,1}
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
 
-    TestDefaults(f1,f2,f3) = new(f1,f2,f3)
-    TestDefaults() = new()
+    function TestDefaults(; kwargs...)
+        obj = new(meta(TestDefaults), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end
+function meta(::Type{TestDefaults})
+    allflds = Pair{Symbol,Union{Type,String}}[:iVal1 => Int64, :sVal2 => AbstractString, :iVal2 => Array{Int64,1}]
+    defaults = Dict{Symbol,Any}(:iVal1 => 10, :iVal2 => [1,2,3])
+    meta(ProtoMeta(TestDefaults), TestDefaults, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, defaults, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::TestDefaults, name::Symbol)
+    if name === :iVal1
+        return (obj.__protobuf_jl_internal_values[name])::Int64
+    elseif name === :sVal2
+        return (obj.__protobuf_jl_internal_values[name])::AbstractString
+    elseif name === :iVal2
+        return (obj.__protobuf_jl_internal_values[name])::Array{Int64,1}
+    else
+        getfield(obj, name)
+    end
 end
 
 mutable struct TestOneofs <: ProtoType
-    iVal1::Int64
-    iVal2::Int64
-    iVal3::Int64
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
 
-    TestOneofs() = new()
+    function TestOneofs(; kwargs...)
+        obj = new(meta(TestOneofs), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end
+function meta(::Type{TestOneofs})
+    allflds = Pair{Symbol,Union{Type,String}}[:iVal1 => Int64, :iVal2 => Int64, :iVal3 => Int64]
+    oneofs = Int[0,1,1]
+    oneof_names = [:optval]
+    meta(ProtoMeta(TestOneofs), TestOneofs, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, oneofs, oneof_names)
+end
+function Base.getproperty(obj::TestOneofs, name::Symbol)
+    if name === :iVal1
+        return (obj.__protobuf_jl_internal_values[name])::Int64
+    elseif name === :iVal2
+        return (obj.__protobuf_jl_internal_values[name])::Int64
+    elseif name === :iVal3
+        return (obj.__protobuf_jl_internal_values[name])::Int64
+    else
+        getfield(obj, name)
+    end
 end
 
 mutable struct TestMaps <: ProtoType
-    d1::Dict{Int,Int}
-    d2::Dict{Int32,String}
-    d3::Dict{String,String}
-    TestMaps() = new()
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function TestMaps(; kwargs...)
+        obj = new(meta(TestMaps), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end
+function meta(::Type{TestMaps})
+    allflds = Pair{Symbol,Union{Type,String}}[:d1 => Dict{Int,Int}, :d2 => Dict{Int32,String}, :d3 => Dict{String,String}]
+    meta(ProtoMeta(TestMaps), TestMaps, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::TestMaps, name::Symbol)
+    if name === :d1
+        return (obj.__protobuf_jl_internal_values[name])::Dict{Int,Int}
+    elseif name === :d2
+        return (obj.__protobuf_jl_internal_values[name])::Dict{Int32,String}
+    elseif name === :d3
+        return (obj.__protobuf_jl_internal_values[name])::Dict{String,String}
+    else
+        getfield(obj, name)
+    end
 end
 
 mutable struct TestFilled <: ProtoType
-    fld1::TestType
-    fld2::TestType
-    TestFilled() = new()
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function TestFilled(; kwargs...)
+        obj = new(meta(TestFilled), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end
+function meta(::Type{TestFilled})
+    allflds = Pair{Symbol,Union{Type,String}}[:fld1 => TestType, :fld2 => TestType]
+    meta(ProtoMeta(TestFilled), TestFilled, allflds, [:fld1], ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::TestFilled, name::Symbol)
+    if name === :fld1
+        return (obj.__protobuf_jl_internal_values[name])::TestType
+    elseif name === :fld2
+        return (obj.__protobuf_jl_internal_values[name])::TestType
+    else
+        getfield(obj, name)
+    end
 end
 
-mutable struct __enum_TestEnum <: ProtoEnum
-    UNIVERSAL::Int32
-    WEB::Int32
-    IMAGES::Int32
-    LOCAL::Int32
-    NEWS::Int32
-    PRODUCTS::Int32
-    VIDEO::Int32
-    __enum_TestEnum() = new(0,1,2,3,4,5,6)
-end
-const TestEnum = __enum_TestEnum()
-
-const TestEnum2 = (;[
-    Symbol("UNIVERSAL") => 0,
-    Symbol("WEB") => 1,
-    Symbol("IMAGES") => 2,
-    Symbol("LOCAL") => 3,
-    Symbol("NEWS") => 4,
-    Symbol("PRODUCTS") => 5,
-    Symbol("VIDEO") => 6,
+const TestEnum = (;[
+    Symbol("UNIVERSAL") => Int32(0),
+    Symbol("WEB") => Int32(1),
+    Symbol("IMAGES") => Int32(2),
+    Symbol("LOCAL") => Int32(3),
+    Symbol("NEWS") => Int32(4),
+    Symbol("PRODUCTS") => Int32(5),
+    Symbol("VIDEO") => Int32(6),
 ]...)
-
-# disable caching of meta since we manually modify them for the tests
-meta(t::Type{TestType})         = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
-meta(t::Type{TestOptional})     = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
-meta(t::Type{TestNested})       = meta(t, Symbol[], Int[], Dict{Symbol,Any}(), false)
-const _t_defaults = Dict{Symbol,Any}(:iVal1 => 10, :iVal2 => [1,2,3])
-meta(t::Type{TestDefaults})     = meta(t, Symbol[], Int[], _t_defaults, false)
-const _t_oneofs = Int[0,1,1]
-const _t_oneof_names = [:optval]
-meta(t::Type{TestOneofs})       = meta(t,  Symbol[], Int[], Dict{Symbol,Any}(), false, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, _t_oneofs, _t_oneof_names)
-meta(t::Type{TestFilled})       = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}())
-
-function mk_test_nested_meta(o1::Bool, o2::Bool, o21::Bool, o22::Bool)
-    meta1 = mk_test_meta(1, :int64)
-    meta2 = mk_test_optional_meta(o21, o22)
-
-    m = meta(TestNested)
-    m.symdict[:fld1].occurrence = o1 ? 0 : 1
-    m.symdict[:fld2].occurrence = o2 ? 0 : 1
-    m.symdict[:fld1].meta = meta1
-    m.symdict[:fld2].meta = meta2
-    m
-end
-
-function mk_test_optional_meta(opt1::Bool, opt2::Bool)
-    m = meta(TestOptional)
-    m.symdict[:sVal1].occurrence = opt1 ? 0 : 1
-    m.symdict[:sVal2].occurrence = opt2 ? 0 : 1
-    m
-end
-
-function mk_test_meta(fldnum::Int, ptyp::Symbol)
-    m = meta(TestType)
-    attrib = m.symdict[:val]
-    attrib.fldnum = fldnum
-    attrib.ptyp = ptyp
-    m.numdict = Dict{Int,ProtoMetaAttribs}()
-    m.numdict[fldnum] = attrib
-    m
-end
 
 assert_equal(::Type{Array{T,1}}, ::Type{Array{U,1}}) where {T,U} = @test (T <: U) || (U <: T)
 assert_equal(T::Type, U::Type) = @test (T <: U) || (U <: T)
@@ -139,40 +299,43 @@ function assert_equal(val1, val2)
     typ1 = typeof(val1)
     typ2 = typeof(val2)
     assert_equal(typ1, typ2)
-   
-    n = fieldnames(typ1)
-    t = typ1.types 
-    for fld in n
-        fldfill1 = isfilled(val1, fld)
-        fldfill2 = isfilled(val2, fld)
+
+    for fld in propertynames(typ1)
+        fldfill1 = hasproperty(val1, fld)
+        fldfill2 = hasproperty(val2, fld)
         @test fldfill1 == fldfill2
-        fldfill1 && assert_equal(getfield(val1, fld), getfield(val2, fld))
+        fldfill1 && assert_equal(getproperty(val1, fld), getproperty(val2, fld))
     end
 end
 
 function test_types()
     pb = PipeBuffer()
-    testval = TestType(0)
-    readval = TestType(0)
 
     # test enum
     print_hdr("enum")
-    testval.val = @_rand_int(Int32, 10^9, 0)
-    fldnum = @_rand_int(Int, 100, 1)
-    meta = mk_test_meta(fldnum, :enum)
-    writeproto(pb, testval, meta)
-    readproto(pb, readval, meta)
+    TestTypeJType[] = Int32
+    TestTypeWType[] = :int32
+    TestTypePack[] = ProtoBuf.DEF_PACK
+    TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+    testmeta = meta(TestType)
+    testval = TestType(; val=@_rand_int(Int32, 10^9, 0))
+    readval = TestType()
+    writeproto(pb, testval, testmeta)
+    readproto(pb, readval, testmeta)
     assert_equal(testval, readval)
 
     let typs = [Int32,Int64,UInt32,UInt64,Int32,Int64,UInt64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
+            TestTypeJType[] = typ
+            TestTypeWType[] = ptyp
             for idx in 1:100
-                testval.val = convert(typ, @_rand_int(UInt32, 10^9, 0))
-                fldnum = @_rand_int(Int, 100, 1)
-                meta = mk_test_meta(fldnum, ptyp)
-                writeproto(pb, testval, meta)
-                readproto(pb, readval, meta)
+                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                testmeta = meta(TestType)
+                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
+                readval = TestType()
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
                 assert_equal(testval, readval)
             end
         end
@@ -181,12 +344,15 @@ function test_types()
     let typs = [Int32,Int64,Int32,Int64], ptyps=[:int32,:int64,:sint32,:sint64]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
+            TestTypeJType[] = typ
+            TestTypeWType[] = ptyp
             for idx in 1:100
-                testval.val = convert(typ, -1 * @_rand_int(Int32, 10^9, 0))
-                fldnum = @_rand_int(Int, 100, 1)
-                meta = mk_test_meta(fldnum, ptyp)
-                writeproto(pb, testval, meta)
-                readproto(pb, readval, meta)
+                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                testmeta = meta(TestType)
+                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
+                readval = TestType()
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
                 assert_equal(testval, readval)
             end
         end
@@ -204,12 +370,15 @@ function test_types()
     let typs = [Bool], ptyps=[:bool]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
+            TestTypeJType[] = typ
+            TestTypeWType[] = ptyp
             for idx in 1:100
-                testval.val = convert(typ, @_rand_int(UInt32, 1, 0))
-                fldnum = @_rand_int(Int, 100, 1)
-                meta = mk_test_meta(fldnum, ptyp)
-                writeproto(pb, testval, meta)
-                readproto(pb, readval, meta)
+                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                testmeta = meta(TestType)
+                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 1, 0)))
+                readval = TestType()
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
                 assert_equal(testval, readval)
             end
         end
@@ -218,67 +387,77 @@ function test_types()
     let typs = [Float64,Float32], ptyps=[:double,:float]
         for (typ,ptyp) in zip(typs,ptyps)
             print_hdr(ptyp)
+            TestTypeJType[] = typ
+            TestTypeWType[] = ptyp
             for idx in 1:100
-                testval.val = convert(typ, @_rand_int(UInt32, 10^9, 0))
-                fldnum = @_rand_int(Int, 100, 1)
-                meta = mk_test_meta(fldnum, ptyp)
-                writeproto(pb, testval, meta) 
-                readproto(pb, readval, meta)
+                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                testmeta = meta(TestType)
+                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
+                readval = TestType()
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
                 assert_equal(testval, readval)
             end
         end
     end
 
-    print_hdr("string")
-    for idx in 1:100
-        testval.val = randstring(50)
-        fldnum = @_rand_int(Int, 100, 1)
-        meta = mk_test_meta(fldnum, :string)
-        writeproto(pb, testval, meta) 
-        readproto(pb, readval, meta)
-        assert_equal(testval, readval)
+    let typs = [AbstractString], ptyps=[:string]
+        for (typ,ptyp) in zip(typs,ptyps)
+            print_hdr("string")
+            TestTypeJType[] = typ
+            TestTypeWType[] = ptyp
+            for idx in 1:100
+                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                testmeta = meta(TestType)
+                testval = TestType(; val=randstring(50))
+                readval = TestType()
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
+                assert_equal(testval, readval)
+            end
+        end
     end
 end
 
 function test_repeats()
     pb = PipeBuffer()
-    testval = TestType(0)
-    readval = TestType(0)
 
     print_hdr("repeated int64")
+    TestTypeJType[] = Vector{Int64}
+    TestTypeWType[] = :int64
+    TestTypePack[] = ProtoBuf.DEF_PACK
     for idx in 1:100
-        testval.val = collect(Int64, randstring(50))
-        readval.val = Int64[]
-        fldnum = @_rand_int(Int, 100, 1)
-        meta = mk_test_meta(fldnum, :int64)
-        meta.ordered[1].occurrence = 2
-        writeproto(pb, testval, meta) 
-        readproto(pb, readval, meta)
+        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+        testval = TestType(; val=collect(Int64, randstring(50)))
+        readval = TestType()
+        testmeta = meta(TestType)
+        writeproto(pb, testval, testmeta)
+        readproto(pb, readval, testmeta)
         assert_equal(testval, readval)
     end
 
     print_hdr("repeated and packed int64")
+    TestTypePack[] = Symbol[:val]
     for idx in 1:100
-        testval.val = collect(Int64, randstring(50))
-        readval.val = Int64[]
-        fldnum = @_rand_int(Int, 100, 1)
-        meta = mk_test_meta(fldnum, :int64)
-        meta.ordered[1].occurrence = 2
-        meta.ordered[1].packed = true
-        writeproto(pb, testval, meta) 
-        readproto(pb, readval, meta)
+        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+        testval = TestType(; val=collect(Int64, randstring(50)))
+        readval = TestType()
+        testmeta = meta(TestType)
+        writeproto(pb, testval, testmeta)
+        readproto(pb, readval, testmeta)
         assert_equal(testval, readval)
     end
 
     print_hdr("repeated string")
+    TestTypeJType[] = Vector{AbstractString}
+    TestTypeWType[] = :string
+    TestTypePack[] = ProtoBuf.DEF_PACK
     for idx in 1:100
-        testval.val = [randstring(5) for i in 1:10] 
-        readval.val = AbstractString[]
-        fldnum = @_rand_int(Int, 100, 1)
-        meta = mk_test_meta(fldnum, :string)
-        meta.ordered[1].occurrence = 2
-        writeproto(pb, testval, meta) 
-        readproto(pb, readval, meta)
+        testval = TestType(; val=AbstractString[randstring(5) for i in 1:10])
+        readval = TestType()
+        testmeta = meta(TestType)
+        writeproto(pb, testval, testmeta)
+        readproto(pb, readval, testmeta)
         assert_equal(testval, readval)
     end
 end
@@ -286,25 +465,29 @@ end
 function test_optional()
     print_hdr("optional fields")
     pb = PipeBuffer()
-    testval = TestOptional(TestStr(""), TestStr(""), Int64[1,2,3])
-    readval = TestOptional(TestStr(""), TestStr(""), Int64[])
+    testval = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val=""), iVal2=Int64[1,2,3])
+    readval = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val=""), iVal2=Int64[])
 
     for idx in 1:100
-        testval.sVal1 = TestStr(string(@_rand_int(Int, 100, 0)))
-        testval.sVal2 = TestStr(randstring(5))
+        testval.sVal1 = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+        testval.sVal2 = TestStr(; val=randstring(5))
         testval.iVal2 = Int64[@_rand_int(Int,100,0) for i in 1:10]
-        sVal1Opt = rand(Bool)
-        sVal2Opt = rand(Bool)
-        meta = mk_test_optional_meta(sVal1Opt, sVal2Opt)
-        fillunset(testval)
-        fillset(testval, :iVal2)
-        !sVal1Opt && fillset(testval, :sVal1)
-        !sVal2Opt && fillset(testval, :sVal2)
 
-        writeproto(pb, testval, meta)
-        readval.iVal2 = Int64[]
-        readproto(pb, readval, meta)
-
+        empty!(TestOptionalReq)
+        kwargs = Dict{Symbol,Any}(:iVal2 => Int64[@_rand_int(Int,100,0) for i in 1:10])
+        if rand(Bool)
+            push!(TestOptionalReq, :sVal1)
+            kwargs[:sVal1] = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+        end
+        if rand(Bool)
+            push!(TestOptionalReq, :sVal2)
+            kwargs[:sVal2] = TestStr(; val=randstring(5))
+        end
+        testval = TestOptional(; kwargs...)
+        readval = TestOptional()
+        testmeta = meta(TestOptional)
+        writeproto(pb, testval, testmeta)
+        readproto(pb, readval, testmeta)
         assert_equal(testval, readval)
     end
 end
@@ -313,39 +496,44 @@ function test_nested()
     print_hdr("nested types")
     pb = PipeBuffer()
 
-    testfld1 = TestType(0)
-    readfld1 = TestType(0)
-    testfld2 = TestOptional(TestStr("1"), TestStr(""), Int64[1,2,3])
-    readfld2 = TestOptional(TestStr("1"), TestStr(""), Int64[])
-    testval = TestNested(testfld1, testfld2, [TestStr("hello"), TestStr("world")])
-    readval = TestNested(readfld1, readfld2, TestStr[])
+    TestTypeJType[] = Int64
+    TestTypeWType[] = :int64
+    TestTypePack[] = ProtoBuf.DEF_PACK
+    TestTypeFldNum[] = 1
 
     for idx in 1:100
-        testfld1.val = @_rand_int(Int64, 10^9, 0)
-        testfld2.sVal1 = TestStr(string(@_rand_int(Int, 100, 0)))
-        testfld2.sVal2 = TestStr(randstring(5))
-        testfld2.iVal2 = Int64[@_rand_int(Int, 100, 0) for i in 1:10]
-
         o1 = rand(Bool)
         o2 = rand(Bool)
         o21 = rand(Bool)
         o22 = rand(Bool)
-        meta = mk_test_nested_meta(o1, o2, o21, o22)
 
-        fillunset(testval)
-        fillset(testval, :fld3)
-        !o1 && fillset(testval, :fld1)
-        !o2 && fillset(testval, :fld2)
+        empty!(TestNestedReq)
+        testnestedkwargs = Dict{Symbol,Any}()
+        if o1
+            push!(TestNestedReq, :fld1)
+            testnestedkwargs[:fld1] = TestType(; val=@_rand_int(Int64, 10^9, 0))
+        end
+        if o2
+            push!(TestNestedReq, :fld2)
+            empty!(TestOptionalReq)
+            testfld2kwargs = Dict{Symbol,Any}(:iVal2=>Int64[@_rand_int(Int, 100, 0) for i in 1:10])
+            if o21
+                push!(TestOptionalReq, :sVal1)
+                testfld2kwargs[:sVal1] = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+            end
+            if o22
+                push!(TestOptionalReq, :sVal2)
+                testfld2kwargs[:sVal2] = TestStr(; val=randstring(5))
+            end
+            testnestedkwargs[:fld2] = TestOptional(; testfld2kwargs...)
+        end
 
-        fillunset(testfld2)
-        fillset(testfld2, :iVal2)
-        !o21 && fillset(testfld2, :sVal1)
-        !o22 && fillset(testfld2, :sVal2)
+        testval = TestNested(; testnestedkwargs...)
+        readval = TestNested()
+        testmeta = meta(TestNested)
 
-        writeproto(pb, testval, meta)
-        readfld2.iVal2 = Int64[]
-        readval.fld3 = TestStr[]
-        readproto(pb, readval, meta)
+        writeproto(pb, testval, testmeta)
+        readproto(pb, readval, testmeta)
 
         assert_equal(testval, readval)
     end
@@ -361,34 +549,34 @@ function test_defaults()
     writeproto(pb, testval)
     readproto(pb, readval)
 
-    assert_equal(TestDefaults(testval.iVal1, "", [1,2,3]), readval)
+    assert_equal(TestDefaults(; iVal1=testval.iVal1, sVal2="", iVal2=[1,2,3]), readval)
 end
 
 function test_oneofs()
     print_hdr("oneofs")
-    testval = TestOneofs()
+    testval = TestOneofs(; iVal1=1, iVal3=3)
     @test isfilled(testval)
-    @test isfilled(testval, :iVal1)
-    @test !isfilled(testval, :iVal2)
-    @test isfilled(testval, :iVal3)
+    @test hasproperty(testval, :iVal1)
+    @test !hasproperty(testval, :iVal2)
+    @test hasproperty(testval, :iVal3)
     @test which_oneof(testval, :optval) === :iVal3
 
     testval.iVal2 = 10
-    @test isfilled(testval, :iVal1)
-    @test isfilled(testval, :iVal2)
-    @test !isfilled(testval, :iVal3)
+    @test hasproperty(testval, :iVal1)
+    @test hasproperty(testval, :iVal2)
+    @test !hasproperty(testval, :iVal3)
     @test which_oneof(testval, :optval) === :iVal2
 
     testval.iVal1 = 10
-    @test isfilled(testval, :iVal1)
-    @test isfilled(testval, :iVal2)
-    @test !isfilled(testval, :iVal3)
+    @test hasproperty(testval, :iVal1)
+    @test hasproperty(testval, :iVal2)
+    @test !hasproperty(testval, :iVal3)
     @test which_oneof(testval, :optval) === :iVal2
 
     testval.iVal3 = 10
-    @test isfilled(testval, :iVal1)
-    @test !isfilled(testval, :iVal2)
-    @test isfilled(testval, :iVal3)
+    @test hasproperty(testval, :iVal1)
+    @test !hasproperty(testval, :iVal2)
+    @test hasproperty(testval, :iVal3)
     @test which_oneof(testval, :optval) === :iVal3
 end
 
@@ -407,21 +595,21 @@ function test_maps()
     testval.d1 = Dict{Int,Int}()
     writeproto(pb, testval)
     readproto(pb, readval)
-    @test !isfilled(readval, :d1)
+    @test !hasproperty(readval, :d1)
 
     testval = TestMaps()
     readval = TestMaps()
     testval.d2 = Dict{Int32,String}()
     writeproto(pb, testval)
     readproto(pb, readval)
-    @test !isfilled(readval, :d2)
+    @test !hasproperty(readval, :d2)
 
     testval = TestMaps()
     readval = TestMaps()
     testval.d3 = Dict{String,String}()
     writeproto(pb, testval)
     readproto(pb, readval)
-    @test !isfilled(readval, :d3)
+    @test !hasproperty(readval, :d3)
 
     testval = TestMaps()
     readval = TestMaps()
@@ -430,7 +618,7 @@ function test_maps()
     testval.d1[2] = 2
     writeproto(pb, testval)
     readproto(pb, readval)
-    @test isfilled(readval, :d1)
+    @test hasproperty(readval, :d1)
     assert_equal(testval, readval)
 
     testval = TestMaps()
@@ -440,7 +628,7 @@ function test_maps()
     testval.d2[Int32(2)] = convert(String, "Two")
     writeproto(pb, testval)
     readproto(pb, readval)
-    @test isfilled(readval, :d2)
+    @test hasproperty(readval, :d2)
     assert_equal(testval, readval)
 
     testval = TestMaps()
@@ -450,21 +638,24 @@ function test_maps()
     testval.d3["2"] = "Two"
     writeproto(pb, testval)
     readproto(pb, readval)
-    @test isfilled(readval, :d3)
+    @test hasproperty(readval, :d3)
     assert_equal(testval, readval)
 end
 
 function test_misc()
     print_hdr("misc functionality")
-    testfld = TestOptional(TestStr("1"), TestStr(""), Int64[1,2,3])
-    readfld = TestOptional(TestStr(""), TestStr("1"), Int64[])
+    testfld = TestOptional(; sVal1=TestStr(; val="1"), sVal2=TestStr(; val=""), iVal2=Int64[1,2,3])
+    readfld = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val="1"), iVal2=Int64[])
     copy!(readfld, testfld)
     assert_equal(readfld, testfld)
 
     tf = TestFilled()
     @test !isfilled(tf)
-    tf.fld1 = TestType("")
-    fillset(tf, :fld1)
+    TestTypeJType[] = AbstractString
+    TestTypeWType[] = :string
+    TestTypeFldNum[] = 1
+    TestTypePack[] = ProtoBuf.DEF_PACK
+    tf.fld1 = TestType(; val="")
     @test isfilled(tf)
 
     iob = IOBuffer()
@@ -487,20 +678,6 @@ function test_enums()
     @test_throws ErrorException enumstr(TestEnum, Int32(12))
 end
 
-function test_enums2()
-    print_hdr("enums")
-    @test getproperty(TestEnum2, lookup(TestEnum2, 0)) == TestEnum.UNIVERSAL
-    @test getproperty(TestEnum2, lookup(TestEnum2, 1)) == TestEnum.WEB
-    @test getproperty(TestEnum2, lookup(TestEnum2, 2)) == TestEnum.IMAGES
-    @test getproperty(TestEnum2, lookup(TestEnum2, 3)) == TestEnum.LOCAL
-    @test getproperty(TestEnum2, lookup(TestEnum2, 4)) == TestEnum.NEWS
-    @test getproperty(TestEnum2, lookup(TestEnum2, 5)) == TestEnum.PRODUCTS
-    @test getproperty(TestEnum2, lookup(TestEnum2, 6)) == TestEnum.VIDEO
-
-    @test enumstr(TestEnum2, TestEnum2.LOCAL) == "LOCAL"
-    @test_throws ErrorException enumstr(TestEnum2, Int32(12))
-end
-
 end # module ProtoBufTestCodec
 
 ProtoBufTestCodec.test_types()
@@ -512,8 +689,3 @@ ProtoBufTestCodec.test_optional()
 ProtoBufTestCodec.test_nested()
 ProtoBufTestCodec.test_defaults()
 ProtoBufTestCodec.test_misc()
-GC.gc()
-println("_metacache has $(length(ProtoBuf._metacache)) entries")
-#println(ProtoBuf._metacache)
-println("_fillcache has $(length(ProtoBuf._fillcache)) entries")
-#println(ProtoBuf._fillcache)

@@ -1,18 +1,15 @@
 module ProtoBuf
 
-import Base: setproperty!, show, copy!, deepcopy, hash, isequal, ==
+import Base: setproperty!, getproperty, hasproperty, propertynames, show, copy!, deepcopy, hash, isequal, ==
 
-export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta, protobuild
-export filled, isfilled, isfilled_default, which_oneof, fillset, fillset_default, fillunset
-export setproperty!, show, copy!, deepcopy, get_field, clear, has_field, isinitialized
+export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta
+export isfilled, which_oneof
+export setproperty!, getproperty, hasproperty, show, copy!, deepcopy, clear, isinitialized
 export hash, isequal, ==
 export ProtoEnum, ProtoType, lookup, enumstr
 export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescriptor, ServiceDescriptor, ProtoService,
        AbstractProtoServiceStub, GenericProtoServiceStub, ProtoServiceStub, ProtoServiceBlockingStub,
        find_method, get_request_type, get_response_type, get_descriptor_for_type, call_method
-
-fld_type(o::T, fld) where {T} = fieldtype(T, fld)
-fld_names(x) = x.name.names
 
 include("codec.jl")
 include("svc.jl")
