@@ -22,12 +22,14 @@ mutable struct Struct_FieldsEntry <: ProtoType
 end # mutable struct Struct_FieldsEntry (mapentry) (has cyclic type dependency)
 const __meta_Struct_FieldsEntry = Ref{ProtoMeta}()
 function meta(::Type{Struct_FieldsEntry})
-    if !isassigned(__meta_Struct_FieldsEntry)
-        __meta_Struct_FieldsEntry[] = target = ProtoMeta(Struct_FieldsEntry)
-        allflds = Pair{Symbol,Union{Type,String}}[:key => AbstractString, :value => "Value"]
-        meta(target, Struct_FieldsEntry, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Struct_FieldsEntry)
+            __meta_Struct_FieldsEntry[] = target = ProtoMeta(Struct_FieldsEntry)
+            allflds = Pair{Symbol,Union{Type,String}}[:key => AbstractString, :value => "Value"]
+            meta(target, Struct_FieldsEntry, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Struct_FieldsEntry[]
     end
-    __meta_Struct_FieldsEntry[]
 end
 function Base.getproperty(obj::Struct_FieldsEntry, name::Symbol)
     if name === :key
@@ -58,12 +60,14 @@ mutable struct Struct <: ProtoType
 end # mutable struct Struct (has cyclic type dependency)
 const __meta_Struct = Ref{ProtoMeta}()
 function meta(::Type{Struct})
-    if !isassigned(__meta_Struct)
-        __meta_Struct[] = target = ProtoMeta(Struct)
-        allflds = Pair{Symbol,Union{Type,String}}[:fields => "Base.Dict{AbstractString,Value}"]
-        meta(target, Struct, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Struct)
+            __meta_Struct[] = target = ProtoMeta(Struct)
+            allflds = Pair{Symbol,Union{Type,String}}[:fields => "Base.Dict{AbstractString,Value}"]
+            meta(target, Struct, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Struct[]
     end
-    __meta_Struct[]
 end
 function Base.getproperty(obj::Struct, name::Symbol)
     if name === :fields
@@ -92,14 +96,16 @@ mutable struct Value <: ProtoType
 end # mutable struct Value (has cyclic type dependency)
 const __meta_Value = Ref{ProtoMeta}()
 function meta(::Type{Value})
-    if !isassigned(__meta_Value)
-        __meta_Value[] = target = ProtoMeta(Value)
-        allflds = Pair{Symbol,Union{Type,String}}[:null_value => Int32, :number_value => Float64, :string_value => AbstractString, :bool_value => Bool, :struct_value => Struct, :list_value => "ListValue"]
-        oneofs = Int[1,1,1,1,1,1]
-        oneof_names = Symbol[Symbol("kind")]
-        meta(target, Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, oneofs, oneof_names)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Value)
+            __meta_Value[] = target = ProtoMeta(Value)
+            allflds = Pair{Symbol,Union{Type,String}}[:null_value => Int32, :number_value => Float64, :string_value => AbstractString, :bool_value => Bool, :struct_value => Struct, :list_value => "ListValue"]
+            oneofs = Int[1,1,1,1,1,1]
+            oneof_names = Symbol[Symbol("kind")]
+            meta(target, Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, oneofs, oneof_names)
+        end
+        __meta_Value[]
     end
-    __meta_Value[]
 end
 function Base.getproperty(obj::Value, name::Symbol)
     if name === :null_value
@@ -138,12 +144,14 @@ mutable struct ListValue <: ProtoType
 end # mutable struct ListValue (has cyclic type dependency)
 const __meta_ListValue = Ref{ProtoMeta}()
 function meta(::Type{ListValue})
-    if !isassigned(__meta_ListValue)
-        __meta_ListValue[] = target = ProtoMeta(ListValue)
-        allflds = Pair{Symbol,Union{Type,String}}[:values => Base.Vector{Value}]
-        meta(target, ListValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_ListValue)
+            __meta_ListValue[] = target = ProtoMeta(ListValue)
+            allflds = Pair{Symbol,Union{Type,String}}[:values => Base.Vector{Value}]
+            meta(target, ListValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_ListValue[]
     end
-    __meta_ListValue[]
 end
 function Base.getproperty(obj::ListValue, name::Symbol)
     if name === :values

@@ -18,12 +18,14 @@ mutable struct SourceContext <: ProtoType
 end # mutable struct SourceContext
 const __meta_SourceContext = Ref{ProtoMeta}()
 function meta(::Type{SourceContext})
-    if !isassigned(__meta_SourceContext)
-        __meta_SourceContext[] = target = ProtoMeta(SourceContext)
-        allflds = Pair{Symbol,Union{Type,String}}[:file_name => AbstractString]
-        meta(target, SourceContext, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_SourceContext)
+            __meta_SourceContext[] = target = ProtoMeta(SourceContext)
+            allflds = Pair{Symbol,Union{Type,String}}[:file_name => AbstractString]
+            meta(target, SourceContext, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_SourceContext[]
     end
-    __meta_SourceContext[]
 end
 function Base.getproperty(obj::SourceContext, name::Symbol)
     if name === :file_name

@@ -18,12 +18,14 @@ mutable struct FieldMask <: ProtoType
 end # mutable struct FieldMask
 const __meta_FieldMask = Ref{ProtoMeta}()
 function meta(::Type{FieldMask})
-    if !isassigned(__meta_FieldMask)
-        __meta_FieldMask[] = target = ProtoMeta(FieldMask)
-        allflds = Pair{Symbol,Union{Type,String}}[:paths => Base.Vector{AbstractString}]
-        meta(target, FieldMask, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_FieldMask)
+            __meta_FieldMask[] = target = ProtoMeta(FieldMask)
+            allflds = Pair{Symbol,Union{Type,String}}[:paths => Base.Vector{AbstractString}]
+            meta(target, FieldMask, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_FieldMask[]
     end
-    __meta_FieldMask[]
 end
 function Base.getproperty(obj::FieldMask, name::Symbol)
     if name === :paths

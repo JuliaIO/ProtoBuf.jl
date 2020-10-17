@@ -23,12 +23,14 @@ mutable struct Option <: ProtoType
 end # mutable struct Option
 const __meta_Option = Ref{ProtoMeta}()
 function meta(::Type{Option})
-    if !isassigned(__meta_Option)
-        __meta_Option[] = target = ProtoMeta(Option)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :value => _Any]
-        meta(target, Option, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Option)
+            __meta_Option[] = target = ProtoMeta(Option)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :value => _Any]
+            meta(target, Option, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Option[]
     end
-    __meta_Option[]
 end
 function Base.getproperty(obj::Option, name::Symbol)
     if name === :name
@@ -59,12 +61,14 @@ mutable struct EnumValue <: ProtoType
 end # mutable struct EnumValue
 const __meta_EnumValue = Ref{ProtoMeta}()
 function meta(::Type{EnumValue})
-    if !isassigned(__meta_EnumValue)
-        __meta_EnumValue[] = target = ProtoMeta(EnumValue)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :number => Int32, :options => Base.Vector{Option}]
-        meta(target, EnumValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_EnumValue)
+            __meta_EnumValue[] = target = ProtoMeta(EnumValue)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :number => Int32, :options => Base.Vector{Option}]
+            meta(target, EnumValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_EnumValue[]
     end
-    __meta_EnumValue[]
 end
 function Base.getproperty(obj::EnumValue, name::Symbol)
     if name === :name
@@ -126,13 +130,15 @@ mutable struct Field <: ProtoType
 end # mutable struct Field
 const __meta_Field = Ref{ProtoMeta}()
 function meta(::Type{Field})
-    if !isassigned(__meta_Field)
-        __meta_Field[] = target = ProtoMeta(Field)
-        fnum = Int[1,2,3,4,6,7,8,9,10,11]
-        allflds = Pair{Symbol,Union{Type,String}}[:kind => Int32, :cardinality => Int32, :number => Int32, :name => AbstractString, :type_url => AbstractString, :oneof_index => Int32, :packed => Bool, :options => Base.Vector{Option}, :json_name => AbstractString, :default_value => AbstractString]
-        meta(target, Field, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Field)
+            __meta_Field[] = target = ProtoMeta(Field)
+            fnum = Int[1,2,3,4,6,7,8,9,10,11]
+            allflds = Pair{Symbol,Union{Type,String}}[:kind => Int32, :cardinality => Int32, :number => Int32, :name => AbstractString, :type_url => AbstractString, :oneof_index => Int32, :packed => Bool, :options => Base.Vector{Option}, :json_name => AbstractString, :default_value => AbstractString]
+            meta(target, Field, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Field[]
     end
-    __meta_Field[]
 end
 function Base.getproperty(obj::Field, name::Symbol)
     if name === :kind
@@ -179,12 +185,14 @@ mutable struct _Enum <: ProtoType
 end # mutable struct _Enum
 const __meta__Enum = Ref{ProtoMeta}()
 function meta(::Type{_Enum})
-    if !isassigned(__meta__Enum)
-        __meta__Enum[] = target = ProtoMeta(_Enum)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :enumvalue => Base.Vector{EnumValue}, :options => Base.Vector{Option}, :source_context => SourceContext, :syntax => Int32]
-        meta(target, _Enum, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta__Enum)
+            __meta__Enum[] = target = ProtoMeta(_Enum)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :enumvalue => Base.Vector{EnumValue}, :options => Base.Vector{Option}, :source_context => SourceContext, :syntax => Int32]
+            meta(target, _Enum, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta__Enum[]
     end
-    __meta__Enum[]
 end
 function Base.getproperty(obj::_Enum, name::Symbol)
     if name === :name
@@ -221,12 +229,14 @@ mutable struct _Type <: ProtoType
 end # mutable struct _Type
 const __meta__Type = Ref{ProtoMeta}()
 function meta(::Type{_Type})
-    if !isassigned(__meta__Type)
-        __meta__Type[] = target = ProtoMeta(_Type)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :fields => Base.Vector{Field}, :oneofs => Base.Vector{AbstractString}, :options => Base.Vector{Option}, :source_context => SourceContext, :syntax => Int32]
-        meta(target, _Type, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta__Type)
+            __meta__Type[] = target = ProtoMeta(_Type)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :fields => Base.Vector{Field}, :oneofs => Base.Vector{AbstractString}, :options => Base.Vector{Option}, :source_context => SourceContext, :syntax => Int32]
+            meta(target, _Type, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta__Type[]
     end
-    __meta__Type[]
 end
 function Base.getproperty(obj::_Type, name::Symbol)
     if name === :name

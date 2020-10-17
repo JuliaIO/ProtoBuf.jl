@@ -18,12 +18,14 @@ mutable struct Duration <: ProtoType
 end # mutable struct Duration
 const __meta_Duration = Ref{ProtoMeta}()
 function meta(::Type{Duration})
-    if !isassigned(__meta_Duration)
-        __meta_Duration[] = target = ProtoMeta(Duration)
-        allflds = Pair{Symbol,Union{Type,String}}[:seconds => Int64, :nanos => Int32]
-        meta(target, Duration, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Duration)
+            __meta_Duration[] = target = ProtoMeta(Duration)
+            allflds = Pair{Symbol,Union{Type,String}}[:seconds => Int64, :nanos => Int32]
+            meta(target, Duration, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Duration[]
     end
-    __meta_Duration[]
 end
 function Base.getproperty(obj::Duration, name::Symbol)
     if name === :seconds

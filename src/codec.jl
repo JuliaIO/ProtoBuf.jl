@@ -1,3 +1,25 @@
+mutable struct ProtoMetaLock
+    lck::Union{Nothing,ReentrantLock}
+end
+
+function Base.lock(f, l::ProtoMetaLock)
+    (l.lck === nothing) && (return f())
+    lock(l.lck) do
+        f()
+    end
+end
+
+const MetaLock = ProtoMetaLock(ReentrantLock())
+
+function enable_async_safety(dolock::Bool)
+    if dolock
+        (MetaLock.lck === nothing) && (MetaLock.lck = ReentrantLock())
+    else
+        (MetaLock.lck !== nothing) && (MetaLock.lck = nothing)
+    end
+    MetaLock.lck
+end
+
 const MSB = 0x80
 const MASK7 = 0x7f
 const MASK8 = 0xff
@@ -540,6 +562,12 @@ const DEF_WTYPES = Dict{Symbol,Symbol}()
 const DEF_ONEOFS = Int[]
 const DEF_ONEOF_NAMES = Symbol[]
 const DEF_FIELD_TYPES = Dict{Symbol,String}()
+
+function metalock(f)
+    lock(MetaLock) do
+        f()
+    end
+end
 
 _resolve_type(relativeto::Type, typ::Type) = typ
 _resolve_type(relativeto::Type, typ::String) = Core.eval(relativeto.name.module, Meta.parse(typ))

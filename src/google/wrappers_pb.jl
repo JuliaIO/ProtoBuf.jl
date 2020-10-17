@@ -18,12 +18,14 @@ mutable struct DoubleValue <: ProtoType
 end # mutable struct DoubleValue
 const __meta_DoubleValue = Ref{ProtoMeta}()
 function meta(::Type{DoubleValue})
-    if !isassigned(__meta_DoubleValue)
-        __meta_DoubleValue[] = target = ProtoMeta(DoubleValue)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => Float64]
-        meta(target, DoubleValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_DoubleValue)
+            __meta_DoubleValue[] = target = ProtoMeta(DoubleValue)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => Float64]
+            meta(target, DoubleValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_DoubleValue[]
     end
-    __meta_DoubleValue[]
 end
 function Base.getproperty(obj::DoubleValue, name::Symbol)
     if name === :value
@@ -52,12 +54,14 @@ mutable struct FloatValue <: ProtoType
 end # mutable struct FloatValue
 const __meta_FloatValue = Ref{ProtoMeta}()
 function meta(::Type{FloatValue})
-    if !isassigned(__meta_FloatValue)
-        __meta_FloatValue[] = target = ProtoMeta(FloatValue)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => Float32]
-        meta(target, FloatValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_FloatValue)
+            __meta_FloatValue[] = target = ProtoMeta(FloatValue)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => Float32]
+            meta(target, FloatValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_FloatValue[]
     end
-    __meta_FloatValue[]
 end
 function Base.getproperty(obj::FloatValue, name::Symbol)
     if name === :value
@@ -86,12 +90,14 @@ mutable struct Int64Value <: ProtoType
 end # mutable struct Int64Value
 const __meta_Int64Value = Ref{ProtoMeta}()
 function meta(::Type{Int64Value})
-    if !isassigned(__meta_Int64Value)
-        __meta_Int64Value[] = target = ProtoMeta(Int64Value)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => Int64]
-        meta(target, Int64Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Int64Value)
+            __meta_Int64Value[] = target = ProtoMeta(Int64Value)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => Int64]
+            meta(target, Int64Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Int64Value[]
     end
-    __meta_Int64Value[]
 end
 function Base.getproperty(obj::Int64Value, name::Symbol)
     if name === :value
@@ -120,12 +126,14 @@ mutable struct UInt64Value <: ProtoType
 end # mutable struct UInt64Value
 const __meta_UInt64Value = Ref{ProtoMeta}()
 function meta(::Type{UInt64Value})
-    if !isassigned(__meta_UInt64Value)
-        __meta_UInt64Value[] = target = ProtoMeta(UInt64Value)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => UInt64]
-        meta(target, UInt64Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_UInt64Value)
+            __meta_UInt64Value[] = target = ProtoMeta(UInt64Value)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => UInt64]
+            meta(target, UInt64Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_UInt64Value[]
     end
-    __meta_UInt64Value[]
 end
 function Base.getproperty(obj::UInt64Value, name::Symbol)
     if name === :value
@@ -154,12 +162,14 @@ mutable struct Int32Value <: ProtoType
 end # mutable struct Int32Value
 const __meta_Int32Value = Ref{ProtoMeta}()
 function meta(::Type{Int32Value})
-    if !isassigned(__meta_Int32Value)
-        __meta_Int32Value[] = target = ProtoMeta(Int32Value)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => Int32]
-        meta(target, Int32Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Int32Value)
+            __meta_Int32Value[] = target = ProtoMeta(Int32Value)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => Int32]
+            meta(target, Int32Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Int32Value[]
     end
-    __meta_Int32Value[]
 end
 function Base.getproperty(obj::Int32Value, name::Symbol)
     if name === :value
@@ -188,12 +198,14 @@ mutable struct UInt32Value <: ProtoType
 end # mutable struct UInt32Value
 const __meta_UInt32Value = Ref{ProtoMeta}()
 function meta(::Type{UInt32Value})
-    if !isassigned(__meta_UInt32Value)
-        __meta_UInt32Value[] = target = ProtoMeta(UInt32Value)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => UInt32]
-        meta(target, UInt32Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_UInt32Value)
+            __meta_UInt32Value[] = target = ProtoMeta(UInt32Value)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => UInt32]
+            meta(target, UInt32Value, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_UInt32Value[]
     end
-    __meta_UInt32Value[]
 end
 function Base.getproperty(obj::UInt32Value, name::Symbol)
     if name === :value
@@ -222,12 +234,14 @@ mutable struct BoolValue <: ProtoType
 end # mutable struct BoolValue
 const __meta_BoolValue = Ref{ProtoMeta}()
 function meta(::Type{BoolValue})
-    if !isassigned(__meta_BoolValue)
-        __meta_BoolValue[] = target = ProtoMeta(BoolValue)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => Bool]
-        meta(target, BoolValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_BoolValue)
+            __meta_BoolValue[] = target = ProtoMeta(BoolValue)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => Bool]
+            meta(target, BoolValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_BoolValue[]
     end
-    __meta_BoolValue[]
 end
 function Base.getproperty(obj::BoolValue, name::Symbol)
     if name === :value
@@ -256,12 +270,14 @@ mutable struct StringValue <: ProtoType
 end # mutable struct StringValue
 const __meta_StringValue = Ref{ProtoMeta}()
 function meta(::Type{StringValue})
-    if !isassigned(__meta_StringValue)
-        __meta_StringValue[] = target = ProtoMeta(StringValue)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => AbstractString]
-        meta(target, StringValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_StringValue)
+            __meta_StringValue[] = target = ProtoMeta(StringValue)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => AbstractString]
+            meta(target, StringValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_StringValue[]
     end
-    __meta_StringValue[]
 end
 function Base.getproperty(obj::StringValue, name::Symbol)
     if name === :value
@@ -290,12 +306,14 @@ mutable struct BytesValue <: ProtoType
 end # mutable struct BytesValue
 const __meta_BytesValue = Ref{ProtoMeta}()
 function meta(::Type{BytesValue})
-    if !isassigned(__meta_BytesValue)
-        __meta_BytesValue[] = target = ProtoMeta(BytesValue)
-        allflds = Pair{Symbol,Union{Type,String}}[:value => Array{UInt8,1}]
-        meta(target, BytesValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_BytesValue)
+            __meta_BytesValue[] = target = ProtoMeta(BytesValue)
+            allflds = Pair{Symbol,Union{Type,String}}[:value => Array{UInt8,1}]
+            meta(target, BytesValue, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_BytesValue[]
     end
-    __meta_BytesValue[]
 end
 function Base.getproperty(obj::BytesValue, name::Symbol)
     if name === :value

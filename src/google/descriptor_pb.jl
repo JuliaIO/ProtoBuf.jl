@@ -18,13 +18,15 @@ mutable struct UninterpretedOption_NamePart <: ProtoType
 end # mutable struct UninterpretedOption_NamePart
 const __meta_UninterpretedOption_NamePart = Ref{ProtoMeta}()
 function meta(::Type{UninterpretedOption_NamePart})
-    if !isassigned(__meta_UninterpretedOption_NamePart)
-        __meta_UninterpretedOption_NamePart[] = target = ProtoMeta(UninterpretedOption_NamePart)
-        req = Symbol[:name_part,:is_extension]
-        allflds = Pair{Symbol,Union{Type,String}}[:name_part => AbstractString, :is_extension => Bool]
-        meta(target, UninterpretedOption_NamePart, allflds, req, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_UninterpretedOption_NamePart)
+            __meta_UninterpretedOption_NamePart[] = target = ProtoMeta(UninterpretedOption_NamePart)
+            req = Symbol[:name_part,:is_extension]
+            allflds = Pair{Symbol,Union{Type,String}}[:name_part => AbstractString, :is_extension => Bool]
+            meta(target, UninterpretedOption_NamePart, allflds, req, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_UninterpretedOption_NamePart[]
     end
-    __meta_UninterpretedOption_NamePart[]
 end
 function Base.getproperty(obj::UninterpretedOption_NamePart, name::Symbol)
     if name === :name_part
@@ -55,13 +57,15 @@ mutable struct UninterpretedOption <: ProtoType
 end # mutable struct UninterpretedOption
 const __meta_UninterpretedOption = Ref{ProtoMeta}()
 function meta(::Type{UninterpretedOption})
-    if !isassigned(__meta_UninterpretedOption)
-        __meta_UninterpretedOption[] = target = ProtoMeta(UninterpretedOption)
-        fnum = Int[2,3,4,5,6,7,8]
-        allflds = Pair{Symbol,Union{Type,String}}[:name => Base.Vector{UninterpretedOption_NamePart}, :identifier_value => AbstractString, :positive_int_value => UInt64, :negative_int_value => Int64, :double_value => Float64, :string_value => Array{UInt8,1}, :aggregate_value => AbstractString]
-        meta(target, UninterpretedOption, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_UninterpretedOption)
+            __meta_UninterpretedOption[] = target = ProtoMeta(UninterpretedOption)
+            fnum = Int[2,3,4,5,6,7,8]
+            allflds = Pair{Symbol,Union{Type,String}}[:name => Base.Vector{UninterpretedOption_NamePart}, :identifier_value => AbstractString, :positive_int_value => UInt64, :negative_int_value => Int64, :double_value => Float64, :string_value => Array{UInt8,1}, :aggregate_value => AbstractString]
+            meta(target, UninterpretedOption, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_UninterpretedOption[]
     end
-    __meta_UninterpretedOption[]
 end
 function Base.getproperty(obj::UninterpretedOption, name::Symbol)
     if name === :name
@@ -114,14 +118,16 @@ mutable struct FieldOptions <: ProtoType
 end # mutable struct FieldOptions
 const __meta_FieldOptions = Ref{ProtoMeta}()
 function meta(::Type{FieldOptions})
-    if !isassigned(__meta_FieldOptions)
-        __meta_FieldOptions[] = target = ProtoMeta(FieldOptions)
-        val = Dict{Symbol,Any}(:ctype => FieldOptions_CType.STRING, :jstype => FieldOptions_JSType.JS_NORMAL, :lazy => false, :deprecated => false, :weak => false)
-        fnum = Int[1,2,6,5,3,10,999]
-        allflds = Pair{Symbol,Union{Type,String}}[:ctype => Int32, :packed => Bool, :jstype => Int32, :lazy => Bool, :deprecated => Bool, :weak => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, FieldOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_FieldOptions)
+            __meta_FieldOptions[] = target = ProtoMeta(FieldOptions)
+            val = Dict{Symbol,Any}(:ctype => FieldOptions_CType.STRING, :jstype => FieldOptions_JSType.JS_NORMAL, :lazy => false, :deprecated => false, :weak => false)
+            fnum = Int[1,2,6,5,3,10,999]
+            allflds = Pair{Symbol,Union{Type,String}}[:ctype => Int32, :packed => Bool, :jstype => Int32, :lazy => Bool, :deprecated => Bool, :weak => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, FieldOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_FieldOptions[]
     end
-    __meta_FieldOptions[]
 end
 function Base.getproperty(obj::FieldOptions, name::Symbol)
     if name === :ctype
@@ -162,14 +168,16 @@ mutable struct MessageOptions <: ProtoType
 end # mutable struct MessageOptions
 const __meta_MessageOptions = Ref{ProtoMeta}()
 function meta(::Type{MessageOptions})
-    if !isassigned(__meta_MessageOptions)
-        __meta_MessageOptions[] = target = ProtoMeta(MessageOptions)
-        val = Dict{Symbol,Any}(:message_set_wire_format => false, :no_standard_descriptor_accessor => false, :deprecated => false)
-        fnum = Int[1,2,3,7,999]
-        allflds = Pair{Symbol,Union{Type,String}}[:message_set_wire_format => Bool, :no_standard_descriptor_accessor => Bool, :deprecated => Bool, :map_entry => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, MessageOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_MessageOptions)
+            __meta_MessageOptions[] = target = ProtoMeta(MessageOptions)
+            val = Dict{Symbol,Any}(:message_set_wire_format => false, :no_standard_descriptor_accessor => false, :deprecated => false)
+            fnum = Int[1,2,3,7,999]
+            allflds = Pair{Symbol,Union{Type,String}}[:message_set_wire_format => Bool, :no_standard_descriptor_accessor => Bool, :deprecated => Bool, :map_entry => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, MessageOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_MessageOptions[]
     end
-    __meta_MessageOptions[]
 end
 function Base.getproperty(obj::MessageOptions, name::Symbol)
     if name === :message_set_wire_format
@@ -206,14 +214,16 @@ mutable struct EnumOptions <: ProtoType
 end # mutable struct EnumOptions
 const __meta_EnumOptions = Ref{ProtoMeta}()
 function meta(::Type{EnumOptions})
-    if !isassigned(__meta_EnumOptions)
-        __meta_EnumOptions[] = target = ProtoMeta(EnumOptions)
-        val = Dict{Symbol,Any}(:deprecated => false)
-        fnum = Int[2,3,999]
-        allflds = Pair{Symbol,Union{Type,String}}[:allow_alias => Bool, :deprecated => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, EnumOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_EnumOptions)
+            __meta_EnumOptions[] = target = ProtoMeta(EnumOptions)
+            val = Dict{Symbol,Any}(:deprecated => false)
+            fnum = Int[2,3,999]
+            allflds = Pair{Symbol,Union{Type,String}}[:allow_alias => Bool, :deprecated => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, EnumOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_EnumOptions[]
     end
-    __meta_EnumOptions[]
 end
 function Base.getproperty(obj::EnumOptions, name::Symbol)
     if name === :allow_alias
@@ -246,13 +256,15 @@ mutable struct ExtensionRangeOptions <: ProtoType
 end # mutable struct ExtensionRangeOptions
 const __meta_ExtensionRangeOptions = Ref{ProtoMeta}()
 function meta(::Type{ExtensionRangeOptions})
-    if !isassigned(__meta_ExtensionRangeOptions)
-        __meta_ExtensionRangeOptions[] = target = ProtoMeta(ExtensionRangeOptions)
-        fnum = Int[999]
-        allflds = Pair{Symbol,Union{Type,String}}[:uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, ExtensionRangeOptions, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_ExtensionRangeOptions)
+            __meta_ExtensionRangeOptions[] = target = ProtoMeta(ExtensionRangeOptions)
+            fnum = Int[999]
+            allflds = Pair{Symbol,Union{Type,String}}[:uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, ExtensionRangeOptions, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_ExtensionRangeOptions[]
     end
-    __meta_ExtensionRangeOptions[]
 end
 function Base.getproperty(obj::ExtensionRangeOptions, name::Symbol)
     if name === :uninterpreted_option
@@ -287,14 +299,16 @@ mutable struct MethodOptions <: ProtoType
 end # mutable struct MethodOptions
 const __meta_MethodOptions = Ref{ProtoMeta}()
 function meta(::Type{MethodOptions})
-    if !isassigned(__meta_MethodOptions)
-        __meta_MethodOptions[] = target = ProtoMeta(MethodOptions)
-        val = Dict{Symbol,Any}(:deprecated => false, :idempotency_level => MethodOptions_IdempotencyLevel.IDEMPOTENCY_UNKNOWN)
-        fnum = Int[33,34,999]
-        allflds = Pair{Symbol,Union{Type,String}}[:deprecated => Bool, :idempotency_level => Int32, :uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, MethodOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_MethodOptions)
+            __meta_MethodOptions[] = target = ProtoMeta(MethodOptions)
+            val = Dict{Symbol,Any}(:deprecated => false, :idempotency_level => MethodOptions_IdempotencyLevel.IDEMPOTENCY_UNKNOWN)
+            fnum = Int[33,34,999]
+            allflds = Pair{Symbol,Union{Type,String}}[:deprecated => Bool, :idempotency_level => Int32, :uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, MethodOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_MethodOptions[]
     end
-    __meta_MethodOptions[]
 end
 function Base.getproperty(obj::MethodOptions, name::Symbol)
     if name === :deprecated
@@ -333,14 +347,16 @@ mutable struct FileOptions <: ProtoType
 end # mutable struct FileOptions
 const __meta_FileOptions = Ref{ProtoMeta}()
 function meta(::Type{FileOptions})
-    if !isassigned(__meta_FileOptions)
-        __meta_FileOptions[] = target = ProtoMeta(FileOptions)
-        val = Dict{Symbol,Any}(:java_multiple_files => false, :java_string_check_utf8 => false, :optimize_for => FileOptions_OptimizeMode.SPEED, :cc_generic_services => false, :java_generic_services => false, :py_generic_services => false, :php_generic_services => false, :deprecated => false, :cc_enable_arenas => false)
-        fnum = Int[1,8,10,20,27,9,11,16,17,18,42,23,31,36,37,39,40,41,44,45,999]
-        allflds = Pair{Symbol,Union{Type,String}}[:java_package => AbstractString, :java_outer_classname => AbstractString, :java_multiple_files => Bool, :java_generate_equals_and_hash => Bool, :java_string_check_utf8 => Bool, :optimize_for => Int32, :go_package => AbstractString, :cc_generic_services => Bool, :java_generic_services => Bool, :py_generic_services => Bool, :php_generic_services => Bool, :deprecated => Bool, :cc_enable_arenas => Bool, :objc_class_prefix => AbstractString, :csharp_namespace => AbstractString, :swift_prefix => AbstractString, :php_class_prefix => AbstractString, :php_namespace => AbstractString, :php_metadata_namespace => AbstractString, :ruby_package => AbstractString, :uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, FileOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_FileOptions)
+            __meta_FileOptions[] = target = ProtoMeta(FileOptions)
+            val = Dict{Symbol,Any}(:java_multiple_files => false, :java_string_check_utf8 => false, :optimize_for => FileOptions_OptimizeMode.SPEED, :cc_generic_services => false, :java_generic_services => false, :py_generic_services => false, :php_generic_services => false, :deprecated => false, :cc_enable_arenas => false)
+            fnum = Int[1,8,10,20,27,9,11,16,17,18,42,23,31,36,37,39,40,41,44,45,999]
+            allflds = Pair{Symbol,Union{Type,String}}[:java_package => AbstractString, :java_outer_classname => AbstractString, :java_multiple_files => Bool, :java_generate_equals_and_hash => Bool, :java_string_check_utf8 => Bool, :optimize_for => Int32, :go_package => AbstractString, :cc_generic_services => Bool, :java_generic_services => Bool, :py_generic_services => Bool, :php_generic_services => Bool, :deprecated => Bool, :cc_enable_arenas => Bool, :objc_class_prefix => AbstractString, :csharp_namespace => AbstractString, :swift_prefix => AbstractString, :php_class_prefix => AbstractString, :php_namespace => AbstractString, :php_metadata_namespace => AbstractString, :ruby_package => AbstractString, :uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, FileOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_FileOptions[]
     end
-    __meta_FileOptions[]
 end
 function Base.getproperty(obj::FileOptions, name::Symbol)
     if name === :java_package
@@ -409,14 +425,16 @@ mutable struct EnumValueOptions <: ProtoType
 end # mutable struct EnumValueOptions
 const __meta_EnumValueOptions = Ref{ProtoMeta}()
 function meta(::Type{EnumValueOptions})
-    if !isassigned(__meta_EnumValueOptions)
-        __meta_EnumValueOptions[] = target = ProtoMeta(EnumValueOptions)
-        val = Dict{Symbol,Any}(:deprecated => false)
-        fnum = Int[1,999]
-        allflds = Pair{Symbol,Union{Type,String}}[:deprecated => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, EnumValueOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_EnumValueOptions)
+            __meta_EnumValueOptions[] = target = ProtoMeta(EnumValueOptions)
+            val = Dict{Symbol,Any}(:deprecated => false)
+            fnum = Int[1,999]
+            allflds = Pair{Symbol,Union{Type,String}}[:deprecated => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, EnumValueOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_EnumValueOptions[]
     end
-    __meta_EnumValueOptions[]
 end
 function Base.getproperty(obj::EnumValueOptions, name::Symbol)
     if name === :deprecated
@@ -447,13 +465,15 @@ mutable struct OneofOptions <: ProtoType
 end # mutable struct OneofOptions
 const __meta_OneofOptions = Ref{ProtoMeta}()
 function meta(::Type{OneofOptions})
-    if !isassigned(__meta_OneofOptions)
-        __meta_OneofOptions[] = target = ProtoMeta(OneofOptions)
-        fnum = Int[999]
-        allflds = Pair{Symbol,Union{Type,String}}[:uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, OneofOptions, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_OneofOptions)
+            __meta_OneofOptions[] = target = ProtoMeta(OneofOptions)
+            fnum = Int[999]
+            allflds = Pair{Symbol,Union{Type,String}}[:uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, OneofOptions, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_OneofOptions[]
     end
-    __meta_OneofOptions[]
 end
 function Base.getproperty(obj::OneofOptions, name::Symbol)
     if name === :uninterpreted_option
@@ -482,14 +502,16 @@ mutable struct ServiceOptions <: ProtoType
 end # mutable struct ServiceOptions
 const __meta_ServiceOptions = Ref{ProtoMeta}()
 function meta(::Type{ServiceOptions})
-    if !isassigned(__meta_ServiceOptions)
-        __meta_ServiceOptions[] = target = ProtoMeta(ServiceOptions)
-        val = Dict{Symbol,Any}(:deprecated => false)
-        fnum = Int[33,999]
-        allflds = Pair{Symbol,Union{Type,String}}[:deprecated => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
-        meta(target, ServiceOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_ServiceOptions)
+            __meta_ServiceOptions[] = target = ProtoMeta(ServiceOptions)
+            val = Dict{Symbol,Any}(:deprecated => false)
+            fnum = Int[33,999]
+            allflds = Pair{Symbol,Union{Type,String}}[:deprecated => Bool, :uninterpreted_option => Base.Vector{UninterpretedOption}]
+            meta(target, ServiceOptions, allflds, ProtoBuf.DEF_REQ, fnum, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_ServiceOptions[]
     end
-    __meta_ServiceOptions[]
 end
 function Base.getproperty(obj::ServiceOptions, name::Symbol)
     if name === :deprecated
@@ -547,13 +569,15 @@ mutable struct FieldDescriptorProto <: ProtoType
 end # mutable struct FieldDescriptorProto
 const __meta_FieldDescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{FieldDescriptorProto})
-    if !isassigned(__meta_FieldDescriptorProto)
-        __meta_FieldDescriptorProto[] = target = ProtoMeta(FieldDescriptorProto)
-        fnum = Int[1,3,4,5,6,2,7,9,10,8]
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :number => Int32, :label => Int32, :_type => Int32, :type_name => AbstractString, :extendee => AbstractString, :default_value => AbstractString, :oneof_index => Int32, :json_name => AbstractString, :options => FieldOptions]
-        meta(target, FieldDescriptorProto, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_FieldDescriptorProto)
+            __meta_FieldDescriptorProto[] = target = ProtoMeta(FieldDescriptorProto)
+            fnum = Int[1,3,4,5,6,2,7,9,10,8]
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :number => Int32, :label => Int32, :_type => Int32, :type_name => AbstractString, :extendee => AbstractString, :default_value => AbstractString, :oneof_index => Int32, :json_name => AbstractString, :options => FieldOptions]
+            meta(target, FieldDescriptorProto, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_FieldDescriptorProto[]
     end
-    __meta_FieldDescriptorProto[]
 end
 function Base.getproperty(obj::FieldDescriptorProto, name::Symbol)
     if name === :name
@@ -600,12 +624,14 @@ mutable struct DescriptorProto_ExtensionRange <: ProtoType
 end # mutable struct DescriptorProto_ExtensionRange
 const __meta_DescriptorProto_ExtensionRange = Ref{ProtoMeta}()
 function meta(::Type{DescriptorProto_ExtensionRange})
-    if !isassigned(__meta_DescriptorProto_ExtensionRange)
-        __meta_DescriptorProto_ExtensionRange[] = target = ProtoMeta(DescriptorProto_ExtensionRange)
-        allflds = Pair{Symbol,Union{Type,String}}[:start => Int32, :_end => Int32, :options => ExtensionRangeOptions]
-        meta(target, DescriptorProto_ExtensionRange, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_DescriptorProto_ExtensionRange)
+            __meta_DescriptorProto_ExtensionRange[] = target = ProtoMeta(DescriptorProto_ExtensionRange)
+            allflds = Pair{Symbol,Union{Type,String}}[:start => Int32, :_end => Int32, :options => ExtensionRangeOptions]
+            meta(target, DescriptorProto_ExtensionRange, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_DescriptorProto_ExtensionRange[]
     end
-    __meta_DescriptorProto_ExtensionRange[]
 end
 function Base.getproperty(obj::DescriptorProto_ExtensionRange, name::Symbol)
     if name === :start
@@ -638,13 +664,15 @@ mutable struct MethodDescriptorProto <: ProtoType
 end # mutable struct MethodDescriptorProto
 const __meta_MethodDescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{MethodDescriptorProto})
-    if !isassigned(__meta_MethodDescriptorProto)
-        __meta_MethodDescriptorProto[] = target = ProtoMeta(MethodDescriptorProto)
-        val = Dict{Symbol,Any}(:client_streaming => false, :server_streaming => false)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :input_type => AbstractString, :output_type => AbstractString, :options => MethodOptions, :client_streaming => Bool, :server_streaming => Bool]
-        meta(target, MethodDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_MethodDescriptorProto)
+            __meta_MethodDescriptorProto[] = target = ProtoMeta(MethodDescriptorProto)
+            val = Dict{Symbol,Any}(:client_streaming => false, :server_streaming => false)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :input_type => AbstractString, :output_type => AbstractString, :options => MethodOptions, :client_streaming => Bool, :server_streaming => Bool]
+            meta(target, MethodDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, val, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_MethodDescriptorProto[]
     end
-    __meta_MethodDescriptorProto[]
 end
 function Base.getproperty(obj::MethodDescriptorProto, name::Symbol)
     if name === :name
@@ -683,12 +711,14 @@ mutable struct EnumValueDescriptorProto <: ProtoType
 end # mutable struct EnumValueDescriptorProto
 const __meta_EnumValueDescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{EnumValueDescriptorProto})
-    if !isassigned(__meta_EnumValueDescriptorProto)
-        __meta_EnumValueDescriptorProto[] = target = ProtoMeta(EnumValueDescriptorProto)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :number => Int32, :options => EnumValueOptions]
-        meta(target, EnumValueDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_EnumValueDescriptorProto)
+            __meta_EnumValueDescriptorProto[] = target = ProtoMeta(EnumValueDescriptorProto)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :number => Int32, :options => EnumValueOptions]
+            meta(target, EnumValueDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_EnumValueDescriptorProto[]
     end
-    __meta_EnumValueDescriptorProto[]
 end
 function Base.getproperty(obj::EnumValueDescriptorProto, name::Symbol)
     if name === :name
@@ -721,12 +751,14 @@ mutable struct EnumDescriptorProto_EnumReservedRange <: ProtoType
 end # mutable struct EnumDescriptorProto_EnumReservedRange
 const __meta_EnumDescriptorProto_EnumReservedRange = Ref{ProtoMeta}()
 function meta(::Type{EnumDescriptorProto_EnumReservedRange})
-    if !isassigned(__meta_EnumDescriptorProto_EnumReservedRange)
-        __meta_EnumDescriptorProto_EnumReservedRange[] = target = ProtoMeta(EnumDescriptorProto_EnumReservedRange)
-        allflds = Pair{Symbol,Union{Type,String}}[:start => Int32, :_end => Int32]
-        meta(target, EnumDescriptorProto_EnumReservedRange, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_EnumDescriptorProto_EnumReservedRange)
+            __meta_EnumDescriptorProto_EnumReservedRange[] = target = ProtoMeta(EnumDescriptorProto_EnumReservedRange)
+            allflds = Pair{Symbol,Union{Type,String}}[:start => Int32, :_end => Int32]
+            meta(target, EnumDescriptorProto_EnumReservedRange, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_EnumDescriptorProto_EnumReservedRange[]
     end
-    __meta_EnumDescriptorProto_EnumReservedRange[]
 end
 function Base.getproperty(obj::EnumDescriptorProto_EnumReservedRange, name::Symbol)
     if name === :start
@@ -757,12 +789,14 @@ mutable struct EnumDescriptorProto <: ProtoType
 end # mutable struct EnumDescriptorProto
 const __meta_EnumDescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{EnumDescriptorProto})
-    if !isassigned(__meta_EnumDescriptorProto)
-        __meta_EnumDescriptorProto[] = target = ProtoMeta(EnumDescriptorProto)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :value => Base.Vector{EnumValueDescriptorProto}, :options => EnumOptions, :reserved_range => Base.Vector{EnumDescriptorProto_EnumReservedRange}, :reserved_name => Base.Vector{AbstractString}]
-        meta(target, EnumDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_EnumDescriptorProto)
+            __meta_EnumDescriptorProto[] = target = ProtoMeta(EnumDescriptorProto)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :value => Base.Vector{EnumValueDescriptorProto}, :options => EnumOptions, :reserved_range => Base.Vector{EnumDescriptorProto_EnumReservedRange}, :reserved_name => Base.Vector{AbstractString}]
+            meta(target, EnumDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_EnumDescriptorProto[]
     end
-    __meta_EnumDescriptorProto[]
 end
 function Base.getproperty(obj::EnumDescriptorProto, name::Symbol)
     if name === :name
@@ -799,12 +833,14 @@ mutable struct OneofDescriptorProto <: ProtoType
 end # mutable struct OneofDescriptorProto
 const __meta_OneofDescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{OneofDescriptorProto})
-    if !isassigned(__meta_OneofDescriptorProto)
-        __meta_OneofDescriptorProto[] = target = ProtoMeta(OneofDescriptorProto)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :options => OneofOptions]
-        meta(target, OneofDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_OneofDescriptorProto)
+            __meta_OneofDescriptorProto[] = target = ProtoMeta(OneofDescriptorProto)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :options => OneofOptions]
+            meta(target, OneofDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_OneofDescriptorProto[]
     end
-    __meta_OneofDescriptorProto[]
 end
 function Base.getproperty(obj::OneofDescriptorProto, name::Symbol)
     if name === :name
@@ -835,12 +871,14 @@ mutable struct DescriptorProto_ReservedRange <: ProtoType
 end # mutable struct DescriptorProto_ReservedRange
 const __meta_DescriptorProto_ReservedRange = Ref{ProtoMeta}()
 function meta(::Type{DescriptorProto_ReservedRange})
-    if !isassigned(__meta_DescriptorProto_ReservedRange)
-        __meta_DescriptorProto_ReservedRange[] = target = ProtoMeta(DescriptorProto_ReservedRange)
-        allflds = Pair{Symbol,Union{Type,String}}[:start => Int32, :_end => Int32]
-        meta(target, DescriptorProto_ReservedRange, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_DescriptorProto_ReservedRange)
+            __meta_DescriptorProto_ReservedRange[] = target = ProtoMeta(DescriptorProto_ReservedRange)
+            allflds = Pair{Symbol,Union{Type,String}}[:start => Int32, :_end => Int32]
+            meta(target, DescriptorProto_ReservedRange, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_DescriptorProto_ReservedRange[]
     end
-    __meta_DescriptorProto_ReservedRange[]
 end
 function Base.getproperty(obj::DescriptorProto_ReservedRange, name::Symbol)
     if name === :start
@@ -871,13 +909,15 @@ mutable struct DescriptorProto <: ProtoType
 end # mutable struct DescriptorProto
 const __meta_DescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{DescriptorProto})
-    if !isassigned(__meta_DescriptorProto)
-        __meta_DescriptorProto[] = target = ProtoMeta(DescriptorProto)
-        fnum = Int[1,2,6,3,4,5,8,7,9,10]
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :field => Base.Vector{FieldDescriptorProto}, :extension => Base.Vector{FieldDescriptorProto}, :nested_type => Base.Vector{DescriptorProto}, :enum_type => Base.Vector{EnumDescriptorProto}, :extension_range => Base.Vector{DescriptorProto_ExtensionRange}, :oneof_decl => Base.Vector{OneofDescriptorProto}, :options => MessageOptions, :reserved_range => Base.Vector{DescriptorProto_ReservedRange}, :reserved_name => Base.Vector{AbstractString}]
-        meta(target, DescriptorProto, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_DescriptorProto)
+            __meta_DescriptorProto[] = target = ProtoMeta(DescriptorProto)
+            fnum = Int[1,2,6,3,4,5,8,7,9,10]
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :field => Base.Vector{FieldDescriptorProto}, :extension => Base.Vector{FieldDescriptorProto}, :nested_type => Base.Vector{DescriptorProto}, :enum_type => Base.Vector{EnumDescriptorProto}, :extension_range => Base.Vector{DescriptorProto_ExtensionRange}, :oneof_decl => Base.Vector{OneofDescriptorProto}, :options => MessageOptions, :reserved_range => Base.Vector{DescriptorProto_ReservedRange}, :reserved_name => Base.Vector{AbstractString}]
+            meta(target, DescriptorProto, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_DescriptorProto[]
     end
-    __meta_DescriptorProto[]
 end
 function Base.getproperty(obj::DescriptorProto, name::Symbol)
     if name === :name
@@ -924,12 +964,14 @@ mutable struct ServiceDescriptorProto <: ProtoType
 end # mutable struct ServiceDescriptorProto
 const __meta_ServiceDescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{ServiceDescriptorProto})
-    if !isassigned(__meta_ServiceDescriptorProto)
-        __meta_ServiceDescriptorProto[] = target = ProtoMeta(ServiceDescriptorProto)
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :method => Base.Vector{MethodDescriptorProto}, :options => ServiceOptions]
-        meta(target, ServiceDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_ServiceDescriptorProto)
+            __meta_ServiceDescriptorProto[] = target = ProtoMeta(ServiceDescriptorProto)
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :method => Base.Vector{MethodDescriptorProto}, :options => ServiceOptions]
+            meta(target, ServiceDescriptorProto, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_ServiceDescriptorProto[]
     end
-    __meta_ServiceDescriptorProto[]
 end
 function Base.getproperty(obj::ServiceDescriptorProto, name::Symbol)
     if name === :name
@@ -962,14 +1004,16 @@ mutable struct SourceCodeInfo_Location <: ProtoType
 end # mutable struct SourceCodeInfo_Location
 const __meta_SourceCodeInfo_Location = Ref{ProtoMeta}()
 function meta(::Type{SourceCodeInfo_Location})
-    if !isassigned(__meta_SourceCodeInfo_Location)
-        __meta_SourceCodeInfo_Location[] = target = ProtoMeta(SourceCodeInfo_Location)
-        fnum = Int[1,2,3,4,6]
-        pack = Symbol[:path,:span]
-        allflds = Pair{Symbol,Union{Type,String}}[:path => Base.Vector{Int32}, :span => Base.Vector{Int32}, :leading_comments => AbstractString, :trailing_comments => AbstractString, :leading_detached_comments => Base.Vector{AbstractString}]
-        meta(target, SourceCodeInfo_Location, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, pack, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_SourceCodeInfo_Location)
+            __meta_SourceCodeInfo_Location[] = target = ProtoMeta(SourceCodeInfo_Location)
+            fnum = Int[1,2,3,4,6]
+            pack = Symbol[:path,:span]
+            allflds = Pair{Symbol,Union{Type,String}}[:path => Base.Vector{Int32}, :span => Base.Vector{Int32}, :leading_comments => AbstractString, :trailing_comments => AbstractString, :leading_detached_comments => Base.Vector{AbstractString}]
+            meta(target, SourceCodeInfo_Location, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, pack, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_SourceCodeInfo_Location[]
     end
-    __meta_SourceCodeInfo_Location[]
 end
 function Base.getproperty(obj::SourceCodeInfo_Location, name::Symbol)
     if name === :path
@@ -1006,12 +1050,14 @@ mutable struct SourceCodeInfo <: ProtoType
 end # mutable struct SourceCodeInfo
 const __meta_SourceCodeInfo = Ref{ProtoMeta}()
 function meta(::Type{SourceCodeInfo})
-    if !isassigned(__meta_SourceCodeInfo)
-        __meta_SourceCodeInfo[] = target = ProtoMeta(SourceCodeInfo)
-        allflds = Pair{Symbol,Union{Type,String}}[:location => Base.Vector{SourceCodeInfo_Location}]
-        meta(target, SourceCodeInfo, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_SourceCodeInfo)
+            __meta_SourceCodeInfo[] = target = ProtoMeta(SourceCodeInfo)
+            allflds = Pair{Symbol,Union{Type,String}}[:location => Base.Vector{SourceCodeInfo_Location}]
+            meta(target, SourceCodeInfo, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_SourceCodeInfo[]
     end
-    __meta_SourceCodeInfo[]
 end
 function Base.getproperty(obj::SourceCodeInfo, name::Symbol)
     if name === :location
@@ -1040,13 +1086,15 @@ mutable struct FileDescriptorProto <: ProtoType
 end # mutable struct FileDescriptorProto
 const __meta_FileDescriptorProto = Ref{ProtoMeta}()
 function meta(::Type{FileDescriptorProto})
-    if !isassigned(__meta_FileDescriptorProto)
-        __meta_FileDescriptorProto[] = target = ProtoMeta(FileDescriptorProto)
-        fnum = Int[1,2,3,10,11,4,5,6,7,8,9,12]
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :package => AbstractString, :dependency => Base.Vector{AbstractString}, :public_dependency => Base.Vector{Int32}, :weak_dependency => Base.Vector{Int32}, :message_type => Base.Vector{DescriptorProto}, :enum_type => Base.Vector{EnumDescriptorProto}, :service => Base.Vector{ServiceDescriptorProto}, :extension => Base.Vector{FieldDescriptorProto}, :options => FileOptions, :source_code_info => SourceCodeInfo, :syntax => AbstractString]
-        meta(target, FileDescriptorProto, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_FileDescriptorProto)
+            __meta_FileDescriptorProto[] = target = ProtoMeta(FileDescriptorProto)
+            fnum = Int[1,2,3,10,11,4,5,6,7,8,9,12]
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :package => AbstractString, :dependency => Base.Vector{AbstractString}, :public_dependency => Base.Vector{Int32}, :weak_dependency => Base.Vector{Int32}, :message_type => Base.Vector{DescriptorProto}, :enum_type => Base.Vector{EnumDescriptorProto}, :service => Base.Vector{ServiceDescriptorProto}, :extension => Base.Vector{FieldDescriptorProto}, :options => FileOptions, :source_code_info => SourceCodeInfo, :syntax => AbstractString]
+            meta(target, FileDescriptorProto, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_FileDescriptorProto[]
     end
-    __meta_FileDescriptorProto[]
 end
 function Base.getproperty(obj::FileDescriptorProto, name::Symbol)
     if name === :name
@@ -1097,12 +1145,14 @@ mutable struct FileDescriptorSet <: ProtoType
 end # mutable struct FileDescriptorSet
 const __meta_FileDescriptorSet = Ref{ProtoMeta}()
 function meta(::Type{FileDescriptorSet})
-    if !isassigned(__meta_FileDescriptorSet)
-        __meta_FileDescriptorSet[] = target = ProtoMeta(FileDescriptorSet)
-        allflds = Pair{Symbol,Union{Type,String}}[:file => Base.Vector{FileDescriptorProto}]
-        meta(target, FileDescriptorSet, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_FileDescriptorSet)
+            __meta_FileDescriptorSet[] = target = ProtoMeta(FileDescriptorSet)
+            allflds = Pair{Symbol,Union{Type,String}}[:file => Base.Vector{FileDescriptorProto}]
+            meta(target, FileDescriptorSet, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_FileDescriptorSet[]
     end
-    __meta_FileDescriptorSet[]
 end
 function Base.getproperty(obj::FileDescriptorSet, name::Symbol)
     if name === :file
@@ -1131,13 +1181,15 @@ mutable struct GeneratedCodeInfo_Annotation <: ProtoType
 end # mutable struct GeneratedCodeInfo_Annotation
 const __meta_GeneratedCodeInfo_Annotation = Ref{ProtoMeta}()
 function meta(::Type{GeneratedCodeInfo_Annotation})
-    if !isassigned(__meta_GeneratedCodeInfo_Annotation)
-        __meta_GeneratedCodeInfo_Annotation[] = target = ProtoMeta(GeneratedCodeInfo_Annotation)
-        pack = Symbol[:path]
-        allflds = Pair{Symbol,Union{Type,String}}[:path => Base.Vector{Int32}, :source_file => AbstractString, :_begin => Int32, :_end => Int32]
-        meta(target, GeneratedCodeInfo_Annotation, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, pack, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_GeneratedCodeInfo_Annotation)
+            __meta_GeneratedCodeInfo_Annotation[] = target = ProtoMeta(GeneratedCodeInfo_Annotation)
+            pack = Symbol[:path]
+            allflds = Pair{Symbol,Union{Type,String}}[:path => Base.Vector{Int32}, :source_file => AbstractString, :_begin => Int32, :_end => Int32]
+            meta(target, GeneratedCodeInfo_Annotation, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, pack, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_GeneratedCodeInfo_Annotation[]
     end
-    __meta_GeneratedCodeInfo_Annotation[]
 end
 function Base.getproperty(obj::GeneratedCodeInfo_Annotation, name::Symbol)
     if name === :path
@@ -1172,12 +1224,14 @@ mutable struct GeneratedCodeInfo <: ProtoType
 end # mutable struct GeneratedCodeInfo
 const __meta_GeneratedCodeInfo = Ref{ProtoMeta}()
 function meta(::Type{GeneratedCodeInfo})
-    if !isassigned(__meta_GeneratedCodeInfo)
-        __meta_GeneratedCodeInfo[] = target = ProtoMeta(GeneratedCodeInfo)
-        allflds = Pair{Symbol,Union{Type,String}}[:annotation => Base.Vector{GeneratedCodeInfo_Annotation}]
-        meta(target, GeneratedCodeInfo, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_GeneratedCodeInfo)
+            __meta_GeneratedCodeInfo[] = target = ProtoMeta(GeneratedCodeInfo)
+            allflds = Pair{Symbol,Union{Type,String}}[:annotation => Base.Vector{GeneratedCodeInfo_Annotation}]
+            meta(target, GeneratedCodeInfo, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_GeneratedCodeInfo[]
     end
-    __meta_GeneratedCodeInfo[]
 end
 function Base.getproperty(obj::GeneratedCodeInfo, name::Symbol)
     if name === :annotation

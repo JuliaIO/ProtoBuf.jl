@@ -464,43 +464,44 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     end
 
     # generate struct body
-    println(io, """mutable struct $(dtypename) <: ProtoType
-        __protobuf_jl_internal_meta::ProtoMeta
-        __protobuf_jl_internal_values::Dict{Symbol,Any}
+    println(io, """
+        mutable struct $(dtypename) <: ProtoType
+            __protobuf_jl_internal_meta::ProtoMeta
+            __protobuf_jl_internal_values::Dict{Symbol,Any}
 
-        function $(dtypename)(; kwargs...)
-            obj = new(meta($(dtypename)), Dict{Symbol,Any}())
-            values = obj.__protobuf_jl_internal_values
-            symdict = obj.__protobuf_jl_internal_meta.symdict
-            for nv in kwargs
-                fldname, fldval = nv
-                fldtype = symdict[fldname].jtyp
-                (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
-                values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
-            end
-            obj
-        end""")
+            function $(dtypename)(; kwargs...)
+                obj = new(meta($(dtypename)), Dict{Symbol,Any}())
+                values = obj.__protobuf_jl_internal_values
+                symdict = obj.__protobuf_jl_internal_meta.symdict
+                for nv in kwargs
+                    fldname, fldval = nv
+                    fldtype = symdict[fldname].jtyp
+                    (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+                    values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+                end
+                obj
+            end""")
     println(io, "end # mutable struct $(dtypename)", ismapentry ? " (mapentry)" : "", deferedmode ? " (has cyclic type dependency)" : "")
 
     # generate the meta for this type
     @debug("generating meta", dtypename)
     _d_fldnums = [1:length(fldnums);]
-    println(io, "const __meta_$(dtypename) = Ref{ProtoMeta}()")
-    println(io, "function meta(::Type{$dtypename})")
-    println(io, "    if !isassigned(__meta_$dtypename)")
-    println(io, "        __meta_$(dtypename)[] = target = ProtoMeta($dtypename)")
-    !isempty(reqflds) && println(io, "        req = Symbol[$(join(reqflds, ','))]")
-    !isempty(defvals) && println(io, "        val = Dict{Symbol,Any}($(join(defvals, ", ")))")
-    (fldnums != _d_fldnums) && println(io, "        fnum = Int[$(join(fldnums, ','))]")
-    !isempty(packedflds) && println(io, "        pack = Symbol[$(join(packedflds, ','))]")
-    !isempty(wtypes) && println(io, "        wtype = Dict($(join(wtypes, ", ")))")
-    println(io, "        allflds = Pair{Symbol,Union{Type,String}}[$(join(allflds, ", "))]")
+    println(io, """const __meta_$(dtypename) = Ref{ProtoMeta}()
+        function meta(::Type{$dtypename})
+            ProtoBuf.metalock() do
+                if !isassigned(__meta_$dtypename)
+                    __meta_$(dtypename)[] = target = ProtoMeta($dtypename)""")
+    !isempty(reqflds) && println(io, "            req = Symbol[$(join(reqflds, ','))]")
+    !isempty(defvals) && println(io, "            val = Dict{Symbol,Any}($(join(defvals, ", ")))")
+    (fldnums != _d_fldnums) && println(io, "            fnum = Int[$(join(fldnums, ','))]")
+    !isempty(packedflds) && println(io, "            pack = Symbol[$(join(packedflds, ','))]")
+    !isempty(wtypes) && println(io, "            wtype = Dict($(join(wtypes, ", ")))")
+    println(io, "            allflds = Pair{Symbol,Union{Type,String}}[$(join(allflds, ", "))]")
     if !isempty(oneofs)
-        println(io, "        oneofs = Int[$(join(oneofs, ','))]")
-        println(io, "        oneof_names = Symbol[$(join(oneof_names, ','))]")
+        println(io, "            oneofs = Int[$(join(oneofs, ','))]")
+        println(io, "            oneof_names = Symbol[$(join(oneof_names, ','))]")
     end
-
-    print(io, "        meta(target, $(dtypename), allflds, ")
+    print(io, "            meta(target, $(dtypename), allflds, ")
     print(io, isempty(reqflds) ? "ProtoBuf.DEF_REQ, " : "req, ")
     print(io, (fldnums == _d_fldnums) ? "ProtoBuf.DEF_FNUM, " : "fnum, ")
     print(io, isempty(defvals) ? "ProtoBuf.DEF_VAL, " : "val, ")
@@ -509,8 +510,9 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOFS, " : "oneofs, ")
     print(io, isempty(oneofs) ? "ProtoBuf.DEF_ONEOF_NAMES" : "oneof_names")
     println(io, ")")
+    println(io, "        end")
+    println(io, "        __meta_$(dtypename)[]")
     println(io, "    end")
-    println(io, "    __meta_$(dtypename)[]")
     println(io, "end")
 
     # generate new getproperty method

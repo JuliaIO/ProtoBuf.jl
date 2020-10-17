@@ -18,12 +18,14 @@ mutable struct Version <: ProtoType
 end # mutable struct Version
 const __meta_Version = Ref{ProtoMeta}()
 function meta(::Type{Version})
-    if !isassigned(__meta_Version)
-        __meta_Version[] = target = ProtoMeta(Version)
-        allflds = Pair{Symbol,Union{Type,String}}[:major => Int32, :minor => Int32, :patch => Int32, :suffix => AbstractString]
-        meta(target, Version, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Version)
+            __meta_Version[] = target = ProtoMeta(Version)
+            allflds = Pair{Symbol,Union{Type,String}}[:major => Int32, :minor => Int32, :patch => Int32, :suffix => AbstractString]
+            meta(target, Version, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Version[]
     end
-    __meta_Version[]
 end
 function Base.getproperty(obj::Version, name::Symbol)
     if name === :major
@@ -58,13 +60,15 @@ mutable struct CodeGeneratorRequest <: ProtoType
 end # mutable struct CodeGeneratorRequest
 const __meta_CodeGeneratorRequest = Ref{ProtoMeta}()
 function meta(::Type{CodeGeneratorRequest})
-    if !isassigned(__meta_CodeGeneratorRequest)
-        __meta_CodeGeneratorRequest[] = target = ProtoMeta(CodeGeneratorRequest)
-        fnum = Int[1,2,15,3]
-        allflds = Pair{Symbol,Union{Type,String}}[:file_to_generate => Base.Vector{AbstractString}, :parameter => AbstractString, :proto_file => Base.Vector{ProtoBuf.GoogleProtoBuf.FileDescriptorProto}, :compiler_version => Version]
-        meta(target, CodeGeneratorRequest, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_CodeGeneratorRequest)
+            __meta_CodeGeneratorRequest[] = target = ProtoMeta(CodeGeneratorRequest)
+            fnum = Int[1,2,15,3]
+            allflds = Pair{Symbol,Union{Type,String}}[:file_to_generate => Base.Vector{AbstractString}, :parameter => AbstractString, :proto_file => Base.Vector{ProtoBuf.GoogleProtoBuf.FileDescriptorProto}, :compiler_version => Version]
+            meta(target, CodeGeneratorRequest, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_CodeGeneratorRequest[]
     end
-    __meta_CodeGeneratorRequest[]
 end
 function Base.getproperty(obj::CodeGeneratorRequest, name::Symbol)
     if name === :file_to_generate
@@ -99,13 +103,15 @@ mutable struct CodeGeneratorResponse_File <: ProtoType
 end # mutable struct CodeGeneratorResponse_File
 const __meta_CodeGeneratorResponse_File = Ref{ProtoMeta}()
 function meta(::Type{CodeGeneratorResponse_File})
-    if !isassigned(__meta_CodeGeneratorResponse_File)
-        __meta_CodeGeneratorResponse_File[] = target = ProtoMeta(CodeGeneratorResponse_File)
-        fnum = Int[1,2,15]
-        allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :insertion_point => AbstractString, :content => AbstractString]
-        meta(target, CodeGeneratorResponse_File, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_CodeGeneratorResponse_File)
+            __meta_CodeGeneratorResponse_File[] = target = ProtoMeta(CodeGeneratorResponse_File)
+            fnum = Int[1,2,15]
+            allflds = Pair{Symbol,Union{Type,String}}[:name => AbstractString, :insertion_point => AbstractString, :content => AbstractString]
+            meta(target, CodeGeneratorResponse_File, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_CodeGeneratorResponse_File[]
     end
-    __meta_CodeGeneratorResponse_File[]
 end
 function Base.getproperty(obj::CodeGeneratorResponse_File, name::Symbol)
     if name === :name
@@ -138,13 +144,15 @@ mutable struct CodeGeneratorResponse <: ProtoType
 end # mutable struct CodeGeneratorResponse
 const __meta_CodeGeneratorResponse = Ref{ProtoMeta}()
 function meta(::Type{CodeGeneratorResponse})
-    if !isassigned(__meta_CodeGeneratorResponse)
-        __meta_CodeGeneratorResponse[] = target = ProtoMeta(CodeGeneratorResponse)
-        fnum = Int[1,15]
-        allflds = Pair{Symbol,Union{Type,String}}[:error => AbstractString, :file => Base.Vector{CodeGeneratorResponse_File}]
-        meta(target, CodeGeneratorResponse, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_CodeGeneratorResponse)
+            __meta_CodeGeneratorResponse[] = target = ProtoMeta(CodeGeneratorResponse)
+            fnum = Int[1,15]
+            allflds = Pair{Symbol,Union{Type,String}}[:error => AbstractString, :file => Base.Vector{CodeGeneratorResponse_File}]
+            meta(target, CodeGeneratorResponse, allflds, ProtoBuf.DEF_REQ, fnum, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_CodeGeneratorResponse[]
     end
-    __meta_CodeGeneratorResponse[]
 end
 function Base.getproperty(obj::CodeGeneratorResponse, name::Symbol)
     if name === :error

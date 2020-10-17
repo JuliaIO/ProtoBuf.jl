@@ -18,12 +18,14 @@ mutable struct _Any <: ProtoType
 end # mutable struct _Any
 const __meta__Any = Ref{ProtoMeta}()
 function meta(::Type{_Any})
-    if !isassigned(__meta__Any)
-        __meta__Any[] = target = ProtoMeta(_Any)
-        allflds = Pair{Symbol,Union{Type,String}}[:type_url => AbstractString, :value => Array{UInt8,1}]
-        meta(target, _Any, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta__Any)
+            __meta__Any[] = target = ProtoMeta(_Any)
+            allflds = Pair{Symbol,Union{Type,String}}[:type_url => AbstractString, :value => Array{UInt8,1}]
+            meta(target, _Any, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta__Any[]
     end
-    __meta__Any[]
 end
 function Base.getproperty(obj::_Any, name::Symbol)
     if name === :type_url

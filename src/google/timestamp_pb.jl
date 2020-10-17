@@ -18,12 +18,14 @@ mutable struct Timestamp <: ProtoType
 end # mutable struct Timestamp
 const __meta_Timestamp = Ref{ProtoMeta}()
 function meta(::Type{Timestamp})
-    if !isassigned(__meta_Timestamp)
-        __meta_Timestamp[] = target = ProtoMeta(Timestamp)
-        allflds = Pair{Symbol,Union{Type,String}}[:seconds => Int64, :nanos => Int32]
-        meta(target, Timestamp, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    ProtoBuf.metalock() do
+        if !isassigned(__meta_Timestamp)
+            __meta_Timestamp[] = target = ProtoMeta(Timestamp)
+            allflds = Pair{Symbol,Union{Type,String}}[:seconds => Int64, :nanos => Int32]
+            meta(target, Timestamp, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+        end
+        __meta_Timestamp[]
     end
-    __meta_Timestamp[]
 end
 function Base.getproperty(obj::Timestamp, name::Symbol)
     if name === :seconds

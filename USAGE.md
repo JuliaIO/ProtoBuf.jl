@@ -119,12 +119,22 @@ true
 ````
 
 ## Equality &amp; Hash Value
+
 It is possible for fields marked as optional to be in an &quot;unset&quot; state. Even bits type fields (`isbitstype(T) == true`) can be in this state though they may have valid contents. Such fields should then not be compared for equality or used for computing hash values. All ProtoBuf compatible types, by virtue of extending abstract `ProtoType` type, override `hash`, `isequal` and `==` methods to handle this. 
 
 ## Other Methods
+
 - `copy!{T}(to::T, from::T)` : shallow copy of objects
 - `isfilled(obj)` : same as `isinitialized`
 - `lookup(en, val::Integer)` : lookup the name (symbol) corresponding to an enum value
 - `enumstr(enumname, enumvalue::Int32)`: returns a string with the enum field name matching the value
 - `which_oneof(obj, oneof::Symbol)`: returns a symbol indicating the name of the field in the `oneof` group that is filled
+
+## Thread safety
+
+Most of the book-keeping data for a protobuf struct is kept inside the struct instance. So that does not hinder thread safe usage. However struct instances themselves need to be locked if they are being read and written to from different threads, as is expected of any regular Julia struct.
+
+Protobuf metadata for a struct (the information about fields and their properties as mentioned in the protobuf IDL definition) however is best initialized once and reused. It was not possible to generate code in such a way that it could be initialized when code is loaded and pre-compiled. This was because of the need to support nested and recursive struct references that protobuf allows - metadata for a struct could be defined only after the struct and all of its dependencies were defined. Metadata initialization had to be deferred to the first constructor call. But in order to reuse the metadata definition, it gets stored into a `Ref` that is set once. A process wide lock is used to make access to it thread safe. There is a small cost to be borne for that, and it should be negligible for most usages.
+
+If an application wishes to eliminate that cost entirely, then the way to do it would be to call the constructors of all protobuf structs it wishes to use first and then switch the lock off by calling `ProtoBuf.enable_async_safety(false)`. Once all metadata definitiions have been initialized, this would allow them to be used without any further locking overhead. This can also be set to `false` for a single threaded synchronous application where it is known that no parallelism is possible.
 
