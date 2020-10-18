@@ -11,8 +11,8 @@ mutable struct TestRpcController <: ProtoRpcController
     debug::Bool
 end
 
-debug_log(controller::TestRpcController, msg) = controller.debug && println(msg)
-error_log(controller::TestRpcController, msg) = println(stderr, msg)
+debug_log(controller::TestRpcController, msg) = controller.debug && @info(msg)
+error_log(controller::TestRpcController, msg) = @error(msg)
 
 # RpcChannel implementation for our test protocol
 # The protocol is to write and read:

@@ -10,8 +10,6 @@ macro _rand_int(T,mx,a)
    end)
 end
 
-print_hdr(tname) = println("testing $tname...")
-
 const TestTypeJType = Ref{Type}(Int64)
 const TestTypeWType = Ref{Symbol}(:int64)
 const TestTypeFldNum = Ref{Int}(1)
@@ -311,109 +309,115 @@ end
 function test_types()
     pb = PipeBuffer()
 
-    # test enum
-    print_hdr("enum")
-    TestTypeJType[] = Int32
-    TestTypeWType[] = :int32
-    TestTypePack[] = ProtoBuf.DEF_PACK
-    TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-    testmeta = meta(TestType)
-    testval = TestType(; val=@_rand_int(Int32, 10^9, 0))
-    readval = TestType()
-    writeproto(pb, testval, testmeta)
-    readproto(pb, readval, testmeta)
-    assert_equal(testval, readval)
+    @testset "types" begin
+        @testset "enum" begin
+            TestTypeJType[] = Int32
+            TestTypeWType[] = :int32
+            TestTypePack[] = ProtoBuf.DEF_PACK
+            TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+            testmeta = meta(TestType)
+            testval = TestType(; val=@_rand_int(Int32, 10^9, 0))
+            readval = TestType()
+            writeproto(pb, testval, testmeta)
+            readproto(pb, readval, testmeta)
+            assert_equal(testval, readval)
+        end
 
-    let typs = [Int32,Int64,UInt32,UInt64,Int32,Int64,UInt64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
-        for (typ,ptyp) in zip(typs,ptyps)
-            print_hdr(ptyp)
-            TestTypeJType[] = typ
-            TestTypeWType[] = ptyp
-            for idx in 1:100
-                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-                testmeta = meta(TestType)
-                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
-                readval = TestType()
-                writeproto(pb, testval, testmeta)
-                readproto(pb, readval, testmeta)
-                assert_equal(testval, readval)
+        @testset "integers" begin
+            let typs = [Int32,Int64,UInt32,UInt64,Int32,Int64,UInt64,Int64,UInt32,Int32], ptyps=[:int32,:int64,:uint32,:uint64,:sint32,:sint64,:fixed64,:sfixed64,:fixed32,:sfixed32]
+                for (typ,ptyp) in zip(typs,ptyps)
+                    TestTypeJType[] = typ
+                    TestTypeWType[] = ptyp
+                    for idx in 1:100
+                        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                        testmeta = meta(TestType)
+                        testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
+                        readval = TestType()
+                        writeproto(pb, testval, testmeta)
+                        readproto(pb, readval, testmeta)
+                        assert_equal(testval, readval)
+                    end
+                end
+            end
+
+            let typs = [Int32,Int64,Int32,Int64], ptyps=[:int32,:int64,:sint32,:sint64]
+                for (typ,ptyp) in zip(typs,ptyps)
+                    TestTypeJType[] = typ
+                    TestTypeWType[] = ptyp
+                    for idx in 1:100
+                        TestTypeFldNum[] = convert(typ, -1 * @_rand_int(Int32, 10^9, 0))
+                        testmeta = meta(TestType)
+                        testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
+                        readval = TestType()
+                        writeproto(pb, testval, testmeta)
+                        readproto(pb, readval, testmeta)
+                        assert_equal(testval, readval)
+                    end
+                end
             end
         end
-    end
 
-    let typs = [Int32,Int64,Int32,Int64], ptyps=[:int32,:int64,:sint32,:sint64]
-        for (typ,ptyp) in zip(typs,ptyps)
-            print_hdr(ptyp)
-            TestTypeJType[] = typ
-            TestTypeWType[] = ptyp
-            for idx in 1:100
-                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-                testmeta = meta(TestType)
-                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
-                readval = TestType()
-                writeproto(pb, testval, testmeta)
-                readproto(pb, readval, testmeta)
-                assert_equal(testval, readval)
+        @testset "varint overflow" begin
+            ProtoBuf._write_uleb(pb, -1)
+            @test ProtoBuf._read_uleb(pb, Int8) == 0
+            ProtoBuf._write_uleb(pb, 1)
+            @test ProtoBuf._read_uleb(pb, Int8) == 1
+            write(pb, 0xff)
+            ProtoBuf._write_uleb(pb, -1)
+            @test ProtoBuf._read_uleb(pb, Int32) == 0
+        end
+
+        @testset "bool" begin
+            let typs = [Bool], ptyps=[:bool]
+                for (typ,ptyp) in zip(typs,ptyps)
+                    TestTypeJType[] = typ
+                    TestTypeWType[] = ptyp
+                    for idx in 1:100
+                        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                        testmeta = meta(TestType)
+                        testval = TestType(; val=convert(typ, @_rand_int(UInt32, 1, 0)))
+                        readval = TestType()
+                        writeproto(pb, testval, testmeta)
+                        readproto(pb, readval, testmeta)
+                        assert_equal(testval, readval)
+                    end
+                end
             end
         end
-    end
 
-    print_hdr("varint overflow...")
-    ProtoBuf._write_uleb(pb, -1)
-    @test ProtoBuf._read_uleb(pb, Int8) == 0
-    ProtoBuf._write_uleb(pb, 1)
-    @test ProtoBuf._read_uleb(pb, Int8) == 1
-    write(pb, 0xff)
-    ProtoBuf._write_uleb(pb, -1)
-    @test ProtoBuf._read_uleb(pb, Int32) == 0
-
-    let typs = [Bool], ptyps=[:bool]
-        for (typ,ptyp) in zip(typs,ptyps)
-            print_hdr(ptyp)
-            TestTypeJType[] = typ
-            TestTypeWType[] = ptyp
-            for idx in 1:100
-                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-                testmeta = meta(TestType)
-                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 1, 0)))
-                readval = TestType()
-                writeproto(pb, testval, testmeta)
-                readproto(pb, readval, testmeta)
-                assert_equal(testval, readval)
+        @testset "double, float" begin
+            let typs = [Float64,Float32], ptyps=[:double,:float]
+                for (typ,ptyp) in zip(typs,ptyps)
+                    TestTypeJType[] = typ
+                    TestTypeWType[] = ptyp
+                    for idx in 1:100
+                        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                        testmeta = meta(TestType)
+                        testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
+                        readval = TestType()
+                        writeproto(pb, testval, testmeta)
+                        readproto(pb, readval, testmeta)
+                        assert_equal(testval, readval)
+                    end
+                end
             end
         end
-    end
 
-    let typs = [Float64,Float32], ptyps=[:double,:float]
-        for (typ,ptyp) in zip(typs,ptyps)
-            print_hdr(ptyp)
-            TestTypeJType[] = typ
-            TestTypeWType[] = ptyp
-            for idx in 1:100
-                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-                testmeta = meta(TestType)
-                testval = TestType(; val=convert(typ, @_rand_int(UInt32, 10^9, 0)))
-                readval = TestType()
-                writeproto(pb, testval, testmeta)
-                readproto(pb, readval, testmeta)
-                assert_equal(testval, readval)
-            end
-        end
-    end
-
-    let typs = [AbstractString], ptyps=[:string]
-        for (typ,ptyp) in zip(typs,ptyps)
-            print_hdr("string")
-            TestTypeJType[] = typ
-            TestTypeWType[] = ptyp
-            for idx in 1:100
-                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-                testmeta = meta(TestType)
-                testval = TestType(; val=randstring(50))
-                readval = TestType()
-                writeproto(pb, testval, testmeta)
-                readproto(pb, readval, testmeta)
-                assert_equal(testval, readval)
+        @testset "string" begin
+            let typs = [AbstractString], ptyps=[:string]
+                for (typ,ptyp) in zip(typs,ptyps)
+                    TestTypeJType[] = typ
+                    TestTypeWType[] = ptyp
+                    for idx in 1:100
+                        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                        testmeta = meta(TestType)
+                        testval = TestType(; val=randstring(50))
+                        readval = TestType()
+                        writeproto(pb, testval, testmeta)
+                        readproto(pb, readval, testmeta)
+                        assert_equal(testval, readval)
+                    end
+                end
             end
         end
     end
@@ -422,270 +426,283 @@ end
 function test_repeats()
     pb = PipeBuffer()
 
-    print_hdr("repeated int64")
-    TestTypeJType[] = Vector{Int64}
-    TestTypeWType[] = :int64
-    TestTypePack[] = ProtoBuf.DEF_PACK
-    for idx in 1:100
-        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-        testval = TestType(; val=collect(Int64, randstring(50)))
-        readval = TestType()
-        testmeta = meta(TestType)
-        writeproto(pb, testval, testmeta)
-        readproto(pb, readval, testmeta)
-        assert_equal(testval, readval)
-    end
+    @testset "Repeated" begin
+        @testset "Repeated int64" begin
+            TestTypeJType[] = Vector{Int64}
+            TestTypeWType[] = :int64
+            TestTypePack[] = ProtoBuf.DEF_PACK
+            for idx in 1:100
+                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                testval = TestType(; val=collect(Int64, randstring(50)))
+                readval = TestType()
+                testmeta = meta(TestType)
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
+                assert_equal(testval, readval)
+            end
+        end
 
-    print_hdr("repeated and packed int64")
-    TestTypePack[] = Symbol[:val]
-    for idx in 1:100
-        TestTypeFldNum[] = @_rand_int(Int, 100, 1)
-        testval = TestType(; val=collect(Int64, randstring(50)))
-        readval = TestType()
-        testmeta = meta(TestType)
-        writeproto(pb, testval, testmeta)
-        readproto(pb, readval, testmeta)
-        assert_equal(testval, readval)
-    end
+        @testset "Repeated and packed int64" begin
+            TestTypePack[] = Symbol[:val]
+            for idx in 1:100
+                TestTypeFldNum[] = @_rand_int(Int, 100, 1)
+                testval = TestType(; val=collect(Int64, randstring(50)))
+                readval = TestType()
+                testmeta = meta(TestType)
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
+                assert_equal(testval, readval)
+            end
+        end
 
-    print_hdr("repeated string")
-    TestTypeJType[] = Vector{AbstractString}
-    TestTypeWType[] = :string
-    TestTypePack[] = ProtoBuf.DEF_PACK
-    for idx in 1:100
-        testval = TestType(; val=AbstractString[randstring(5) for i in 1:10])
-        readval = TestType()
-        testmeta = meta(TestType)
-        writeproto(pb, testval, testmeta)
-        readproto(pb, readval, testmeta)
-        assert_equal(testval, readval)
+        @testset "Repeated string" begin
+            TestTypeJType[] = Vector{AbstractString}
+            TestTypeWType[] = :string
+            TestTypePack[] = ProtoBuf.DEF_PACK
+            for idx in 1:100
+                testval = TestType(; val=AbstractString[randstring(5) for i in 1:10])
+                readval = TestType()
+                testmeta = meta(TestType)
+                writeproto(pb, testval, testmeta)
+                readproto(pb, readval, testmeta)
+                assert_equal(testval, readval)
+            end
+        end
     end
 end
 
 function test_optional()
-    print_hdr("optional fields")
-    pb = PipeBuffer()
-    testval = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val=""), iVal2=Int64[1,2,3])
-    readval = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val=""), iVal2=Int64[])
+    @testset "Optional fields" begin
+        pb = PipeBuffer()
+        testval = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val=""), iVal2=Int64[1,2,3])
+        readval = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val=""), iVal2=Int64[])
 
-    for idx in 1:100
-        testval.sVal1 = TestStr(; val=string(@_rand_int(Int, 100, 0)))
-        testval.sVal2 = TestStr(; val=randstring(5))
-        testval.iVal2 = Int64[@_rand_int(Int,100,0) for i in 1:10]
+        for idx in 1:100
+            testval.sVal1 = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+            testval.sVal2 = TestStr(; val=randstring(5))
+            testval.iVal2 = Int64[@_rand_int(Int,100,0) for i in 1:10]
 
-        empty!(TestOptionalReq)
-        kwargs = Dict{Symbol,Any}(:iVal2 => Int64[@_rand_int(Int,100,0) for i in 1:10])
-        if rand(Bool)
-            push!(TestOptionalReq, :sVal1)
-            kwargs[:sVal1] = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+            empty!(TestOptionalReq)
+            kwargs = Dict{Symbol,Any}(:iVal2 => Int64[@_rand_int(Int,100,0) for i in 1:10])
+            if rand(Bool)
+                push!(TestOptionalReq, :sVal1)
+                kwargs[:sVal1] = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+            end
+            if rand(Bool)
+                push!(TestOptionalReq, :sVal2)
+                kwargs[:sVal2] = TestStr(; val=randstring(5))
+            end
+            testval = TestOptional(; kwargs...)
+            readval = TestOptional()
+            testmeta = meta(TestOptional)
+            writeproto(pb, testval, testmeta)
+            readproto(pb, readval, testmeta)
+            assert_equal(testval, readval)
         end
-        if rand(Bool)
-            push!(TestOptionalReq, :sVal2)
-            kwargs[:sVal2] = TestStr(; val=randstring(5))
-        end
-        testval = TestOptional(; kwargs...)
-        readval = TestOptional()
-        testmeta = meta(TestOptional)
-        writeproto(pb, testval, testmeta)
-        readproto(pb, readval, testmeta)
-        assert_equal(testval, readval)
     end
 end
 
 function test_nested()
-    print_hdr("nested types")
-    pb = PipeBuffer()
+    @testset "Nested types" begin
+        pb = PipeBuffer()
 
-    TestTypeJType[] = Int64
-    TestTypeWType[] = :int64
-    TestTypePack[] = ProtoBuf.DEF_PACK
-    TestTypeFldNum[] = 1
+        TestTypeJType[] = Int64
+        TestTypeWType[] = :int64
+        TestTypePack[] = ProtoBuf.DEF_PACK
+        TestTypeFldNum[] = 1
 
-    for idx in 1:100
-        o1 = rand(Bool)
-        o2 = rand(Bool)
-        o21 = rand(Bool)
-        o22 = rand(Bool)
+        for idx in 1:100
+            o1 = rand(Bool)
+            o2 = rand(Bool)
+            o21 = rand(Bool)
+            o22 = rand(Bool)
 
-        empty!(TestNestedReq)
-        testnestedkwargs = Dict{Symbol,Any}()
-        if o1
-            push!(TestNestedReq, :fld1)
-            testnestedkwargs[:fld1] = TestType(; val=@_rand_int(Int64, 10^9, 0))
-        end
-        if o2
-            push!(TestNestedReq, :fld2)
-            empty!(TestOptionalReq)
-            testfld2kwargs = Dict{Symbol,Any}(:iVal2=>Int64[@_rand_int(Int, 100, 0) for i in 1:10])
-            if o21
-                push!(TestOptionalReq, :sVal1)
-                testfld2kwargs[:sVal1] = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+            empty!(TestNestedReq)
+            testnestedkwargs = Dict{Symbol,Any}()
+            if o1
+                push!(TestNestedReq, :fld1)
+                testnestedkwargs[:fld1] = TestType(; val=@_rand_int(Int64, 10^9, 0))
             end
-            if o22
-                push!(TestOptionalReq, :sVal2)
-                testfld2kwargs[:sVal2] = TestStr(; val=randstring(5))
+            if o2
+                push!(TestNestedReq, :fld2)
+                empty!(TestOptionalReq)
+                testfld2kwargs = Dict{Symbol,Any}(:iVal2=>Int64[@_rand_int(Int, 100, 0) for i in 1:10])
+                if o21
+                    push!(TestOptionalReq, :sVal1)
+                    testfld2kwargs[:sVal1] = TestStr(; val=string(@_rand_int(Int, 100, 0)))
+                end
+                if o22
+                    push!(TestOptionalReq, :sVal2)
+                    testfld2kwargs[:sVal2] = TestStr(; val=randstring(5))
+                end
+                testnestedkwargs[:fld2] = TestOptional(; testfld2kwargs...)
             end
-            testnestedkwargs[:fld2] = TestOptional(; testfld2kwargs...)
+
+            testval = TestNested(; testnestedkwargs...)
+            readval = TestNested()
+            testmeta = meta(TestNested)
+
+            writeproto(pb, testval, testmeta)
+            readproto(pb, readval, testmeta)
+
+            assert_equal(testval, readval)
         end
-
-        testval = TestNested(; testnestedkwargs...)
-        readval = TestNested()
-        testmeta = meta(TestNested)
-
-        writeproto(pb, testval, testmeta)
-        readproto(pb, readval, testmeta)
-
-        assert_equal(testval, readval)
     end
 end
 
 function test_defaults()
-    print_hdr("default values")
-    pb = PipeBuffer()
+    @testset "Default values" begin
+        pb = PipeBuffer()
 
-    testval = TestDefaults()
-    readval = TestDefaults()
-    testval.iVal1 = @_rand_int(Int, 100, 0)
-    writeproto(pb, testval)
-    readproto(pb, readval)
+        testval = TestDefaults()
+        readval = TestDefaults()
+        testval.iVal1 = @_rand_int(Int, 100, 0)
+        writeproto(pb, testval)
+        readproto(pb, readval)
 
-    assert_equal(TestDefaults(; iVal1=testval.iVal1, sVal2="", iVal2=[1,2,3]), readval)
+        assert_equal(TestDefaults(; iVal1=testval.iVal1, sVal2="", iVal2=[1,2,3]), readval)
+    end
 end
 
 function test_oneofs()
-    print_hdr("oneofs")
-    testval = TestOneofs(; iVal1=1, iVal3=3)
-    @test isfilled(testval)
-    @test hasproperty(testval, :iVal1)
-    @test !hasproperty(testval, :iVal2)
-    @test hasproperty(testval, :iVal3)
-    @test which_oneof(testval, :optval) === :iVal3
+    @testset "Oneofs" begin
+        testval = TestOneofs(; iVal1=1, iVal3=3)
+        @test isfilled(testval)
+        @test hasproperty(testval, :iVal1)
+        @test !hasproperty(testval, :iVal2)
+        @test hasproperty(testval, :iVal3)
+        @test which_oneof(testval, :optval) === :iVal3
 
-    testval.iVal2 = 10
-    @test hasproperty(testval, :iVal1)
-    @test hasproperty(testval, :iVal2)
-    @test !hasproperty(testval, :iVal3)
-    @test which_oneof(testval, :optval) === :iVal2
+        testval.iVal2 = 10
+        @test hasproperty(testval, :iVal1)
+        @test hasproperty(testval, :iVal2)
+        @test !hasproperty(testval, :iVal3)
+        @test which_oneof(testval, :optval) === :iVal2
 
-    testval.iVal1 = 10
-    @test hasproperty(testval, :iVal1)
-    @test hasproperty(testval, :iVal2)
-    @test !hasproperty(testval, :iVal3)
-    @test which_oneof(testval, :optval) === :iVal2
+        testval.iVal1 = 10
+        @test hasproperty(testval, :iVal1)
+        @test hasproperty(testval, :iVal2)
+        @test !hasproperty(testval, :iVal3)
+        @test which_oneof(testval, :optval) === :iVal2
 
-    testval.iVal3 = 10
-    @test hasproperty(testval, :iVal1)
-    @test !hasproperty(testval, :iVal2)
-    @test hasproperty(testval, :iVal3)
-    @test which_oneof(testval, :optval) === :iVal3
+        testval.iVal3 = 10
+        @test hasproperty(testval, :iVal1)
+        @test !hasproperty(testval, :iVal2)
+        @test hasproperty(testval, :iVal3)
+        @test which_oneof(testval, :optval) === :iVal3
+    end
 end
 
 function test_maps()
-    print_hdr("maps")
-    pb = PipeBuffer()
+    @testset "Maps" begin
+        pb = PipeBuffer()
 
-    testval = TestMaps()
-    readval = TestMaps()
-    writeproto(pb, testval)
-    readproto(pb, readval)
-    assert_equal(testval, readval)
+        testval = TestMaps()
+        readval = TestMaps()
+        writeproto(pb, testval)
+        readproto(pb, readval)
+        assert_equal(testval, readval)
 
-    testval = TestMaps()
-    readval = TestMaps()
-    testval.d1 = Dict{Int,Int}()
-    writeproto(pb, testval)
-    readproto(pb, readval)
-    @test !hasproperty(readval, :d1)
+        testval = TestMaps()
+        readval = TestMaps()
+        testval.d1 = Dict{Int,Int}()
+        writeproto(pb, testval)
+        readproto(pb, readval)
+        @test !hasproperty(readval, :d1)
 
-    testval = TestMaps()
-    readval = TestMaps()
-    testval.d2 = Dict{Int32,String}()
-    writeproto(pb, testval)
-    readproto(pb, readval)
-    @test !hasproperty(readval, :d2)
+        testval = TestMaps()
+        readval = TestMaps()
+        testval.d2 = Dict{Int32,String}()
+        writeproto(pb, testval)
+        readproto(pb, readval)
+        @test !hasproperty(readval, :d2)
 
-    testval = TestMaps()
-    readval = TestMaps()
-    testval.d3 = Dict{String,String}()
-    writeproto(pb, testval)
-    readproto(pb, readval)
-    @test !hasproperty(readval, :d3)
+        testval = TestMaps()
+        readval = TestMaps()
+        testval.d3 = Dict{String,String}()
+        writeproto(pb, testval)
+        readproto(pb, readval)
+        @test !hasproperty(readval, :d3)
 
-    testval = TestMaps()
-    readval = TestMaps()
-    testval.d1 = Dict{Int,Int}()
-    testval.d1[1] = 1
-    testval.d1[2] = 2
-    writeproto(pb, testval)
-    readproto(pb, readval)
-    @test hasproperty(readval, :d1)
-    assert_equal(testval, readval)
+        testval = TestMaps()
+        readval = TestMaps()
+        testval.d1 = Dict{Int,Int}()
+        testval.d1[1] = 1
+        testval.d1[2] = 2
+        writeproto(pb, testval)
+        readproto(pb, readval)
+        @test hasproperty(readval, :d1)
+        assert_equal(testval, readval)
 
-    testval = TestMaps()
-    readval = TestMaps()
-    testval.d2 = Dict{Int32,String}()
-    testval.d2[Int32(1)] = convert(String, "One")
-    testval.d2[Int32(2)] = convert(String, "Two")
-    writeproto(pb, testval)
-    readproto(pb, readval)
-    @test hasproperty(readval, :d2)
-    assert_equal(testval, readval)
+        testval = TestMaps()
+        readval = TestMaps()
+        testval.d2 = Dict{Int32,String}()
+        testval.d2[Int32(1)] = convert(String, "One")
+        testval.d2[Int32(2)] = convert(String, "Two")
+        writeproto(pb, testval)
+        readproto(pb, readval)
+        @test hasproperty(readval, :d2)
+        assert_equal(testval, readval)
 
-    testval = TestMaps()
-    readval = TestMaps()
-    testval.d3 = Dict{String,String}()
-    testval.d3["1"] = "One"
-    testval.d3["2"] = "Two"
-    writeproto(pb, testval)
-    readproto(pb, readval)
-    @test hasproperty(readval, :d3)
-    assert_equal(testval, readval)
+        testval = TestMaps()
+        readval = TestMaps()
+        testval.d3 = Dict{String,String}()
+        testval.d3["1"] = "One"
+        testval.d3["2"] = "Two"
+        writeproto(pb, testval)
+        readproto(pb, readval)
+        @test hasproperty(readval, :d3)
+        assert_equal(testval, readval)
+    end
 end
 
 function test_misc()
-    print_hdr("misc functionality")
-    testfld = TestOptional(; sVal1=TestStr(; val="1"), sVal2=TestStr(; val=""), iVal2=Int64[1,2,3])
-    readfld = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val="1"), iVal2=Int64[])
-    copy!(readfld, testfld)
-    assert_equal(readfld, testfld)
+    @testset "Miscellaneous functionality" begin
+        testfld = TestOptional(; sVal1=TestStr(; val="1"), sVal2=TestStr(; val=""), iVal2=Int64[1,2,3])
+        readfld = TestOptional(; sVal1=TestStr(; val=""), sVal2=TestStr(; val="1"), iVal2=Int64[])
+        copy!(readfld, testfld)
+        assert_equal(readfld, testfld)
 
-    tf = TestFilled()
-    @test !isfilled(tf)
-    TestTypeJType[] = AbstractString
-    TestTypeWType[] = :string
-    TestTypeFldNum[] = 1
-    TestTypePack[] = ProtoBuf.DEF_PACK
-    tf.fld1 = TestType(; val="")
-    @test isfilled(tf)
+        tf = TestFilled()
+        @test !isfilled(tf)
+        TestTypeJType[] = AbstractString
+        TestTypeWType[] = :string
+        TestTypeFldNum[] = 1
+        TestTypePack[] = ProtoBuf.DEF_PACK
+        tf.fld1 = TestType(; val="")
+        @test isfilled(tf)
 
-    iob = IOBuffer()
-    show(iob, meta(TestOptional))
-    @test !isempty(take!(iob))
-    nothing
+        iob = IOBuffer()
+        show(iob, meta(TestOptional))
+        @test !isempty(take!(iob))
+    end
 end
 
 function test_enums()
-    print_hdr("enums")
-    @test getproperty(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
-    @test getproperty(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
-    @test getproperty(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
-    @test getproperty(TestEnum, lookup(TestEnum, 3)) == TestEnum.LOCAL
-    @test getproperty(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
-    @test getproperty(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
-    @test getproperty(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
+    @testset "Enums" begin
+        @test getproperty(TestEnum, lookup(TestEnum, 0)) == TestEnum.UNIVERSAL
+        @test getproperty(TestEnum, lookup(TestEnum, 1)) == TestEnum.WEB
+        @test getproperty(TestEnum, lookup(TestEnum, 2)) == TestEnum.IMAGES
+        @test getproperty(TestEnum, lookup(TestEnum, 3)) == TestEnum.LOCAL
+        @test getproperty(TestEnum, lookup(TestEnum, 4)) == TestEnum.NEWS
+        @test getproperty(TestEnum, lookup(TestEnum, 5)) == TestEnum.PRODUCTS
+        @test getproperty(TestEnum, lookup(TestEnum, 6)) == TestEnum.VIDEO
 
-    @test enumstr(TestEnum, TestEnum.LOCAL) == "LOCAL"
-    @test_throws ErrorException enumstr(TestEnum, Int32(12))
+        @test enumstr(TestEnum, TestEnum.LOCAL) == "LOCAL"
+        @test_throws ErrorException enumstr(TestEnum, Int32(12))
+    end
 end
 
 end # module ProtoBufTestCodec
 
-ProtoBufTestCodec.test_types()
-ProtoBufTestCodec.test_enums()
-ProtoBufTestCodec.test_oneofs()
-ProtoBufTestCodec.test_maps()
-ProtoBufTestCodec.test_repeats()
-ProtoBufTestCodec.test_optional()
-ProtoBufTestCodec.test_nested()
-ProtoBufTestCodec.test_defaults()
-ProtoBufTestCodec.test_misc()
+@testset "Codec" begin
+    ProtoBufTestCodec.test_types()
+    ProtoBufTestCodec.test_enums()
+    ProtoBufTestCodec.test_oneofs()
+    ProtoBufTestCodec.test_maps()
+    ProtoBufTestCodec.test_repeats()
+    ProtoBufTestCodec.test_optional()
+    ProtoBufTestCodec.test_nested()
+    ProtoBufTestCodec.test_defaults()
+    ProtoBufTestCodec.test_misc()
+end

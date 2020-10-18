@@ -1,8 +1,6 @@
 using ProtoBuf
 import ProtoBuf.meta
 
-print_hdr(tname) = println("testing $tname...")
-
 mutable struct V1 <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
@@ -116,6 +114,7 @@ function check_V1_v2()
     @test readval == checkval
 end
 
-print_hdr("serialization across type versions")
-check_samestruct()
-check_V1_v2()
+@testset "Serialization across type versions" begin
+    check_samestruct()
+    check_V1_v2()
+end

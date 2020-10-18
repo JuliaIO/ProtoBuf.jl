@@ -3,8 +3,6 @@ using ProtoBuf
 using ..Test
 import ProtoBuf.meta
 
-print_hdr(tname) = println("testing $tname...")
-
 mutable struct TestType <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
@@ -80,6 +78,7 @@ end
 
 end # module ProtoBufTestApis
 
-print_hdr("utility api methods")
-ProtoBufTestApis.test_apis()
-ProtoBufTestApis.test_deepcopy()
+@testset "Utility APIs" begin
+    ProtoBufTestApis.test_apis()
+    ProtoBufTestApis.test_deepcopy()
+end
