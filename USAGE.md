@@ -1,76 +1,75 @@
 ## Using ProtoBuf
 
+Julia code for protobuf message types can be generated via protoc (see ["Generating Julia Code from .proto Specifications"](PROTOC.md)). Generated Julia code for a protobuf message look something like:
+
+```julia
+mutable struct Description <: ProtoType
+    # a bunch of internal fields
+    ...
+    function Description(; kwargs...)
+        # code to initialize the internal fields
+    end
+end # mutable struct Description
+const __meta_Description = Ref{ProtoMeta}()
+function meta(::Type{Description})
+    # code to initialize the metadata
+    __meta_Description[]
+end
+function Base.getproperty(obj::Description, name::Symbol)
+    # code to get properties
+end
+```
+
 Reading and writing data structures using ProtoBuf is similar to serialization and deserialization. Methods `writeproto` and `readproto` can write and read Julia types from IO streams.
 
 ````
 julia> using ProtoBuf                       # include protoc generated package here
 
-julia> mutable struct MyType <: ProtoType   # a Julia composite type generated from protoc
-         intval::Int
-         strval::String
-         MyType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
+julia> mutable struct MyType <: ProtoType   # a Julia composite type generated from protoc that
+         ...                                # has intval::Int and strval::String as properties
+         function MyType(; kwargs...)
+             ...
+         end
        end
+       ...
 
 julia> iob = PipeBuffer();
 
-julia> writeproto(iob, MyType(intval=10, strval="hello world"));   # write an instance of it
+julia> writeproto(iob, MyType(; intval=10, strval="hello world"));   # write an instance of it
 
-julia> readproto(iob, MyType())  # read it back into another instance
-MyType(10,"hello world")
-````
+julia> data = readproto(iob, MyType());  # read it back into another instance
 
-## Protocol Buffer Metadata
+julia> data.intval
+10
 
-ProtoBuf serialization can be customized for a type by defining a `meta` method on it. The `meta` method provides an instance of `ProtoMeta` that allows specification of mandatory fields, field numbers, and default values for fields for a type. Defining a specialized `meta` is done simply as below:
-
-````
-import ProtoBuf.meta
-
-meta(t::Type{MyType}) = meta(t,                          # the type which this is for
-		Symbol[:intval],                                 # required fields
-		Int[8, 10],                                      # field numbers
-		Dict{Symbol,Any}(:strval => "default value"))  # default values
-````
-
-Without any specialized `meta` method:
-
-- All fields are marked as optional (or repeating for arrays)
-- Numeric fields have zero as default value
-- String fields have `""` as default value
-- Field numbers are assigned serially starting from 1, in the order of their declaration.
-
-For the things where the default is what you need, just passing empty values would do. E.g., if you just want to specify the field numbers, this would do:
-
-````
-meta(t::Type{MyType}) = meta(t, [], [8,10], Dict())
+julia> data.strval
+"hello world"
 ````
 
 ## Setting and Getting Fields
-Types used as protocol buffer structures are regular Julia types and the Julia syntax to set and get fields can be used on them. But with fields that are set as optional, it is quite likely that some of them may not have been present in the instance that was read. The following methods are exported to assist doing this:
 
-- `get_field(obj::Any, fld::Symbol)` : Gets `obj.fld` if it has been set. Throws an error otherwise.
-- `has_field(obj::Any, fld::Symbol)` : Checks whether field `fld` has been set in `obj`.
-- `clear(obj::Any, fld::Symbol)` : Marks field `fld` of `obj` as unset.
-- `clear(obj::Any)` : Marks all fields of `obj` as unset.
+Types used as protocol buffer structures are regular Julia types and the Julia syntax to set and get fields can be used on them. The generated type constructor makes it easier to set large types with many fields by passing name value pairs during construction: `T(; name=val...)`.
 
-The `protobuild` method makes it easier to set large types with many fields:
-- `protobuild{T}(::Type{T}, nvpairs::Dict{Symbol}()=Dict{Symbol,Any}())`
+Fields that are marked as optional may not be present in an instance of the struct that is read. Also, you may want to clear a set property from an instance. The following methods are exported to assist doing this:
 
-Types generated through the Julia protoc plugin generates constructors that use `protobuild` and expect keyword arguments for the type members.
+- `propertynames(obj)` : Returns a list of property names possible
+- `setproperty!(obj, fld::Symbol, v)` : Sets `obj.fld`.
+- `getproperty(obj, fld::Symbol)` : Gets `obj.fld` if it has been set. Throws an error otherwise.
+- `hasproperty(obj, fld::Symbol)` : Checks whether property `fld` has been set in `obj`.
+- `clear(obj, fld::Symbol)` : clears property `fld` of `obj`.
+- `clear(obj)` : Clears all properties of `obj`.
 
 ````
 julia> using ProtoBuf
 
 julia> mutable struct MyType <: ProtoType  # a Julia composite type
-           intval::Int
-           # fillunset (documented below is similar to clear)
-           # ProtoBuf._protobuild is an internal method similar to protobuild
-           MyType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
+           ... # intval::Int
+           ...
        end
 
 julia> mutable struct OptType <: ProtoType # and another one to contain it
-           opt::MyType
-           OptType(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
+           ... #opt::MyType
+           ...
        end
 
 julia> iob = PipeBuffer();
@@ -79,19 +78,16 @@ julia> writeproto(iob, OptType(opt=MyType(intval=10)));
 
 julia> readval = readproto(iob, OptType());
 
-julia> has_field(readval, :opt)       # valid this time
+julia> hasproperty(readval, :opt)
 true
 
 julia> writeproto(iob, OptType());
 
 julia> readval = readproto(iob, OptType());
 
-julia> has_field(readval, :opt)       # but not valid now
+julia> hasproperty(readval, :opt)
 false
 ````
-
-Note: The constructor for types generated by the `protoc` compiler have a call to `clear` to mark all fields of the object as unset to start with. A similar call must be made explicitly while using Julia types that are not generated. Otherwise any defined field in an instance is assumed to be valid.
-
 
 The `isinitialized(obj::Any)` method checks whether all mandatory fields are set. It is useful to check objects using this method before sending them. Method `writeproto` results in an exception if this condition is violated.
 
@@ -101,45 +97,44 @@ julia> using ProtoBuf
 julia> import ProtoBuf.meta
 
 julia> mutable struct TestType <: ProtoType
-           val::Any
+           ... # val::Any
+           ...
        end
 
 julia> mutable struct TestFilled <: ProtoType
-           fld1::TestType
-           fld2::TestType
-           TestFilled(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
+           ... # fld1::TestType (mandatory)
+           ... # fld2::TestType
+           ...
        end
 
-julia> meta(t::Type{TestFilled}) = meta(t, Symbol[:fld1], Int[], Dict{Symbol,Any}());
-
-julia> tf = TestFilled()
-TestFilled(#undef,#undef)
+julia> tf = TestFilled();
 
 julia> isinitialized(tf)      # false, since fld1 is not set
 false
 
-julia> tf.fld1 = TestType("");
+julia> tf.fld1 = TestType(fld1="");
 
 julia> isinitialized(tf)      # true, even though fld2 is not set yet
 true
 ````
 
 ## Equality &amp; Hash Value
-It is possible for fields marked as optional to be in an &quot;unset&quot; state. Even bits type fields (`isbitstype(T) == true`) can be in this state though they may have valid contents. Such fields should then not be compared for equality or used for computing hash values. All ProtoBuf compatible types, by virtue of extending abstract `ProtoType` type, override `hash`, `isequal` and `==` methods to handle this. The following unexported utility methods can be used for this purpose, in cases where it is not possible to extend `ProtoType`:
 
-- `protohash(v)` : hash method that considers fill status of types
-- `protoeq{T}(v1::T, v2::T)` : equality method that considers fill status of types
-- `protoisequal{T}(v1::T, v2::T)` : isequal method that considers fill status of types
+It is possible for fields marked as optional to be in an &quot;unset&quot; state. Even bits type fields (`isbitstype(T) == true`) can be in this state though they may have valid contents. Such fields should then not be compared for equality or used for computing hash values. All ProtoBuf compatible types, by virtue of extending abstract `ProtoType` type, override `hash`, `isequal` and `==` methods to handle this. 
 
 ## Other Methods
+
 - `copy!{T}(to::T, from::T)` : shallow copy of objects
-- `isfilled(obj, fld::Symbol)` : same as `has_field`
 - `isfilled(obj)` : same as `isinitialized`
-- `isfilled_default(obj, fld::Symbol)` : whether field is set with default value (and not deserialized)
-- `fillset(obj, fld::Symbol)` : mark field fld of object obj as set
-- `fillunset(obj)` : mark all fields of this object as not set
-- `fillunset(obj::Any, fld::Symbol)` : mark field fld of object obj as not set
-- `lookup(en::ProtoEnum,val::Integer)` : lookup the name (symbol) corresponding to an enum value
+- `lookup(en, val::Integer)` : lookup the name (symbol) corresponding to an enum value
 - `enumstr(enumname, enumvalue::Int32)`: returns a string with the enum field name matching the value
 - `which_oneof(obj, oneof::Symbol)`: returns a symbol indicating the name of the field in the `oneof` group that is filled
+
+## Thread safety
+
+Most of the book-keeping data for a protobuf struct is kept inside the struct instance. So that does not hinder thread safe usage. However struct instances themselves need to be locked if they are being read and written to from different threads, as is expected of any regular Julia struct.
+
+Protobuf metadata for a struct (the information about fields and their properties as mentioned in the protobuf IDL definition) however is best initialized once and reused. It was not possible to generate code in such a way that it could be initialized when code is loaded and pre-compiled. This was because of the need to support nested and recursive struct references that protobuf allows - metadata for a struct could be defined only after the struct and all of its dependencies were defined. Metadata initialization had to be deferred to the first constructor call. But in order to reuse the metadata definition, it gets stored into a `Ref` that is set once. A process wide lock is used to make access to it thread safe. There is a small cost to be borne for that, and it should be negligible for most usages.
+
+If an application wishes to eliminate that cost entirely, then the way to do it would be to call the constructors of all protobuf structs it wishes to use first and then switch the lock off by calling `ProtoBuf.enable_async_safety(false)`. Once all metadata definitiions have been initialized, this would allow them to be used without any further locking overhead. This can also be set to `false` for a single threaded synchronous application where it is known that no parallelism is possible.
 

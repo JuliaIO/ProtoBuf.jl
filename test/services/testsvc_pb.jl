@@ -1,24 +1,66 @@
 # syntax: proto3
 using ProtoBuf
 import ProtoBuf.meta
-import Base: hash, isequal, ==
 
 mutable struct BinaryOpReq <: ProtoType
-    i1::Int64
-    i2::Int64
-    BinaryOpReq(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function BinaryOpReq(; kwargs...)
+        obj = new(meta(BinaryOpReq), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
 end #type BinaryOpReq
-hash(v::BinaryOpReq) = ProtoBuf.protohash(v)
-isequal(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoisequal(v1, v2)
-==(v1::BinaryOpReq, v2::BinaryOpReq) = ProtoBuf.protoeq(v1, v2)
+function meta(::Type{BinaryOpReq})
+    allflds = Pair{Symbol,Union{Type,String}}[:i1 => Int64, :i2 => Int64]
+    meta(ProtoMeta(BinaryOpReq), BinaryOpReq, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::BinaryOpReq, name::Symbol)
+    if name === :i1
+        return (obj.__protobuf_jl_internal_values[name])::Int64
+    elseif name === :i2
+        return (obj.__protobuf_jl_internal_values[name])::Int64
+    else
+        getfield(obj, name)
+    end
+end
 
 mutable struct BinaryOpResp <: ProtoType
-    result::Int64
-    BinaryOpResp(; kwargs...) = (o=new(); fillunset(o); isempty(kwargs) || ProtoBuf._protobuild(o, kwargs); o)
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function BinaryOpResp(; kwargs...)
+        obj = new(meta(BinaryOpResp), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
 end #type BinaryOpResp
-hash(v::BinaryOpResp) = ProtoBuf.protohash(v)
-isequal(v1::BinaryOpResp, v2::BinaryOpResp) = ProtoBuf.protoisequal(v1, v2)
-==(v1::BinaryOpResp, v2::BinaryOpResp) = ProtoBuf.protoeq(v1, v2)
+function meta(::Type{BinaryOpResp})
+    allflds = Pair{Symbol,Union{Type,String}}[:result => Int64]
+    meta(ProtoMeta(BinaryOpResp), BinaryOpResp, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::BinaryOpResp, name::Symbol)
+    if name === :result
+        return (obj.__protobuf_jl_internal_values[name])::Int64
+    else
+        getfield(obj, name)
+    end
+end
 
 # service methods for TestMath
 const _TestMath_methods = MethodDescriptor[

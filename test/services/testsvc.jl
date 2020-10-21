@@ -11,8 +11,8 @@ mutable struct TestRpcController <: ProtoRpcController
     debug::Bool
 end
 
-debug_log(controller::TestRpcController, msg) = controller.debug && println(msg)
-error_log(controller::TestRpcController, msg) = println(stderr, msg)
+debug_log(controller::TestRpcController, msg) = controller.debug && @info(msg)
+error_log(controller::TestRpcController, msg) = @error(msg)
 
 # RpcChannel implementation for our test protocol
 # The protocol is to write and read:
@@ -24,8 +24,32 @@ end
 close(channel::TestRpcChannel) = close(channel.sock)
 
 mutable struct SvcHeader <: ProtoType
-    method::String
-    SvcHeader() = (o=new(); fillunset(o); o)
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+
+    function SvcHeader(; kwargs...)
+        obj = new(meta(SvcHeader), Dict{Symbol,Any}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end
+function meta(::Type{SvcHeader})
+    allflds = Pair{Symbol,Union{Type,String}}[:method => AbstractString]
+    meta(ProtoMeta(SvcHeader), SvcHeader, allflds, ProtoBuf.DEF_REQ, ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+end
+function Base.getproperty(obj::SvcHeader, name::Symbol)
+    if name === :method
+        return (obj.__protobuf_jl_internal_values[name])::AbstractString
+    else
+        getfield(obj, name)
+    end
 end
 
 function write_request(channel::TestRpcChannel, controller::TestRpcController, service::ServiceDescriptor, method::MethodDescriptor, request)
@@ -139,7 +163,9 @@ function run_server(srvr::TestServer)
             @async process(srvr, channel)
         end
     catch ex
-        debug_log(controller, "server stopped with exception $ex")
+        if !(isa(ex, Base.IOError) && (ex.code == Base.UV_ECONNABORTED))
+            debug_log(controller, "server stopped with exception $ex")
+        end
     end
     debug_log(controller, "stopped server")
 end

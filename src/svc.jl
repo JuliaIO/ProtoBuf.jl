@@ -88,8 +88,7 @@ struct GenericProtoServiceStub{B} <: AbstractProtoServiceStub{B}
     blocking::Bool
 
     # This inner constructor syntax works with both Julia .5 and .6
-    function GenericProtoServiceStub{B}(desc::ServiceDescriptor,
-                                        channel::ProtoRpcChannel) where B
+    function GenericProtoServiceStub{B}(desc::ServiceDescriptor, channel::ProtoRpcChannel) where B
         new{B}(desc, channel, B)
     end
 end

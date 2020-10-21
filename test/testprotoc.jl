@@ -17,7 +17,7 @@ function ensure_stdlib()
 end
 
 if Sys.iswindows()
-    println("testing protobuf compiler plugin not enabled on windows")
+    @info("testing protobuf compiler plugin not enabled on windows")
 else
     test_script = joinpath(@__DIR__, "testprotoc.sh")
     protogen_path = joinpath(@__DIR__, "..", "plugin")
@@ -34,15 +34,15 @@ else
         end
     end
     if isempty(protoc_compilers)
-        println("no protobuf compilers setup for testing compiler plugin, skipping compiler tests.")
+        @info("no protobuf compilers setup for testing compiler plugin, skipping compiler tests.")
     else
-        println("testing protobuf compiler plugin...")
-        is_ci && println("detected CI environment, will enable code coverage...")
+        @info("testing protobuf compiler plugin...")
+        is_ci && @info("detected CI environment, will enable code coverage...")
         for protoc_compiler in protoc_compilers
             modified_env["PROTOC"] = protoc_compiler
             modified_env["PATH"] = path_env
             modified_env["JULIA"] = joinpath(Sys.BINDIR, Base.julia_exename())
-            println("testing protoc compiler plugin with ", protoc_compiler)
+            @info("testing protoc compiler plugin with ", protoc_compiler)
             run(setenv(`$test_script`, modified_env))
         end
 
@@ -56,7 +56,7 @@ else
         for protoc_compiler in protoc_compilers
             # set path to pick up compiler
             ENV["PATH"] = string(dirname(protoc_compiler), ":", pathenv)
-            println("testing ProtoBuf.protoc with ", protoc_compiler)
+            @info("testing ProtoBuf.protoc with ", protoc_compiler)
             run(ProtoBuf.protoc(`-I=$test_protos --julia_out=/tmp $test_proto`))
         end
     end
