@@ -6,7 +6,7 @@ export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta
 export isfilled, which_oneof
 export setproperty!, getproperty, hasproperty, show, copy!, deepcopy, clear, isinitialized
 export hash, isequal, ==
-export ProtoEnum, ProtoType, lookup, enumstr
+export ProtoType, lookup, enumstr
 export ProtoServiceException, ProtoRpcChannel, ProtoRpcController, MethodDescriptor, ServiceDescriptor, ProtoService,
        AbstractProtoServiceStub, GenericProtoServiceStub, ProtoServiceStub, ProtoServiceBlockingStub,
        find_method, get_request_type, get_response_type, get_descriptor_for_type, call_method
