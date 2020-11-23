@@ -1,6 +1,12 @@
 module ProtoBuf
 
-import Base: setproperty!, getproperty, hasproperty, propertynames, show, copy!, deepcopy, hash, isequal, ==
+import Base: setproperty!, getproperty, propertynames, show, copy!, deepcopy, hash, isequal, ==
+
+if VERSION < v"1.2.0-DEV.272"
+    hasproperty(x, s::Symbol) = s in propertynames(x)
+else
+    import Base: hasproperty
+end
 
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta
 export isfilled, which_oneof
