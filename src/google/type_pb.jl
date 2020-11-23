@@ -7,9 +7,10 @@ const Syntax = (;[
 mutable struct Option <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Option(; kwargs...)
-        obj = new(meta(Option), Dict{Symbol,Any}())
+        obj = new(meta(Option), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -45,9 +46,10 @@ end
 mutable struct EnumValue <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function EnumValue(; kwargs...)
-        obj = new(meta(EnumValue), Dict{Symbol,Any}())
+        obj = new(meta(EnumValue), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -114,9 +116,10 @@ const Field_Cardinality = (;[
 mutable struct Field <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Field(; kwargs...)
-        obj = new(meta(Field), Dict{Symbol,Any}())
+        obj = new(meta(Field), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -169,9 +172,10 @@ end
 mutable struct _Enum <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function _Enum(; kwargs...)
-        obj = new(meta(_Enum), Dict{Symbol,Any}())
+        obj = new(meta(_Enum), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -213,9 +217,10 @@ end
 mutable struct _Type <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function _Type(; kwargs...)
-        obj = new(meta(_Type), Dict{Symbol,Any}())
+        obj = new(meta(_Type), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

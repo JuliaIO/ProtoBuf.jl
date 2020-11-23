@@ -2,9 +2,10 @@
 mutable struct FieldMask <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function FieldMask(; kwargs...)
-        obj = new(meta(FieldMask), Dict{Symbol,Any}())
+        obj = new(meta(FieldMask), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

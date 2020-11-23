@@ -2,9 +2,10 @@
 mutable struct Version <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Version(; kwargs...)
-        obj = new(meta(Version), Dict{Symbol,Any}())
+        obj = new(meta(Version), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -44,9 +45,10 @@ end
 mutable struct CodeGeneratorRequest <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function CodeGeneratorRequest(; kwargs...)
-        obj = new(meta(CodeGeneratorRequest), Dict{Symbol,Any}())
+        obj = new(meta(CodeGeneratorRequest), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -87,9 +89,10 @@ end
 mutable struct CodeGeneratorResponse_File <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function CodeGeneratorResponse_File(; kwargs...)
-        obj = new(meta(CodeGeneratorResponse_File), Dict{Symbol,Any}())
+        obj = new(meta(CodeGeneratorResponse_File), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -128,9 +131,10 @@ end
 mutable struct CodeGeneratorResponse <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function CodeGeneratorResponse(; kwargs...)
-        obj = new(meta(CodeGeneratorResponse), Dict{Symbol,Any}())
+        obj = new(meta(CodeGeneratorResponse), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

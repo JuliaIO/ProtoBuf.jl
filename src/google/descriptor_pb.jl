@@ -2,9 +2,10 @@
 mutable struct UninterpretedOption_NamePart <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function UninterpretedOption_NamePart(; kwargs...)
-        obj = new(meta(UninterpretedOption_NamePart), Dict{Symbol,Any}())
+        obj = new(meta(UninterpretedOption_NamePart), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -41,9 +42,10 @@ end
 mutable struct UninterpretedOption <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function UninterpretedOption(; kwargs...)
-        obj = new(meta(UninterpretedOption), Dict{Symbol,Any}())
+        obj = new(meta(UninterpretedOption), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -102,9 +104,10 @@ const FieldOptions_JSType = (;[
 mutable struct FieldOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function FieldOptions(; kwargs...)
-        obj = new(meta(FieldOptions), Dict{Symbol,Any}())
+        obj = new(meta(FieldOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -152,9 +155,10 @@ end
 mutable struct MessageOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function MessageOptions(; kwargs...)
-        obj = new(meta(MessageOptions), Dict{Symbol,Any}())
+        obj = new(meta(MessageOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -198,9 +202,10 @@ end
 mutable struct EnumOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function EnumOptions(; kwargs...)
-        obj = new(meta(EnumOptions), Dict{Symbol,Any}())
+        obj = new(meta(EnumOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -240,9 +245,10 @@ end
 mutable struct ExtensionRangeOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function ExtensionRangeOptions(; kwargs...)
-        obj = new(meta(ExtensionRangeOptions), Dict{Symbol,Any}())
+        obj = new(meta(ExtensionRangeOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -283,9 +289,10 @@ const MethodOptions_IdempotencyLevel = (;[
 mutable struct MethodOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function MethodOptions(; kwargs...)
-        obj = new(meta(MethodOptions), Dict{Symbol,Any}())
+        obj = new(meta(MethodOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -331,9 +338,10 @@ const FileOptions_OptimizeMode = (;[
 mutable struct FileOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function FileOptions(; kwargs...)
-        obj = new(meta(FileOptions), Dict{Symbol,Any}())
+        obj = new(meta(FileOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -409,9 +417,10 @@ end
 mutable struct EnumValueOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function EnumValueOptions(; kwargs...)
-        obj = new(meta(EnumValueOptions), Dict{Symbol,Any}())
+        obj = new(meta(EnumValueOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -449,9 +458,10 @@ end
 mutable struct OneofOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function OneofOptions(; kwargs...)
-        obj = new(meta(OneofOptions), Dict{Symbol,Any}())
+        obj = new(meta(OneofOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -486,9 +496,10 @@ end
 mutable struct ServiceOptions <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function ServiceOptions(; kwargs...)
-        obj = new(meta(ServiceOptions), Dict{Symbol,Any}())
+        obj = new(meta(ServiceOptions), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -553,9 +564,10 @@ const FieldDescriptorProto_Label = (;[
 mutable struct FieldDescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function FieldDescriptorProto(; kwargs...)
-        obj = new(meta(FieldDescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(FieldDescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -608,9 +620,10 @@ end
 mutable struct DescriptorProto_ExtensionRange <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function DescriptorProto_ExtensionRange(; kwargs...)
-        obj = new(meta(DescriptorProto_ExtensionRange), Dict{Symbol,Any}())
+        obj = new(meta(DescriptorProto_ExtensionRange), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -648,9 +661,10 @@ end
 mutable struct MethodDescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function MethodDescriptorProto(; kwargs...)
-        obj = new(meta(MethodDescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(MethodDescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -695,9 +709,10 @@ end
 mutable struct EnumValueDescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function EnumValueDescriptorProto(; kwargs...)
-        obj = new(meta(EnumValueDescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(EnumValueDescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -735,9 +750,10 @@ end
 mutable struct EnumDescriptorProto_EnumReservedRange <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function EnumDescriptorProto_EnumReservedRange(; kwargs...)
-        obj = new(meta(EnumDescriptorProto_EnumReservedRange), Dict{Symbol,Any}())
+        obj = new(meta(EnumDescriptorProto_EnumReservedRange), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -773,9 +789,10 @@ end
 mutable struct EnumDescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function EnumDescriptorProto(; kwargs...)
-        obj = new(meta(EnumDescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(EnumDescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -817,9 +834,10 @@ end
 mutable struct OneofDescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function OneofDescriptorProto(; kwargs...)
-        obj = new(meta(OneofDescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(OneofDescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -855,9 +873,10 @@ end
 mutable struct DescriptorProto_ReservedRange <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function DescriptorProto_ReservedRange(; kwargs...)
-        obj = new(meta(DescriptorProto_ReservedRange), Dict{Symbol,Any}())
+        obj = new(meta(DescriptorProto_ReservedRange), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -893,9 +912,10 @@ end
 mutable struct DescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function DescriptorProto(; kwargs...)
-        obj = new(meta(DescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(DescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -948,9 +968,10 @@ end
 mutable struct ServiceDescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function ServiceDescriptorProto(; kwargs...)
-        obj = new(meta(ServiceDescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(ServiceDescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -988,9 +1009,10 @@ end
 mutable struct SourceCodeInfo_Location <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function SourceCodeInfo_Location(; kwargs...)
-        obj = new(meta(SourceCodeInfo_Location), Dict{Symbol,Any}())
+        obj = new(meta(SourceCodeInfo_Location), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -1034,9 +1056,10 @@ end
 mutable struct SourceCodeInfo <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function SourceCodeInfo(; kwargs...)
-        obj = new(meta(SourceCodeInfo), Dict{Symbol,Any}())
+        obj = new(meta(SourceCodeInfo), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -1070,9 +1093,10 @@ end
 mutable struct FileDescriptorProto <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function FileDescriptorProto(; kwargs...)
-        obj = new(meta(FileDescriptorProto), Dict{Symbol,Any}())
+        obj = new(meta(FileDescriptorProto), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -1129,9 +1153,10 @@ end
 mutable struct FileDescriptorSet <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function FileDescriptorSet(; kwargs...)
-        obj = new(meta(FileDescriptorSet), Dict{Symbol,Any}())
+        obj = new(meta(FileDescriptorSet), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -1165,9 +1190,10 @@ end
 mutable struct GeneratedCodeInfo_Annotation <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function GeneratedCodeInfo_Annotation(; kwargs...)
-        obj = new(meta(GeneratedCodeInfo_Annotation), Dict{Symbol,Any}())
+        obj = new(meta(GeneratedCodeInfo_Annotation), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -1208,9 +1234,10 @@ end
 mutable struct GeneratedCodeInfo <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function GeneratedCodeInfo(; kwargs...)
-        obj = new(meta(GeneratedCodeInfo), Dict{Symbol,Any}())
+        obj = new(meta(GeneratedCodeInfo), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

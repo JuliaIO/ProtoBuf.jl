@@ -2,9 +2,10 @@
 mutable struct DoubleValue <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function DoubleValue(; kwargs...)
-        obj = new(meta(DoubleValue), Dict{Symbol,Any}())
+        obj = new(meta(DoubleValue), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -38,9 +39,10 @@ end
 mutable struct FloatValue <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function FloatValue(; kwargs...)
-        obj = new(meta(FloatValue), Dict{Symbol,Any}())
+        obj = new(meta(FloatValue), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -74,9 +76,10 @@ end
 mutable struct Int64Value <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Int64Value(; kwargs...)
-        obj = new(meta(Int64Value), Dict{Symbol,Any}())
+        obj = new(meta(Int64Value), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -110,9 +113,10 @@ end
 mutable struct UInt64Value <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function UInt64Value(; kwargs...)
-        obj = new(meta(UInt64Value), Dict{Symbol,Any}())
+        obj = new(meta(UInt64Value), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -146,9 +150,10 @@ end
 mutable struct Int32Value <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Int32Value(; kwargs...)
-        obj = new(meta(Int32Value), Dict{Symbol,Any}())
+        obj = new(meta(Int32Value), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -182,9 +187,10 @@ end
 mutable struct UInt32Value <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function UInt32Value(; kwargs...)
-        obj = new(meta(UInt32Value), Dict{Symbol,Any}())
+        obj = new(meta(UInt32Value), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -218,9 +224,10 @@ end
 mutable struct BoolValue <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function BoolValue(; kwargs...)
-        obj = new(meta(BoolValue), Dict{Symbol,Any}())
+        obj = new(meta(BoolValue), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -254,9 +261,10 @@ end
 mutable struct StringValue <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function StringValue(; kwargs...)
-        obj = new(meta(StringValue), Dict{Symbol,Any}())
+        obj = new(meta(StringValue), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -290,9 +298,10 @@ end
 mutable struct BytesValue <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function BytesValue(; kwargs...)
-        obj = new(meta(BytesValue), Dict{Symbol,Any}())
+        obj = new(meta(BytesValue), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

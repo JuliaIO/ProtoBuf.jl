@@ -17,9 +17,10 @@ const TestTypePack = Ref{Vector{Symbol}}(ProtoBuf.DEF_PACK)
 mutable struct TestType <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestType(; kwargs...)
-        obj = new(meta(TestType), Dict{Symbol,Any}())
+        obj = new(meta(TestType), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -47,9 +48,10 @@ end
 mutable struct TestStr <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestStr(; kwargs...)
-        obj = new(meta(TestStr), Dict{Symbol,Any}())
+        obj = new(meta(TestStr), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -76,9 +78,10 @@ end
 mutable struct TestOptional <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestOptional(; kwargs...)
-        obj = new(meta(TestOptional), Dict{Symbol,Any}())
+        obj = new(meta(TestOptional), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -110,9 +113,10 @@ end
 mutable struct TestNested <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestNested(; kwargs...)
-        obj = new(meta(TestNested), Dict{Symbol,Any}())
+        obj = new(meta(TestNested), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -145,9 +149,10 @@ end
 mutable struct TestDefaults <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestDefaults(; kwargs...)
-        obj = new(meta(TestDefaults), Dict{Symbol,Any}())
+        obj = new(meta(TestDefaults), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -179,9 +184,10 @@ end
 mutable struct TestOneofs <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestOneofs(; kwargs...)
-        obj = new(meta(TestOneofs), Dict{Symbol,Any}())
+        obj = new(meta(TestOneofs), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -214,9 +220,10 @@ end
 mutable struct TestMaps <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestMaps(; kwargs...)
-        obj = new(meta(TestMaps), Dict{Symbol,Any}())
+        obj = new(meta(TestMaps), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -247,9 +254,10 @@ end
 mutable struct TestFilled <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function TestFilled(; kwargs...)
-        obj = new(meta(TestFilled), Dict{Symbol,Any}())
+        obj = new(meta(TestFilled), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

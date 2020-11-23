@@ -547,6 +547,7 @@ function setdefaultproperties!(obj::ProtoType, meta::ProtoMeta=meta(typeof(obj))
             default = attrib.default[1]
             setproperty!(obj, fld, convert(attrib.jtyp, deepcopy(default)))
             @debug("readproto set default", typ=typeof(obj), fld, default)
+            _markdefaultproperty!(obj, fld)
         end
     end
     obj
@@ -680,10 +681,13 @@ function setproperty!(obj::ProtoType, fld::Symbol, val)
         _unset_oneof(obj, objmeta, fld)
         fldtype = symdict[fld].jtyp
         obj.__protobuf_jl_internal_values[fld] = isa(val, fldtype) ? val : convert(fldtype, val)
+        delete!(obj.__protobuf_jl_internal_defaultset, fld)
     else
         setfield!(obj, fld, val)
     end
 end
+_markdefaultproperty!(obj::ProtoType, fld::Symbol) = push!(obj.__protobuf_jl_internal_defaultset, fld)
+isdefaultproperty(obj::ProtoType, fld::Symbol) = fld in obj.__protobuf_jl_internal_defaultset
 
 function clear(obj::ProtoType)
     empty!(obj.__protobuf_jl_internal_values)

@@ -349,7 +349,7 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     if hasproperty(dtype, :field)
         for fld_idx in 1:length(dtype.field)
             field = dtype.field[fld_idx]
-            if hasproperty(field, :oneof_index) && !isempty(oneofs)
+            if hasproperty(field, :oneof_index) && !isempty(oneofs) && !ProtoBuf.isdefaultproperty(field, :oneof_index)
                 oneof_idx = field.oneof_index + 1
                 oneofs[fld_idx] = oneof_idx
             end
@@ -468,9 +468,10 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
         mutable struct $(dtypename) <: ProtoType
             __protobuf_jl_internal_meta::ProtoMeta
             __protobuf_jl_internal_values::Dict{Symbol,Any}
+            __protobuf_jl_internal_defaultset::Set{Symbol}
 
             function $(dtypename)(; kwargs...)
-                obj = new(meta($(dtypename)), Dict{Symbol,Any}())
+                obj = new(meta($(dtypename)), Dict{Symbol,Any}(), Set{Symbol}())
                 values = obj.__protobuf_jl_internal_values
                 symdict = obj.__protobuf_jl_internal_meta.symdict
                 for nv in kwargs

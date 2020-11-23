@@ -26,9 +26,10 @@ close(channel::TestRpcChannel) = close(channel.sock)
 mutable struct SvcHeader <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function SvcHeader(; kwargs...)
-        obj = new(meta(SvcHeader), Dict{Symbol,Any}())
+        obj = new(meta(SvcHeader), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

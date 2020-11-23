@@ -2,9 +2,10 @@
 mutable struct Duration <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Duration(; kwargs...)
-        obj = new(meta(Duration), Dict{Symbol,Any}())
+        obj = new(meta(Duration), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

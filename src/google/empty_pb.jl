@@ -2,9 +2,10 @@
 mutable struct Empty <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Empty(; kwargs...)
-        obj = new(meta(Empty), Dict{Symbol,Any}())
+        obj = new(meta(Empty), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
