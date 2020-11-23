@@ -6,9 +6,10 @@ const NullValue = (;[
 mutable struct Struct_FieldsEntry <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Struct_FieldsEntry(; kwargs...)
-        obj = new(meta(Struct_FieldsEntry), Dict{Symbol,Any}())
+        obj = new(meta(Struct_FieldsEntry), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -44,9 +45,10 @@ end
 mutable struct Struct <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Struct(; kwargs...)
-        obj = new(meta(Struct), Dict{Symbol,Any}())
+        obj = new(meta(Struct), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -80,9 +82,10 @@ end
 mutable struct Value <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function Value(; kwargs...)
-        obj = new(meta(Value), Dict{Symbol,Any}())
+        obj = new(meta(Value), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -128,9 +131,10 @@ end
 mutable struct ListValue <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function ListValue(; kwargs...)
-        obj = new(meta(ListValue), Dict{Symbol,Any}())
+        obj = new(meta(ListValue), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

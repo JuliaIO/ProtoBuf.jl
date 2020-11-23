@@ -4,9 +4,10 @@ import ProtoBuf.meta
 mutable struct V1 <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function V1(; kwargs...)
-        obj = new(meta(V1), Dict{Symbol,Any}())
+        obj = new(meta(V1), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -40,9 +41,10 @@ end
 mutable struct V2 <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function V2(; kwargs...)
-        obj = new(meta(V2), Dict{Symbol,Any}())
+        obj = new(meta(V2), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs

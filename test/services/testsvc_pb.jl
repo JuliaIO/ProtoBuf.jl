@@ -5,9 +5,10 @@ import ProtoBuf.meta
 mutable struct BinaryOpReq <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function BinaryOpReq(; kwargs...)
-        obj = new(meta(BinaryOpReq), Dict{Symbol,Any}())
+        obj = new(meta(BinaryOpReq), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
@@ -36,9 +37,10 @@ end
 mutable struct BinaryOpResp <: ProtoType
     __protobuf_jl_internal_meta::ProtoMeta
     __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
 
     function BinaryOpResp(; kwargs...)
-        obj = new(meta(BinaryOpResp), Dict{Symbol,Any}())
+        obj = new(meta(BinaryOpResp), Dict{Symbol,Any}(), Set{Symbol}())
         values = obj.__protobuf_jl_internal_values
         symdict = obj.__protobuf_jl_internal_meta.symdict
         for nv in kwargs
