@@ -22,7 +22,7 @@ end
 
 Reading and writing data structures using ProtoBuf is similar to serialization and deserialization. Methods `writeproto` and `readproto` can write and read Julia types from IO streams.
 
-````
+```julia
 julia> using ProtoBuf                       # include protoc generated package here
 
 julia> mutable struct MyType <: ProtoType   # a Julia composite type generated from protoc that
@@ -44,7 +44,72 @@ julia> data.intval
 
 julia> data.strval
 "hello world"
-````
+```
+
+Reading message from a file is very similar to reading from a stream. Here's an example that writes a message to file and then reads it back.
+
+```julia
+julia> include("test_type.jl")
+
+julia> mktemp() do path, io
+           tt1 = TestType(; a="abc", b=true) # construct a message
+           writeproto(io, tt1)  # write message to file
+           close(io) # close the file handle
+           open(path) do io2 # open the file we just wrote in read mode
+               tt2 = readproto(io2, TestType()) # read message from the file
+               @info("read back from file", tt1.a, tt1.b, tt2.a, tt2.b) # print written and read messages
+           end
+       end
+┌ Info: read back from file
+│   tt1.a = "abc"
+│   tt1.b = true
+│   tt2.a = "abc"
+└   tt2.b = true       
+```
+
+Contents of the generated code in test_type.jl:
+
+```julia
+using ProtoBuf
+import ProtoBuf.meta
+
+mutable struct TestType <: ProtoType
+    __protobuf_jl_internal_meta::ProtoMeta
+    __protobuf_jl_internal_values::Dict{Symbol,Any}
+    __protobuf_jl_internal_defaultset::Set{Symbol}
+
+    function TestType(; kwargs...)
+        obj = new(meta(TestType), Dict{Symbol,Any}(), Set{Symbol}())
+        values = obj.__protobuf_jl_internal_values
+        symdict = obj.__protobuf_jl_internal_meta.symdict
+        for nv in kwargs
+            fldname, fldval = nv
+            fldtype = symdict[fldname].jtyp
+            (fldname in keys(symdict)) || error(string(typeof(obj), " has no field with name ", fldname))
+            values[fldname] = isa(fldval, fldtype) ? fldval : convert(fldtype, fldval)
+        end
+        obj
+    end
+end #type TestType
+const __meta_TestType = Ref{ProtoMeta}()
+function meta(::Type{TestType})
+    if !isassigned(__meta_TestType)
+        __meta_TestType[] = target = ProtoMeta(TestType)
+        allflds = Pair{Symbol,Union{Type,String}}[:a => AbstractString, :b => Bool]
+        meta(target, TestType, allflds, [:a], ProtoBuf.DEF_FNUM, ProtoBuf.DEF_VAL, ProtoBuf.DEF_PACK, ProtoBuf.DEF_WTYPES, ProtoBuf.DEF_ONEOFS, ProtoBuf.DEF_ONEOF_NAMES)
+    end
+    __meta_TestType[]
+end
+function Base.getproperty(obj::TestType, name::Symbol)
+    if name === :a
+        return (obj.__protobuf_jl_internal_values[name])::AbstractString
+    elseif name === :b
+        return (obj.__protobuf_jl_internal_values[name])::Bool
+    else
+        getfield(obj, name)
+    end
+end
+```
 
 ## Setting and Getting Fields
 
@@ -59,7 +124,7 @@ Fields that are marked as optional may not be present in an instance of the stru
 - `clear(obj, fld::Symbol)` : clears property `fld` of `obj`.
 - `clear(obj)` : Clears all properties of `obj`.
 
-````
+```julia
 julia> using ProtoBuf
 
 julia> mutable struct MyType <: ProtoType  # a Julia composite type
@@ -87,11 +152,11 @@ julia> readval = readproto(iob, OptType());
 
 julia> hasproperty(readval, :opt)
 false
-````
+```
 
 The `isinitialized(obj::Any)` method checks whether all mandatory fields are set. It is useful to check objects using this method before sending them. Method `writeproto` results in an exception if this condition is violated.
 
-````
+```julia
 julia> using ProtoBuf
 
 julia> import ProtoBuf.meta
@@ -116,7 +181,7 @@ julia> tf.fld1 = TestType(fld1="");
 
 julia> isinitialized(tf)      # true, even though fld2 is not set yet
 true
-````
+```
 
 ## Equality &amp; Hash Value
 

@@ -79,10 +79,10 @@ The protocol buffers [well known types](https://developers.google.com/protocol-b
 The version of the code included with this package have additional changes to make them compatible with Julia.
 
 You can refer to them in your code after including the following statements:
-````julia
+```julia
 using ProtoBuf
 using ProtoBuf.google.protobuf
-````
+```
 
 While generating code for your `.proto` files that use well-known types, add `ProtoBuf/gen` to the list of includes, e.g.:
 ````julia
