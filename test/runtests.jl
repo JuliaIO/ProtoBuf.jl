@@ -1,4 +1,4 @@
-using ProtoBuf, Test
+using ProtoBuf, Test, Compat
 
 @testset "ProtoBuf Tests" begin
     include("testprotoc.jl")

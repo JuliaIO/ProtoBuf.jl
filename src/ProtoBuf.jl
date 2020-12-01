@@ -1,9 +1,11 @@
 module ProtoBuf
 
+using Compat
+
 import Base: setproperty!, getproperty, propertynames, show, copy!, deepcopy, hash, isequal, ==
 
 if VERSION < v"1.2.0-DEV.272"
-    hasproperty(x, s::Symbol) = s in propertynames(x)
+    import Compat: hasproperty
 else
     import Base: hasproperty
 end
