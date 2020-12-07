@@ -1,14 +1,14 @@
 ## Generating Code (from .proto files)
 
-The Julia code generator plugs in to the `protoc` compiler. It is implemented as `ProtoBuf.Gen`, a sub-module of `ProtoBuf`. The callable program (as required by `protoc`) is provided as the script `ProtoBuf/plugin/protoc-gen-julia`.
+ProtoBuf.jl includes the `protoc` compiler version 3 binary appropriate for your operating system. The Julia code generator plugs in to the `protoc` compiler. It is implemented as `ProtoBuf.Gen`, a sub-module of `ProtoBuf`. The callable program (as required by `protoc`) is provided as the script `plugin/protoc-gen-julia` for unix like systems and `plugin/protoc-gen-julia_win.bat` for Windows.
 
-Both version 2 and 3 of the protobuf specification language are supported. You just need to use the correct `protoc` compiler version during code generation.
+For convenience, ProtoBuf.jl exports a `protoc(args)` command that will setup the `PATH` and environment correctly for the included `protoc`. E.g. to generate Julia code from `proto/plugin.proto`, run the command below which will create a corresponding file `jlout/plugin.jl`, simply run (from a Julia REPL):
 
-To generate Julia code from `.proto` files, add the above mentioned `plugin` folder to the system `PATH` environment variable, so that `protoc` can find the `protoc-gen-julia` executable. Then invoke `protoc` with the `--julia_out` option.
+```julia
+julia> using ProtoBuf
 
-E.g. to generate Julia code from `proto/plugin.proto`, run the command below which will create a corresponding file `jlout/plugin.jl`.
-
-`protoc -I=proto --julia_out=jlout proto/plugin.proto`
+julia> run(ProtoBuf.protoc(`-I=proto --julia_out=jlout proto/plugin.proto`))
+```
 
 Each `.proto` file results in a corresponding `.jl` file, including one each for other included `.proto` files. Separate `.jl` files are generated with modules corresponding to each top level package.
 
@@ -17,40 +17,6 @@ If a field name in a message or enum matches a Julia keyword, it is prepended wi
 If a package contains a message which has the same name as the package itself, optionally set the `JULIA_PROTOBUF_MODULE_POSTFIX=1` environment variable when running `protoc`, this will append `_pb` to the module names.
 
 ProtoBuf `map` types are generated as Julia `Dict` types by default. They can also be generated as `Array` of `key-value`s by setting the `JULIA_PROTOBUF_MAP_AS_ARRAY=1` environment variable when running `protoc`.
-
-### From within Julia
-For convenience, ProtoBuf.jl exports a `protoc(args)` command that will setup the `PATH` correctly to make sure `protoc` can find the
-plugin as well as making sure that that the plugin can find the correct julia installation. To make use of this feature for the example
-above, simply run  (from a Julia REPL):
-
-```
-julia> using ProtoBuf
-
-julia> run(ProtoBuf.protoc(`-I=proto --julia_out=jlout proto/plugin.proto`))
-```
-
-### Windows Specifics of Code Generation
-
-On Windows, the procedure of compiling the .jl from .proto files is similar:
-
-Using the following cmd (without spaces around the equality sign)
-
-`protoc -I=<Folder with .proto-Files> --plugin=protoc-gen-julia=<Absolute PATH to protoc-gen-julia-File>\protoc-gen-julia_win.bat --julia_out=<Existing Folder where generated .jl files will be stored>   <Path of proto-Files which you want to compile>`
-
-Example for .proto-files located in fhe folder `test\proto`:
-`cd ProtoBuf\test`
-
-`protoc -I=proto --plugin=protoc-gen-julia=ProtoBuf\plugin\protoc-gen-julia_win.bat --julia_out=jlout proto/PROTOFILENAME.proto`
-
-
-If you want to set the system parameter (as mentioned above) use the following commands (it is important have not whitespaces around the equality sign):
-
-`set JULIA_PROTOBUF_MODULE_POSTFIX=1`
-`set JULIA_PROTOBUF_MAP_AS_ARRAY=1`
-
-You can test if it is set correctly by using the echo call.
-`echo %Variable_Name%`
-
 
 ### Julia Type Mapping
 
@@ -85,9 +51,11 @@ using ProtoBuf.google.protobuf
 ```
 
 While generating code for your `.proto` files that use well-known types, add `ProtoBuf/gen` to the list of includes, e.g.:
-````julia
-protoc -I=proto -I=ProtoBuf/gen --julia_out=jlout proto/msg.proto
-````
+```julia
+julia> using ProtoBuf
+
+julia> run(ProtoBuf.protoc(`-I=proto -I=ProtoBuf/gen --julia_out=jlout proto/msg.proto`))
+```
 
 Though this would generate code for the well-known types along with your messages, you just need to use the files generated for your messages.
 

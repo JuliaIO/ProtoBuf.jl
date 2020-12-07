@@ -366,12 +366,12 @@ function test_types()
         end
 
         @testset "varint overflow" begin
-            ProtoBuf._write_uleb(pb, -1)
+            ProtoBuf._write_uleb(pb, Int64(-1))
             @test ProtoBuf._read_uleb(pb, Int8) == 0
-            ProtoBuf._write_uleb(pb, 1)
+            ProtoBuf._write_uleb(pb, Int64(1))
             @test ProtoBuf._read_uleb(pb, Int8) == 1
             write(pb, 0xff)
-            ProtoBuf._write_uleb(pb, -1)
+            ProtoBuf._write_uleb(pb, Int64(-1))
             @test ProtoBuf._read_uleb(pb, Int32) == 0
         end
 

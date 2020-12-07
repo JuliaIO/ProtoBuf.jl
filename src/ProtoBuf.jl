@@ -1,14 +1,6 @@
 module ProtoBuf
 
-using Compat
-
-import Base: setproperty!, getproperty, propertynames, show, copy!, deepcopy, hash, isequal, ==
-
-if VERSION < v"1.2.0-DEV.272"
-    import Compat: hasproperty
-else
-    import Base: hasproperty
-end
+import Base: setproperty!, getproperty, hasproperty, propertynames, show, copy!, deepcopy, hash, isequal, ==
 
 export writeproto, readproto, ProtoMeta, ProtoMetaAttribs, meta
 export isfilled, which_oneof
