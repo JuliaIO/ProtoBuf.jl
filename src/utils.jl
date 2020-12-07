@@ -57,9 +57,11 @@ function enumstr(enumname::T, t::Int32) where {T <: NamedTuple}
 end
 
 import protoc_jll
-function protoc(args=``; protoc=protoc_jll.protoc())
-    ENV′ = copy(ENV)
-    ENV′["PATH"] = string(joinpath(@__DIR__, "..", "plugin"), ":", ENV′["PATH"])
-    ENV′["JULIA"] = joinpath(Sys.BINDIR, Base.julia_exename())
-    setenv(`$protoc $args`, ENV′)
+function protoc(args=``)
+    protoc_jll.protoc() do protoc_path
+        ENV′ = copy(ENV)
+        ENV′["PATH"] = string(joinpath(@__DIR__, "..", "plugin"), ":", ENV′["PATH"])
+        ENV′["JULIA"] = joinpath(Sys.BINDIR, Base.julia_exename())
+        run(setenv(`$protoc_path $args`, ENV′))
+    end
 end
