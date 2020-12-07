@@ -16,9 +16,7 @@ function ensure_stdlib()
     nothing
 end
 
-if Sys.iswindows()
-    @info("testing protobuf compiler plugin not enabled on windows")
-else
+if !Sys.iswindows()
     test_script = joinpath(@__DIR__, "testprotoc.sh")
     protogen_path = joinpath(@__DIR__, "..", "plugin")
     path_env = "$(protogen_path):$(ENV["PATH"])"
@@ -45,19 +43,13 @@ else
             @info("testing protoc compiler plugin with ", protoc_compiler)
             run(setenv(`$test_script`, modified_env))
         end
-
-        # test ProtoBuf.protoc
-        pathenv = get(ENV, "PATH", "")
-        test_protos = joinpath(@__DIR__, "proto")
-        test_proto = joinpath(test_protos, "plugin.proto")
-
-        ensure_stdlib()
-
-        for protoc_compiler in protoc_compilers
-            # set path to pick up compiler
-            ENV["PATH"] = string(dirname(protoc_compiler), ":", pathenv)
-            @info("testing ProtoBuf.protoc with ", protoc_compiler)
-            run(ProtoBuf.protoc(`-I=$test_protos --julia_out=/tmp $test_proto`))
-        end
     end
 end
+
+# test ProtoBuf.protoc
+test_protos = joinpath(@__DIR__, "proto")
+test_proto = joinpath(test_protos, "plugin.proto")
+ensure_stdlib()
+
+@info("testing ProtoBuf.protoc")
+ProtoBuf.protoc(`-I=$test_protos --julia_out=/tmp $test_proto`)
