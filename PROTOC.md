@@ -7,7 +7,7 @@ For convenience, ProtoBuf.jl exports a `protoc(args)` command that will setup th
 ```julia
 julia> using ProtoBuf
 
-julia> run(ProtoBuf.protoc(`-I=proto --julia_out=jlout proto/plugin.proto`))
+julia> ProtoBuf.protoc(`-I=proto --julia_out=jlout proto/plugin.proto`)
 ```
 
 Each `.proto` file results in a corresponding `.jl` file, including one each for other included `.proto` files. Separate `.jl` files are generated with modules corresponding to each top level package.
@@ -54,7 +54,7 @@ While generating code for your `.proto` files that use well-known types, add `Pr
 ```julia
 julia> using ProtoBuf
 
-julia> run(ProtoBuf.protoc(`-I=proto -I=ProtoBuf/gen --julia_out=jlout proto/msg.proto`))
+julia> ProtoBuf.protoc(`-I=proto -I=ProtoBuf/gen --julia_out=jlout proto/msg.proto`)
 ```
 
 Though this would generate code for the well-known types along with your messages, you just need to use the files generated for your messages.
