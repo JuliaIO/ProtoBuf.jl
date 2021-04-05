@@ -240,13 +240,6 @@ function protofile_name_to_module_name(n::String)
     return name
 end
 
-function has_gen_services(opt::FileOptions)
-    hasproperty(opt, :cc_generic_services) && opt.cc_generic_services && return true
-    hasproperty(opt, :py_generic_services) && opt.py_generic_services && return true
-    hasproperty(opt, :java_generic_services) && opt.java_generic_services && return true
-    return false
-end
-
 function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorProto, io::IOBuffer)
     outdir = dirname(protofile.name)
     filename = protofile_name_to_module_name(protofile.name)
@@ -635,9 +628,6 @@ end
 function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     @debug("generate begin for $(protofile.name), package $(protofile.package)")
 
-    svcs = hasproperty(protofile, :options) ? has_gen_services(protofile.options) : false
-    @debug("generate services: $svcs")
-
     scope = top_scope
     if !isempty(protofile.package)
         for pkgname in split(protofile.package, '.')
@@ -729,7 +719,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
 
     # generate service stubs
     @debug("generating services")
-    if svcs && hasproperty(protofile, :service)
+    if hasproperty(protofile, :service)
         nservices = length(protofile.service)
         for idx in 1:nservices
             service = protofile.service[idx]
