@@ -240,13 +240,6 @@ function protofile_name_to_module_name(n::String)
     return name
 end
 
-function has_gen_services(opt::FileOptions)
-    hasproperty(opt, :cc_generic_services) && opt.cc_generic_services && return true
-    hasproperty(opt, :py_generic_services) && opt.py_generic_services && return true
-    hasproperty(opt, :java_generic_services) && opt.java_generic_services && return true
-    return false
-end
-
 function append_response(resp::CodeGeneratorResponse, protofile::FileDescriptorProto, io::IOBuffer)
     outdir = dirname(protofile.name)
     filename = protofile_name_to_module_name(protofile.name)
@@ -551,6 +544,27 @@ function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::S
     nothing
 end
 
+function scoped_svc_type_name(scope::Scope, typ_name)
+    modul = fullname(scope)
+
+    if isempty(modul)
+        return typ_name
+    elseif startswith(typ_name, string(modul, "."))
+        return typ_name[(length(modul)+2):end]
+    elseif startswith(typ_name, '.')
+        (m,t) = findmodule(typ_name[2:end])
+        t = chk_keyword(t)
+        full_typ_name = m=="" ? t : "$(m).$(t)"
+        return (m == modul) ? t : full_typ_name
+    else
+        full_typ_name = qualify_in_hierarchy(typ_name, scope)
+        typ_name = full_typ_name
+        m,t = splitmodule_chkkeyword(typ_name)
+        (m == modul) && (typ_name = t)
+        return typ_name
+    end
+end
+
 function generate_svc(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::Scope, svcidx::Int, exports::Vector{String})
     nmethods = hasproperty(stype, :method) ? length(stype.method) : 0
 
@@ -559,8 +573,12 @@ function generate_svc(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::S
     println(io, "const _$(stype.name)_methods = MethodDescriptor[")
     for idx in 1:nmethods
         method = stype.method[idx]
-        in_typ_name = field_type_name(method.input_type)
-        out_typ_name = field_type_name(method.output_type)
+        in_typ_name = try
+            scoped_svc_type_name(scope, field_type_name(method.input_type))
+        catch ex
+            throw(string(ex, " - ", fullname(scope)))
+        end
+        out_typ_name = scoped_svc_type_name(scope, field_type_name(method.output_type))
         elem_sep = (idx < nmethods) ? "," : ""
 
         method.client_streaming && (in_typ_name = "Channel{" * in_typ_name * "}")
@@ -597,7 +615,7 @@ function generate_svc(io::IO, errio::IO, stype::ServiceDescriptorProto, scope::S
 
     for idx in 1:nmethods
         method = stype.method[idx]
-        in_typ_name = field_type_name(method.input_type)
+        in_typ_name = scoped_svc_type_name(scope, field_type_name(method.input_type))
         method.client_streaming && (in_typ_name = "Channel{" * in_typ_name * "}")
         println(io, "$(method.name)(stub::$(stub), controller::ProtoRpcController, inp::$(in_typ_name), done::Function) = call_method(stub.impl, _$(stype.name)_methods[$(idx)], controller, inp, done)")
         println(io, "$(method.name)(stub::$(nbstub), controller::ProtoRpcController, inp::$(in_typ_name)) = call_method(stub.impl, _$(stype.name)_methods[$(idx)], controller, inp)")
@@ -609,9 +627,6 @@ end
 
 function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
     @debug("generate begin for $(protofile.name), package $(protofile.package)")
-
-    svcs = hasproperty(protofile, :options) ? has_gen_services(protofile.options) : false
-    @debug("generate services: $svcs")
 
     scope = top_scope
     if !isempty(protofile.package)
@@ -704,7 +719,7 @@ function generate_file(io::IO, errio::IO, protofile::FileDescriptorProto)
 
     # generate service stubs
     @debug("generating services")
-    if svcs && hasproperty(protofile, :service)
+    if hasproperty(protofile, :service)
         nservices = length(protofile.service)
         for idx in 1:nservices
             service = protofile.service[idx]
