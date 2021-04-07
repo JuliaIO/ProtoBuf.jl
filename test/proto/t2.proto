@@ -11,3 +11,7 @@ message MA {
 message MC {
   required string c = 1;
 }
+
+service TestServicePkgP {
+  rpc Method1(MA.MB) returns(MC);
+}
