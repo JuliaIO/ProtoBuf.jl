@@ -435,6 +435,19 @@ function test_repeats()
     pb = PipeBuffer()
 
     @testset "Repeated" begin
+        @testset "Empty repeated int64" begin
+            TestTypeJType[] = Vector{Int64}
+            TestTypeWType[] = :int64
+            TestTypePack[] = ProtoBuf.DEF_PACK
+            testval = TestType()
+            readval = TestType()
+            testmeta = meta(TestType)
+            writeproto(pb, testval, testmeta)
+            readproto(pb, readval, testmeta)
+            assert_equal(testval, readval)
+            @test hasproperty(readval, :val)
+        end
+
         @testset "Repeated int64" begin
             TestTypeJType[] = Vector{Int64}
             TestTypeWType[] = :int64
@@ -616,21 +629,24 @@ function test_maps()
         testval.d1 = Dict{Int,Int}()
         writeproto(pb, testval)
         readproto(pb, readval)
-        @test !hasproperty(readval, :d1)
+        @test hasproperty(readval, :d1)
+        assert_equal(testval.d1, readval.d1)
 
         testval = TestMaps()
         readval = TestMaps()
         testval.d2 = Dict{Int32,String}()
         writeproto(pb, testval)
         readproto(pb, readval)
-        @test !hasproperty(readval, :d2)
+        @test hasproperty(readval, :d2)
+        assert_equal(testval.d2, readval.d2)
 
         testval = TestMaps()
         readval = TestMaps()
         testval.d3 = Dict{String,String}()
         writeproto(pb, testval)
         readproto(pb, readval)
-        @test !hasproperty(readval, :d3)
+        @test hasproperty(readval, :d3)
+        assert_equal(testval.d3, readval.d3)
 
         testval = TestMaps()
         readval = TestMaps()

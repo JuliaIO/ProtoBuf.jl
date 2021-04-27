@@ -56,6 +56,7 @@ defaultval(::Type{T}) where {T<:Number}             = [zero(T)]
 defaultval(::Type{T}) where {T<:AbstractString}     = [convert(T,"")]
 defaultval(::Type{Bool})                            = [false]
 defaultval(::Type{Vector{T}}) where {T}             = Any[T[]]
+defaultval(::Type{Dict{K,V}}) where {K,V}           = [Dict{K,V}()]
 defaultval(::Type)                                  = []
 
 function _write_uleb(io::IO, x::T) where T <: Integer
