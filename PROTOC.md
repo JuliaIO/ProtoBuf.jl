@@ -79,3 +79,4 @@ Service stubs are Julia types. Stubs can be constructed by passing an RPC channe
 - Extensions are not supported yet.
 - Groups are not supported. They are deprecated anyway.
 - Enums are declared as `Int32` types in the generated code. For every enum, a separate named tuple is generated with fields matching the enum values. The `lookup` method can be used to verify valid values.
+- In order to use the code generator, you must have installed ProtoBuf in the base Julia environment (`]activate; add ProtoBuf`).
