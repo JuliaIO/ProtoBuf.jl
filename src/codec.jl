@@ -662,7 +662,7 @@ function _unset_oneof(obj, objmeta, fld)
         end
         nameidx = objmeta.oneofs[fldidx]
         if nameidx > 0
-            oneofprop = which_oneof(obj, objmeta.oneof_names[nameidx])
+            oneofprop = _which_oneof(obj, objmeta, nameidx)
             (oneofprop === Symbol()) || clear(obj, oneofprop)
         end
     end
