@@ -432,7 +432,7 @@ function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n
 end
 
-function read_lendelim_packed(io, fld, reader, jtyp::Type)
+function read_lendelim_packed(io, fld::Vector{jtyp}, reader) where {jtyp}
     iob = IOBuffer(read_bytes(io))
     while !eof(iob)
         val = reader(iob, jtyp)
@@ -485,7 +485,7 @@ function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp_speci
         # Only repeated fields of primitive numeric types (isbitstype == true) can be declared "packed".
         # Maps can not be repeated
         if isbitstype(jtyp) && (wiretyp == WIRETYP_LENDELIM)
-            read_lendelim_packed(io, arr_val, rfn, jtyp)
+            read_lendelim_packed(io, arr_val, rfn)
         elseif ptyp === :obj
             push!(arr_val, read_lendelim_obj(io, instantiate(jtyp), attrib.meta, rfn))
         else
