@@ -432,19 +432,6 @@ function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
     n
 end
 
-function read_lendelim_packed(io, fld::Vector{jtyp}, reader) where {jtyp}
-    n = _read_uleb(io, UInt64)
-    left = io.left - n
-    io.left = n
-    sizehint!(fld, length(fld) + div(n, sizeof(jtyp)))
-    while !eof(io)
-        val = reader(io, jtyp)
-        push!(fld, val)
-    end
-    io.left = left
-    return
-end
-
 """
 Same as `io` except that only the first `left` bytes are available.
 Once they are read, `eof` will return true.
@@ -472,8 +459,25 @@ function Base.read(io::LazyRead, ::Type{UInt8})
     return read(io.io, UInt8)
 end
 
+function read_lendelim_packed(io::LazyRead, fld::Vector{jtyp}, reader) where {jtyp}
+    n = _read_uleb(io, UInt64)
+    # Instead of creating a `LazyRead` of `LazyRead` which would allocate and
+    # slow down reading as it needs to go through a stack of `LazyRead` layers,
+    # we reuse this `LazyRead` to make sure there is only one `LazyRead`.
+    left = io.left - n
+    io.left = n
+    sizehint!(fld, length(fld) + div(n, sizeof(jtyp)))
+    while !eof(io)
+        val = reader(io, jtyp)
+        push!(fld, val)
+    end
+    io.left = left
+    return
+end
+
 function read_lendelim_obj(io::LazyRead, val, meta::ProtoMeta, reader)
     n = _read_uleb(io, UInt64)
+    # We reuse the `LazyRead` for the same reason as in `read_lendelim_packed`.
     left = io.left - n
     io.left = n
     reader(io, val, meta)
