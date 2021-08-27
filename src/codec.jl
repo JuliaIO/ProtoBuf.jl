@@ -433,17 +433,55 @@ function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
 end
 
 function read_lendelim_packed(io, fld::Vector{jtyp}, reader) where {jtyp}
-    iob = IOBuffer(read_bytes(io))
-    while !eof(iob)
-        val = reader(iob, jtyp)
+    n = _read_uleb(io, UInt64)
+    left = io.left - n
+    io.left = n
+    sizehint!(fld, length(fld) + div(n, sizeof(jtyp)))
+    while !eof(io)
+        val = reader(io, jtyp)
         push!(fld, val)
     end
-    nothing
+    io.left = left
+    return
 end
 
+"""
+Same as `io` except that only the first `left` bytes are available.
+Once they are read, `eof` will return true.
+"""
+mutable struct LazyRead{I} <: IO
+    io::I
+    left::UInt64
+end
+function lazy_read(io::LazyRead)
+    n = _read_uleb(io, UInt64)
+    @assert io.left >= n
+    skip(io, n)
+    io.left -= n
+    return
+end
+function LazyRead(io::IO)
+    n = _read_uleb(io, UInt64)
+    return LazyRead(io, n)
+end
+function Base.eof(io::LazyRead)
+    return eof(io.io) || io.left <= 0
+end
+function Base.read(io::LazyRead, ::Type{UInt8})
+    io.left -= 1
+    return read(io.io, UInt8)
+end
+
+function read_lendelim_obj(io::LazyRead, val, meta::ProtoMeta, reader)
+    n = _read_uleb(io, UInt64)
+    left = io.left - n
+    io.left = n
+    reader(io, val, meta)
+    io.left = left
+    val
+end
 function read_lendelim_obj(io, val, meta::ProtoMeta, reader)
-    fld_buf = read_bytes(io)
-    reader(IOBuffer(fld_buf), val, meta)
+    reader(LazyRead(io), val, meta)
     val
 end
 
@@ -452,7 +490,7 @@ instantiate(t::Type{T}) where {T <: ProtoType} = T()
 
 function skip_field(io::IO, wiretype::Integer)
     if wiretype == WIRETYP_LENDELIM
-        read_bytes(io)
+        lazy_read(io)
     elseif wiretype == WIRETYP_64BIT
         read_fixed(io, UInt64)
     elseif wiretype == WIRETYP_32BIT
