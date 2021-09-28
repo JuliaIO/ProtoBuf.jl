@@ -149,7 +149,8 @@ function qualify_in_hierarchy(name::String, scope::Scope)
     elseif isdefined(scope, :parent)
         return qualify_in_hierarchy(name, scope.parent)
     else
-        error("unresolved name $name at scope $(scope.name)")
+        @warn "unresolved name $name at scope $(scope.name)"
+        return fullname(scope, name)
     end
 end
 
@@ -188,7 +189,7 @@ function field_type_name(full_type_name::String)
         for level in (length(comps)-1):-1:1
             package_name = join(comps[1:level], '.')
             if package_name == GOOGLE_PROTO3_EXTENSIONS
-                type_name = "ProtoBuf.$full_type_name"
+                type_name = "ProtoBuf.$(join(comps, '.'))"
                 break
             elseif package_name in keys(name_maps)
                 type_maps = name_maps[package_name]
