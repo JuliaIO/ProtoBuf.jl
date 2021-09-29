@@ -144,7 +144,9 @@ end
 Search for `name` in the scope hierarchy and qualify it with full scope.
 """
 function qualify_in_hierarchy(name::String, scope::Scope)
-    if name in scope.syms
+    if startswith(name, "ProtoBuf.google.protobuf.")
+        return name
+    elseif name in scope.syms
         return fullname(scope, name)
     elseif isdefined(scope, :parent)
         return qualify_in_hierarchy(name, scope.parent)
@@ -188,7 +190,8 @@ function field_type_name(full_type_name::String)
         for level in (length(comps)-1):-1:1
             package_name = join(comps[1:level], '.')
             if package_name == GOOGLE_PROTO3_EXTENSIONS
-                type_name = "ProtoBuf.$full_type_name"
+                comps[end] = chk_keyword(comps[end])
+                type_name = "ProtoBuf.$(join(comps, '.'))"
                 break
             elseif package_name in keys(name_maps)
                 type_maps = name_maps[package_name]
