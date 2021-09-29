@@ -189,6 +189,7 @@ function field_type_name(full_type_name::String)
         for level in (length(comps)-1):-1:1
             package_name = join(comps[1:level], '.')
             if package_name == GOOGLE_PROTO3_EXTENSIONS
+                comps[end] = chk_keyword(comps[end])
                 type_name = "ProtoBuf.$(join(comps, '.'))"
                 break
             elseif package_name in keys(name_maps)
