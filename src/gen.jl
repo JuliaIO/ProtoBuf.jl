@@ -144,13 +144,14 @@ end
 Search for `name` in the scope hierarchy and qualify it with full scope.
 """
 function qualify_in_hierarchy(name::String, scope::Scope)
-    if name in scope.syms
+    if startswith(name, "ProtoBuf.google.protobuf.")
+        return name
+    elseif name in scope.syms
         return fullname(scope, name)
     elseif isdefined(scope, :parent)
         return qualify_in_hierarchy(name, scope.parent)
     else
-        @warn "unresolved name $name at scope $(scope.name)"
-        return fullname(scope, name)
+        error("unresolved name $name at scope $(scope.name)")
     end
 end
 
