@@ -440,6 +440,7 @@ mutable struct LazyRead{I} <: IO
     io::I
     left::UInt64
 end
+lazy_read(io::IO) = read_bytes(io)
 function lazy_read(io::LazyRead)
     n = _read_uleb(io, UInt64)
     @assert io.left >= n
@@ -459,18 +460,26 @@ function Base.read(io::LazyRead, ::Type{UInt8})
     return read(io.io, UInt8)
 end
 
-function read_lendelim_packed(io::LazyRead, fld::Vector{jtyp}, reader) where {jtyp}
+function _read_lendelim_packed(io::LazyRead, fld::Vector{jtyp}, reader) where {jtyp}
+    sizehint!(fld, length(fld) + div(io.left, sizeof(jtyp)))
+    while !eof(io)
+        val = reader(io, jtyp)
+        push!(fld, val)
+    end
+end
+
+function read_lendelim_packed(io::IO, fld::Vector, reader)
+    _read_lendelim_packed(LazyRead(io), fld, reader)
+end
+
+function read_lendelim_packed(io::LazyRead, fld::Vector, reader)
     n = _read_uleb(io, UInt64)
     # Instead of creating a `LazyRead` of `LazyRead` which would allocate and
     # slow down reading as it needs to go through a stack of `LazyRead` layers,
     # we reuse this `LazyRead` to make sure there is only one `LazyRead`.
     left = io.left - n
     io.left = n
-    sizehint!(fld, length(fld) + div(n, sizeof(jtyp)))
-    while !eof(io)
-        val = reader(io, jtyp)
-        push!(fld, val)
-    end
+    _read_lendelim_packed(io, fld, reader)
     io.left = left
     return
 end
