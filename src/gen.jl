@@ -67,7 +67,7 @@ const _keywords = [
     "ccall", "finally", "typealias", "break", "continue", "type",
     "global", "module", "using", "import", "export", "const", "let",
     "bitstype", "do", "baremodule", "importall", "immutable",
-    "Type", "Enum", "Any", "DataType", "Base"
+    "Type", "Enum", "Any", "DataType", "Base", "Set"
 ]
 
 chk_keyword(name) = (name in _keywords) ? string('_', name) : String(name)
