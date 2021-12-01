@@ -1,8 +1,8 @@
 # ProtoBuf.jl
 
-[![Build Status](https://travis-ci.org/JuliaIO/ProtoBuf.jl.png)](https://travis-ci.org/JuliaIO/ProtoBuf.jl)
+[![Build Status](https://github.com/JuliaIO/ProtoBuf.jl/workflows/CI/badge.svg)](https://github.com/JuliaIO/ProtoBuf.jl/actions?query=workflow%3ACI+branch%3Amaster)
 
-[![Coverage Status](https://coveralls.io/repos/github/JuliaIO/ProtoBuf.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaIO/ProtoBuf.jl?branch=master)
+[![codecov.io](http://codecov.io/github/JuliaIO/ProtoBuf.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaIO/ProtoBuf.jl?branch=master)
 
 [**Protocol buffers**](https://developers.google.com/protocol-buffers/docs/overview) are a language-neutral, platform-neutral, extensible way of serializing structured data for use in communications protocols, data storage, and more.
 
