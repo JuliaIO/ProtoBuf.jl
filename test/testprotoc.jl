@@ -119,7 +119,11 @@ function protoc_test(files, check, envs, outdir)
             println(os, "ENV[\"COVERAGE\"]=\"--code-coverage=user --inline=no\"")
         end
         println(os, "cd(\"$outdir\")")
-        println(os, "ProtoBuf.protoc(`-I=$srcdir -I=$well_known_proto_srcdir --julia_out=$outdir $srcpaths`)")
+
+        # escape ~ character in Windows temp folder names
+        escaped_outdir = replace(outdir, "~"=>"\\~")
+
+        println(os, "ProtoBuf.protoc(`-I=$srcdir -I=$well_known_proto_srcdir --julia_out=$escaped_outdir $srcpaths`)")
         println(os, check)
     end
     julia_fullpath = joinpath(Sys.BINDIR, Base.julia_exename())
