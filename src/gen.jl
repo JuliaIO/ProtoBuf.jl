@@ -336,11 +336,11 @@ end
 
 function generate_msgtype(outio::IO, errio::IO, dtype::DescriptorProto, scope::Scope, syntax::String, exports::Vector{String}, depends::Vector{String}, mapentries::Dict{String,Tuple{String,String}}, deferedmode::Bool)
     full_dtypename = fullname(scope, dtype.name)
-    deferedmode && !isdeferred(full_dtypename) && return
 
     io = IOBuffer()
     modul,dtypename = splitmodule_chkkeyword(full_dtypename)
     full_dtypename = (modul=="") ? dtypename : "$(modul).$(dtypename)"
+    deferedmode && !isdeferred(full_dtypename) && return
     @debug("begin type $(full_dtypename)")
     add_name_map(dtype.name, full_dtypename)
 
