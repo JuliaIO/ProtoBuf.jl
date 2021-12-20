@@ -34,6 +34,11 @@ const PROTOC_TESTCASES = [
         envs=[],
     ),
     (
+        files=["recursive_julia_keyword.proto"],
+        check="include(\"recursive_julia_keyword_pb.jl\")",
+        envs=[],
+    ),
+    (
         files=["a.proto", "b.proto"],
         check="include(\"AB.jl\"); using .AB; using .AB.A, .AB.B",
         envs=[],
