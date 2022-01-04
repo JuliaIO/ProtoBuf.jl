@@ -365,6 +365,33 @@ function test_types()
             end
         end
 
+        @testset "Known output" begin
+            TestTypeFldNum[] = 1
+            test_value = -1
+            int32_out = Vector{UInt8}([0x08, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01])
+            int64_out = Vector{UInt8}([0x08, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01])
+            sint32_out = Vector{UInt8}([0x08, 0x01])
+            sint64_out = Vector{UInt8}([0x08, 0x01])
+            sfixed32_out = Vector{UInt8}([0x0d, 0xff, 0xff, 0xff, 0xff])
+            sfixed64_out = Vector{UInt8}([0x09, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+
+            known_outputs=[int32_out,int64_out,sint32_out,sint64_out,sfixed32_out,sfixed64_out]
+            let typs = [Int32,Int64,Int32,Int64,Int32,Int64], ptyps=[:int32,:int64,:sint32,:sint64,:sfixed32,:sfixed64]
+                for (typ,ptyp,out) in zip(typs,ptyps,known_outputs)
+                    pb = PipeBuffer()
+                    TestTypeJType[] = typ
+                    TestTypeWType[] = ptyp
+                    testmeta = meta(TestType)
+                    testval = TestType(; val=convert(TestTypeJType[], test_value))
+                    readval = TestType()
+                    writeproto(pb, testval, testmeta)
+                    assert_equal(pb.data, out)
+                    readproto(pb, readval, testmeta)
+                    assert_equal(testval, readval)
+                end
+            end
+        end
+
         @testset "varint overflow" begin
             ProtoBuf._write_uleb(pb, Int64(-1))
             @test ProtoBuf._read_uleb(pb, Int8) == 0
@@ -487,6 +514,33 @@ function test_repeats()
                 writeproto(pb, testval, testmeta)
                 readproto(pb, readval, testmeta)
                 assert_equal(testval, readval)
+            end
+        end
+
+        @testset "Known repeated output" begin
+            TestTypeFldNum[] = 1
+            test_value = 1
+            int32_out = Vector{UInt8}([0x08, 0x01, 0x08, 0x01])
+            int64_out = Vector{UInt8}([0x08, 0x01, 0x08, 0x01])
+            sint32_out = Vector{UInt8}([0x08, 0x02, 0x08, 0x02])
+            sint64_out = Vector{UInt8}([0x08, 0x02, 0x08, 0x02])
+            sfixed32_out = Vector{UInt8}([0x08, 0x01, 0x00, 0x00, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00])
+            sfixed64_out = Vector{UInt8}([0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+
+            known_outputs=[int32_out,int64_out,sint32_out,sint64_out,sfixed32_out,sfixed64_out]
+            let typs = [Int32,Int64,Int32,Int64,Int32,Int64], ptyps=[:int32,:int64,:sint32,:sint64,:sfixed32,:sfixed64]
+                for (typ,ptyp,out) in zip(typs,ptyps,known_outputs)
+                    pb = PipeBuffer()
+                    TestTypeJType[] = Vector{typ}
+                    TestTypeWType[] = ptyp
+                    testmeta = meta(TestType)
+                    testval = TestType(; val=fill(convert(typ, test_value),2) )
+                    readval = TestType()
+                    writeproto(pb, testval, testmeta)
+                    assert_equal(pb.data, out)
+                    readproto(pb, readval, testmeta)
+                    assert_equal(testval, readval)
+                end
             end
         end
     end
