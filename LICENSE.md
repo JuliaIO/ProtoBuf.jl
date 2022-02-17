@@ -1,6 +1,6 @@
 The ProtoBuf.jl package is licensed under the MIT "Expat" License:
 
-> Copyright (c) 2014: Tanmay Mohapatra.
+> Copyright (c) 2014-22: Julia Computing, Tanmay Mohapatra, and contributors
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
