@@ -300,6 +300,25 @@ function setprotometa!(meta::ProtoMeta, jtype::Type, ordered::Vector{ProtoMetaAt
 end
 
 ConcreteTypes = Union{Number,FixedSizeNumber,SignedNumber,AbstractString,Vector{UInt8}}
+
+wire_jl_type(s::Symbol, x) = wire_jl_type(Val(s), x)
+
+wire_jl_type(::Val, x) = x
+
+wire_jl_type(::Val{:fixed32}, x) = FixedSizeNumber(x)
+wire_jl_type(::Val{:fixed64}, x) = FixedSizeNumber(x)
+wire_jl_type(::Val{:sfixed32}, x) = FixedSizeNumber(x)
+wire_jl_type(::Val{:sfixed64}, x) = FixedSizeNumber(x)
+wire_jl_type(::Val{:sint32}, x) = SignedNumber(x)
+wire_jl_type(::Val{:sint64}, x) = SignedNumber(x)
+
+wire_jl_type(::Val{:fixed32}, x::Type) = FixedSizeNumber{x}
+wire_jl_type(::Val{:fixed64}, x::Type) = FixedSizeNumber{x}
+wire_jl_type(::Val{:sfixed32}, x::Type) = FixedSizeNumber{x}
+wire_jl_type(::Val{:sfixed64}, x::Type) = FixedSizeNumber{x}
+wire_jl_type(::Val{:sint32}, x::Type) = SignedNumber{x}
+wire_jl_type(::Val{:sint64}, x::Type) = SignedNumber{x}
+
 function writeproto(io::IO, val::T, attrib::ProtoMetaAttribs) where T<:ConcreteTypes
     fldnum = attrib.fldnum
 
@@ -384,7 +403,7 @@ function writeproto(io::IO, obj, meta::ProtoMeta=meta(typeof(obj)))
         fld = attrib.fld
         if hasproperty(obj, fld)
             @debug("writeproto", field=fld)
-            n += writeproto(io, getproperty(obj, fld), attrib)
+            n += writeproto(io, wire_jl_type(attrib.ptyp, getproperty(obj, fld)), attrib)
         else
             @debug("not set", field=fld)
             (attrib.occurrence == 1) && error("missing required field $fld (#$(attrib.fldnum))")
@@ -425,7 +444,7 @@ function skip_field(io::IO, wiretype::Integer)
 end
 
 function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, jtyp::Type{T}) where T<:ConcreteTypes
-    return _read_value(io, jtyp)
+    return _read_value(io, wire_jl_type(attrib.ptyp, jtyp))
 end
 
 function read_field(io, container, attrib::ProtoMetaAttribs, wiretyp, typ::Type{Vector{T}}) where T
