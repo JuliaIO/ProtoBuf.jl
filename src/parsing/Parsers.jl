@@ -181,7 +181,7 @@ function _parse_option!(ps::ParserState, options)
             else
                 error("Unexpected token name in option mapping $(peektoken(ps))")
             end
-            
+
             expectnext(ps, Tokens.COLON)
             value = _parse_option_value(ps)
             option_value[key] = value
@@ -201,12 +201,12 @@ include("proto_types.jl")
 
 struct ProtoImportedPackage
     import_option::ImportOption
-    name::String
+    path::String
 end
 
 struct ProtoFilePreamble
     isproto3::Bool
-    identifier::String
+    namespace::String
     options::Dict{String,Union{String,Dict{String,String}}}
     imports::Vector{ProtoImportedPackage}
 end
@@ -219,11 +219,6 @@ struct ProtoFile
     extends::Vector{ExtendType}
     external_refereces::Vector{String}
 end
-
-proto_module_path(path::AbstractString) = joinpath(dirname(path), proto_module_name(path))
-proto_module_name(path::AbstractString) = replace(titlecase(basename(path)), r"[-_]" => "", ".Proto" => "PB.jl")
-proto_module_name(p::ProtoFile) = proto_module_name(p.filepath)
-proto_module_path(p::ProtoFile) = proto_module_path(p.filepath)
 
 include("utils.jl")
 
@@ -243,7 +238,7 @@ function parse_proto_file(ps::ParserState)
 
     while !accept(ps, Tokens.ENDMARKER)
         if peekkind(ps) == Tokens.PACKAGE
-            if !isempty(package_identifier) 
+            if !isempty(package_identifier)
                 ps.errored = true
                 error("Only a single package identifier permitted")
             end
@@ -258,7 +253,7 @@ function parse_proto_file(ps::ParserState)
             imported_package_name = val(expectnext(ps, Tokens.STRING_LIT))[2:end-1] # drop quotes
             push!(imported_packages, ProtoImportedPackage(import_option, imported_package_name))
             expectnext(ps, Tokens.SEMICOLON)
-        elseif accept(ps, Tokens.EXTEND) 
+        elseif accept(ps, Tokens.EXTEND)
             # we collect top-level extends here
             # Scoped extends are extracted in expand_namespaced_definitions!
             push!(extends, parse_extend_type(ps))

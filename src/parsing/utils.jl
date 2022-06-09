@@ -6,7 +6,7 @@ _get_fields(t::GroupType) = _get_fields(t.type)
 _get_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_fields, t.fields))
 
 function expand_namespaced_definitions!(
-    file_definitions::Dict{String, AbstractProtoType}, 
+    file_definitions::Dict{String, AbstractProtoType},
     extends::Vector{ExtendType},
 )
     # Traverse all definition and see which of those referenced are not defined
@@ -84,7 +84,7 @@ function _get_upstream_dependencies!(t::ReferencedType, out)
     push!(out, t.name)
     return nothing
 end
-function _get_upstream_dependencies!(t::OneOfType, out) 
+function _get_upstream_dependencies!(t::OneOfType, out)
     for field in t.fields
         _get_upstream_dependencies!(field, out)
     end
@@ -108,20 +108,19 @@ function _get_upstream_dependencies!(t::MessageType, out)
     return nothing
 end
 
-
-function _topological_sort(definitions::Dict{String,<:AbstractProtoType}, external_references::Set{String})
+function _topological_sort(definitions#=::Dict{String,<:AbstractProtoType}=#, external_references::Set{String})
     has_external_references = !isempty(external_references)
     number_of_upstream_dependencies = Dict{String,Int}()
     downstream_dependencies = Dict{String,Vector{String}}()
     topologically_sorted = String[]
     upstreams = Set{String}()
     queue = String[]
-    
+
     for (name, definition) in definitions
         empty!(upstreams)
         isa(definition, ExtendType) && continue # TODO: implement Extensions
         get_upstream_dependencies!(definition, upstreams)
-        # Remove imported types, these shouldn't affect topological sort
+        # Remove imported types, these shouldn't affect ordering
         has_external_references && setdiff!(upstreams, external_references)
         if length(upstreams) == 0
             push!(queue, name)
