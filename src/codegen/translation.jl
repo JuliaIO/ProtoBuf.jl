@@ -8,6 +8,25 @@ const JULIA_RESERVED_KEYWORDS = Set{String}([
     "OneOf",
 ])
 
+function try_strip_namespace(name::AbstractString, imports::Set{String})
+    for _import in imports
+        if startswith(name, "$(_import).")
+            return @view name[nextind(name, length(_import), 2):end]
+        end
+    end
+    return name
+end
+
+function safename(name::AbstractString, imports::Set{String})
+    for _import in imports
+        if startswith(name, "$(_import).")
+            namespaced_name = @view name[nextind(name, length(_import), 2):end]
+            return string(proto_module_name(_import), '.', safename(namespaced_name))
+        end
+    end
+    safename(name)
+end
+
 function safename(name::AbstractString)
     # TODO: handle namespaced definitions (pkg_name.MessageType)
     dot_pos = findfirst(==('.'), name)
@@ -33,32 +52,32 @@ end
 #     return relpaths
 # end
 
-codegen(t::Parsers.AbstractProtoType, p::ProtoFile, file_map) = codegen(stdin, t, p, file_map)
+codegen(t::Parsers.AbstractProtoType, p::ProtoFile, file_map, imports) = codegen(stdin, t, p, file_map, imports)
 
 _is_repeated_field(f::Parsers.AbstractProtoFieldType) = f.label == Parsers.REPEATED
 _is_repeated_field(::Parsers.OneOfType) = false
 
-function codegen(io, t::Parsers.MessageType, p::ProtoFile, file_map)
+function codegen(io, t::Parsers.MessageType, p::ProtoFile, file_map, imports)
     print(io, "struct ", safename(t.name), length(t.fields) > 0 ? "" : ' ')
     length(t.fields) > 0 && println(io)
     for field in t.fields
         if _is_repeated_field(field)
-            println(io, "    ", jl_fieldname(field), "::Vector{", jltypename(field, p, file_map), '}')
+            println(io, "    ", jl_fieldname(field), "::Vector{", jltypename(field, p, file_map, imports), '}')
         else
-            println(io, "    ", jl_fieldname(field), "::", jltypename(field, p, file_map))
+            println(io, "    ", jl_fieldname(field), "::", jltypename(field, p, file_map, imports))
         end
     end
     println(io, "end")
 end
 
-codegen(io, t::Parsers.GroupType, p::ProtoFile, file_map) = codegen(io, t.type, p, file_map)
+codegen(io, t::Parsers.GroupType, p::ProtoFile, file_map, imports) = codegen(io, t.type, p, file_map, imports)
 
-function codegen(io, t::Parsers.EnumType, ::ProtoFile, file_map)
+function codegen(io, t::Parsers.EnumType, ::ProtoFile, file_map, imports)
     name = safename(t.name)
     println(io, "@enumx ", name, join(" $k=$n" for (k, n) in zip(keys(t.elements), t.elements)))
 end
 
-function codegen(io, t::Parsers.ServiceType, ::ProtoFile, file_map)
+function codegen(io, t::Parsers.ServiceType, ::ProtoFile, file_map, imports)
     println(io, "# TODO: SERVICE")
     println(io, "#    ", t)
 end
@@ -66,41 +85,42 @@ end
 jl_fieldname(f::Parsers.AbstractProtoFieldType) = safename(f.name)
 jl_fieldname(f::Parsers.GroupType) = f.field_name
 
-jltypename(f::Parsers.AbstractProtoFieldType, p, file_map)  = jltypename(f.type, p, file_map)
+jltypename(f::Parsers.AbstractProtoFieldType, p, file_map, imports)  = jltypename(f.type, p, file_map, imports)
 
-jltypename(::Parsers.DoubleType, p, file_map)      = "Float64"
-jltypename(::Parsers.FloatType, p, file_map)       = "Float32"
-jltypename(::Parsers.Int32Type, p, file_map)       = "Int32"
-jltypename(::Parsers.Int64Type, p, file_map)       = "Int64"
-jltypename(::Parsers.UInt32Type, p, file_map)      = "UInt32"
-jltypename(::Parsers.UInt64Type, p, file_map)      = "UInt64"
-jltypename(::Parsers.SInt32Type, p, file_map)      = "Int32"
-jltypename(::Parsers.SInt64Type, p, file_map)      = "Int64"
-jltypename(::Parsers.Fixed32Type, p, file_map)     = "UInt32"
-jltypename(::Parsers.Fixed64Type, p, file_map)     = "UInt64"
-jltypename(::Parsers.SFixed32Type, p, file_map)    = "Int32"
-jltypename(::Parsers.SFixed64Type, p, file_map)    = "Int64"
-jltypename(::Parsers.BoolType, p, file_map)        = "Bool"
-jltypename(::Parsers.StringType, p, file_map)      = "String"
-jltypename(::Parsers.BytesType, p, file_map)       = "Vector{UInt8}"
-jltypename(t::Parsers.MessageType, p, file_map)    = safename(t.name)
-jltypename(t::Parsers.MapType, p, file_map)        = string("Dict{", jltypename(t.keytype,p,file_map), ',', jltypename(t.valuetype,p,file_map), "}")
-function jltypename(t::Parsers.ReferencedType, p, file_map)
-    name = safename(t.name)
+jltypename(::Parsers.DoubleType, p, file_map, imports)      = "Float64"
+jltypename(::Parsers.FloatType, p, file_map, imports)       = "Float32"
+jltypename(::Parsers.Int32Type, p, file_map, imports)       = "Int32"
+jltypename(::Parsers.Int64Type, p, file_map, imports)       = "Int64"
+jltypename(::Parsers.UInt32Type, p, file_map, imports)      = "UInt32"
+jltypename(::Parsers.UInt64Type, p, file_map, imports)      = "UInt64"
+jltypename(::Parsers.SInt32Type, p, file_map, imports)      = "Int32"
+jltypename(::Parsers.SInt64Type, p, file_map, imports)      = "Int64"
+jltypename(::Parsers.Fixed32Type, p, file_map, imports)     = "UInt32"
+jltypename(::Parsers.Fixed64Type, p, file_map, imports)     = "UInt64"
+jltypename(::Parsers.SFixed32Type, p, file_map, imports)    = "Int32"
+jltypename(::Parsers.SFixed64Type, p, file_map, imports)    = "Int64"
+jltypename(::Parsers.BoolType, p, file_map, imports)        = "Bool"
+jltypename(::Parsers.StringType, p, file_map, imports)      = "String"
+jltypename(::Parsers.BytesType, p, file_map, imports)       = "Vector{UInt8}"
+jltypename(t::Parsers.MessageType, p, file_map, imports)    = safename(t.name, imports)
+jltypename(t::Parsers.MapType, p, file_map, imports)        = string("Dict{", jltypename(t.keytype,p,file_map,imports), ',', jltypename(t.valuetype,p,file_map,imports), "}")
+function jltypename(t::Parsers.ReferencedType, p, file_map, imports)
+    name = safename(t.name, imports)
     # This is where EnumX.jl bites us -- we need to search through all defitnition (including imported)
     # to make sure a ReferencedType is an Enum, in which case we need to add a `.T` suffix.
     isa(get(p.definitions, t.name, nothing), Parsers.EnumType) && return string(name, ".T")
+    lookup_name = try_strip_namespace(t.name, imports)
     for path in import_paths(p)
-        # @info name path file_map
         defs = file_map[path].proto_file.definitions
-        isa(get(defs, t.name, nothing), Parsers.EnumType) && return string(name, ".T")
+        @info t.name name defs
+        isa(get(defs, lookup_name, nothing), Parsers.EnumType) && return string(name, ".T")
     end
     return name
 end
 # TODO: Allow (via options?) to be the parent struct parametrized on the type of OneOf
 #       Parent structs should be then be parametrized as well?
-function jltypename(t::Parsers.OneOfType, p, file_map)
-    union_types = unique!([jltypename(f.type, p, file_map) for f in t.fields])
+function jltypename(t::Parsers.OneOfType, p, file_map, imports)
+    union_types = unique!([jltypename(f.type, p, file_map, imports) for f in t.fields])
     if length(union_types) > 1
         return string("OneOf{Union{", join(union_types, ','), "}}")
     else
@@ -118,6 +138,7 @@ translate(rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile}) = tra
 function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile})
     pkg_metadata = Pkg.project()
     p = rp.proto_file
+    imports = Set{String}(Iterators.map(i->namespace(file_map[i]), import_paths(p)))
     println(io, "# Autogenerated using $(pkg_metadata.name).jl v$(pkg_metadata.version) on $(Dates.now())")
     println(io, "# original file: ", p.filepath," (proto", p.preamble.isproto3 ? '3' : '2', " syntax)")
     println(io)
@@ -141,11 +162,11 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "using EnumX: @enumx")
     if is_namespaced(p)
         println(io)
-        println(io, "export ", join(Iterators.map(safename, keys(p.definitions)), ", "))
+        println(io, "export ", join(Iterators.map(x->safename(x, imports), keys(p.definitions)), ", "))
     end
     println(io)
     for def_name in p.sorted_definitions
         println(io)
-        codegen(io, p.definitions[def_name], p, file_map)
+        codegen(io, p.definitions[def_name], p, file_map, imports)
     end
 end

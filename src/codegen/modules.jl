@@ -11,7 +11,7 @@ proto_module_path(path::AbstractString) = joinpath(dirname(path), proto_module_n
 proto_script_name(path::AbstractString) = string(replace(basename(path), ".proto" => ""), "_pb.jl")
 proto_script_path(path::AbstractString) = joinpath(dirname(path), proto_script_name(path))
 
-has_dependencies(p::ResolvedProtoFile) = !isempty(p.preamble.imports)
+has_dependencies(p::ProtoFile) = !isempty(p.preamble.imports)
 is_namespaced(p::ProtoFile) = !isempty(p.preamble.namespace)
 namespace(p::ProtoFile) = p.preamble.namespace
 namespaced_dirpath(p::ProtoFile) = replace(namespace(p), '.' => '/')
@@ -52,7 +52,6 @@ struct NamespaceTrie
     proto_files::Vector{ResolvedProtoFile}
     children::Dict{String,NamespaceTrie}
 end
-NamespaceTrie(s::AbstractString) = NamespaceTrie(s, [], Dict())
 NamespaceTrie(s::AbstractString) = NamespaceTrie(s, [], Dict())
 NamespaceTrie() = NamespaceTrie("", [], Dict())
 
