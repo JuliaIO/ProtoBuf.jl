@@ -35,7 +35,7 @@ struct RPCType <: AbstractProtoType
     options::Dict{String,Union{String,Dict{String,String}}}
 end
 
-function lowercase_first(s) 
+function lowercase_first(s)
     b = IOBuffer()
     i = Iterators.Stateful(s)
     print(b, lowercase(popfirst!(i)))
@@ -92,7 +92,6 @@ end
 struct MessageType <: AbstractProtoType
     name::String
     fields::Vector{AbstractProtoFieldType}
-    definitions::Dict{String,AbstractProtoType}
     options::Dict{String,Union{String,Dict{String,String}}}
     reserved_nums::Vector{Union{Int,UnitRange{Int}}}
     reserved_names::Vector{String}
@@ -124,10 +123,12 @@ struct EnumType <: AbstractProtoType
     extensions::Vector{Union{Int,UnitRange{Int}}}
 end
 
+# Called in parse_oneof_type, parse_message_type and parse_extend_type
+# after we handled GROUP, EXTEND, OPTION, RESERVED and EXTENSIONS
 function parse_field(ps::ParserState)
-    label = accept(ps, Tokens.REPEATED) ? REPEATED : 
-            accept(ps, Tokens.OPTIONAL) ? OPTIONAL : 
-            accept(ps, Tokens.REQUIRED) ? REQUIRED : 
+    label = accept(ps, Tokens.REPEATED) ? REPEATED :
+            accept(ps, Tokens.OPTIONAL) ? OPTIONAL :
+            accept(ps, Tokens.REQUIRED) ? REQUIRED :
                                           DEFAULT
     type = parse_type(ps)
     pk = peekkind(ps)
@@ -153,10 +154,11 @@ function parse_field(ps::ParserState)
     return FieldType(label, type, name, number, options)
 end
 
+# Can appear in parse_message_type, parse_oneof_type and parse_extend_type
 function parse_group(ps, definitions=Dict{String,AbstractProtoType}(), name_prefix="")
-    label = accept(ps, Tokens.REPEATED) ? REPEATED : 
-            accept(ps, Tokens.OPTIONAL) ? OPTIONAL : 
-            accept(ps, Tokens.REQUIRED) ? REQUIRED : 
+    label = accept(ps, Tokens.REPEATED) ? REPEATED :
+            accept(ps, Tokens.OPTIONAL) ? OPTIONAL :
+            accept(ps, Tokens.REQUIRED) ? REQUIRED :
                                           DEFAULT
     expectnext(ps, Tokens.GROUP)
     name = val(expectnext(ps, Tokens.IDENTIFIER))
@@ -226,20 +228,22 @@ function parse_map_type(ps::ParserState)
 end
 
 # We consumed ONEOF
-function parse_oneof_type(ps::ParserState)
+function parse_oneof_type(ps::ParserState, definitions, name_prefix="")
     name = val(expectnext(ps, Tokens.IDENTIFIER))
 
     fields = AbstractProtoFieldType[]
     options = Dict{String,Union{String,Dict{String,String}}}()
-    
+
     expectnext(ps, Tokens.LBRACE)
     while !accept(ps, Tokens.RBRACE)
         nk, nnk = dpeekkind(ps)
-        if accept(ps, Tokens.OPTION) 
+        if accept(ps, Tokens.OPTION)
             _parse_option!(ps, options)
             expectnext(ps, Tokens.SEMICOLON)
         elseif nk == Tokens.GROUP || nnk == Tokens.GROUP
-            push!(fields, parse_group(ps))
+            group = parse_group(ps, definitions, _dot_join(name_prefix, name))
+            push!(fields, group)
+            definitions[group.type.name] = group
         else
             push!(fields, parse_field(ps))
         end
@@ -261,11 +265,11 @@ function parse_enum_type(ps::ParserState, name_prefix="")
 
     expectnext(ps, Tokens.LBRACE)
     while true
-        if accept(ps, Tokens.OPTION) 
+        if accept(ps, Tokens.OPTION)
             _parse_option!(ps, options)
             expectnext(ps, Tokens.SEMICOLON)
-        elseif accept(ps, Tokens.RESERVED) 
-            _parse_reserved_statement!(ps, reserved_nums, reserved_names) 
+        elseif accept(ps, Tokens.RESERVED)
+            _parse_reserved_statement!(ps, reserved_nums, reserved_names)
         elseif accept(ps, Tokens.EXTENSIONS)
             _parse_extensions_statement!(ps, extensions)
         elseif accept(ps, Tokens.IDENTIFIER)
@@ -273,7 +277,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
             push!(element_names, val(token(ps)))
             expectnext(ps, Tokens.EQ)
             push!(element_values, parse_integer_value(ps))
-            if accept(ps, Tokens.LBRACKET) 
+            if accept(ps, Tokens.LBRACKET)
                 parse_field_options!(ps, get!(field_options, element_name, Dict()))
             end
             expectnext(ps, Tokens.SEMICOLON)
@@ -289,15 +293,16 @@ function parse_enum_type(ps::ParserState, name_prefix="")
 end
 
 # We consumed EXTEND
-function parse_extend_type(ps::ParserState)
-    type = parse_type(ps)
+function parse_extend_type(ps::ParserState, definitions, name_prefix="")
+    type = parse_type(ps, definitions)
     field_extensions = AbstractProtoFieldType[]
 
     expectnext(ps, Tokens.LBRACE)
     while !accept(ps, Tokens.RBRACE)
         nk, nnk = dpeekkind(ps)
         if nk == Tokens.GROUP || nnk == Tokens.GROUP
-            push!(field_extensions, parse_group(ps))
+            group = parse_group(ps, definitions, name_prefix)
+            definitions[group.name] = group
         else
             push!(field_extensions, parse_field(ps))
         end
@@ -329,13 +334,13 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
     #   }
     while true
         nk, nnk = dpeekkind(ps)
-        if accept(ps, Tokens.OPTION) 
+        if accept(ps, Tokens.OPTION)
             _parse_option!(ps, options)
             expectnext(ps, Tokens.SEMICOLON)
-        elseif accept(ps, Tokens.RESERVED) 
-            _parse_reserved_statement!(ps, reserved_nums, reserved_names) 
-        elseif accept(ps, Tokens.EXTENSIONS) 
-            _parse_extensions_statement!(ps, extensions) 
+        elseif accept(ps, Tokens.RESERVED)
+            _parse_reserved_statement!(ps, reserved_nums, reserved_names)
+        elseif accept(ps, Tokens.EXTENSIONS)
+            _parse_extensions_statement!(ps, extensions)
         elseif accept(ps, Tokens.MESSAGE)
             message = parse_message_type(ps, definitions, name)
             definitions[message.name] = message
@@ -343,11 +348,11 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
             enum = parse_enum_type(ps, name)
             definitions[enum.name] = enum
             # ./test/test_protos/protobuf/echo.proto has a trailing SEMICOLON after nested enum
-            accept(ps, Tokens.SEMICOLON) 
+            accept(ps, Tokens.SEMICOLON)
         elseif accept(ps, Tokens.ONEOF)
-            push!(fields, parse_oneof_type(ps))
+            push!(fields, parse_oneof_type(ps, definitions, name))
         elseif accept(ps, Tokens.EXTEND)
-            push!(extends, parse_extend_type(ps))
+            push!(extends, parse_extend_type(ps, definitions, name))
         elseif nk == Tokens.GROUP || nnk == Tokens.GROUP
             group = parse_group(ps, definitions, name)
             push!(fields, group)
@@ -369,7 +374,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
         end
     end
     # TODO: validate field_numbers vs reserved and extensions
-    return MessageType(name, fields, definitions, options, reserved_nums, reserved_names, extensions, extends)
+    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends)
 end
 
 # We consumed RPC
@@ -387,15 +392,15 @@ function parse_rpc_type(ps::ParserState)
     request_type = parse_type(ps)
     expectnext(ps, Tokens.RPAREN)
     if accept(ps, Tokens.LBRACE)
-        while accept(ps, Tokens.OPTION) 
-            _parse_option!(ps, options) 
+        while accept(ps, Tokens.OPTION)
+            _parse_option!(ps, options)
             expectnext(ps, Tokens.SEMICOLON)
         end
         expectnext(ps, Tokens.RBRACE)
     else
         # ./test/test_protos/protobuf/factory_test1.proto end an RPC without a SEMICOLON
         expectnext(ps, Tokens.SEMICOLON)
-    end 
+    end
     return RPCType(name, request_stream, request_type, response_stream, request_type, options)
 end
 
@@ -407,7 +412,7 @@ function parse_service_type(ps::ParserState)
 
     expectnext(ps, Tokens.LBRACE)
     while !accept(ps, Tokens.RBRACE)
-        if accept(ps, Tokens.OPTION) 
+        if accept(ps, Tokens.OPTION)
             _parse_option!(ps, options)
             expectnext(ps, Tokens.SEMICOLON)
         elseif accept(ps, Tokens.RPC)
@@ -423,28 +428,19 @@ end
 
 function parse_type(ps::ParserState)
     nk = peekkind(ps)
-    if nk == Tokens.MESSAGE
-        readtoken(ps)
-        return parse_message_type(ps)
-    elseif nk == Tokens.ENUM
+    if nk == Tokens.ENUM
         readtoken(ps)
         return parse_enum_type(ps)
-    elseif nk == Tokens.ONEOF
-        readtoken(ps)
-        return parse_oneof_type(ps)
     elseif nk == Tokens.SERVICE
         readtoken(ps)
         return parse_service_type(ps)
-    elseif nk == Tokens.EXTEND
-        readtoken(ps)
-        return parse_extend_type(ps)
-    elseif nk == Tokens.MAP 
+    elseif nk == Tokens.MAP
         readtoken(ps)
         return parse_map_type(ps)
-    elseif nk == Tokens.RPC 
+    elseif nk == Tokens.RPC
         readtoken(ps)
         return parse_rpc_type(ps)
-    elseif nk == Tokens.IDENTIFIER 
+    elseif nk == Tokens.IDENTIFIER
         return ReferencedType(val(readtoken(ps)))
     elseif nk == Tokens.DOUBLE   readtoken(ps); return DoubleType()
     elseif nk == Tokens.FLOAT    readtoken(ps); return FloatType()
@@ -464,5 +460,21 @@ function parse_type(ps::ParserState)
     else
         ps.errored = true
         error("Unsupported type token $(peektoken(ps)) ($(nk))")
+    end
+end
+
+function parse_type(ps::ParserState, definitions::Dict{String,AbstractProtoType})
+    nk = peekkind(ps)
+    if nk == Tokens.MESSAGE
+        readtoken(ps)
+        return parse_message_type(ps, definitions)
+    elseif nk == Tokens.ONEOF
+        readtoken(ps)
+        return parse_oneof_type(ps, definitions)
+    elseif nk == Tokens.EXTEND
+        readtoken(ps)
+        return parse_extend_type(ps, definitions)
+    else
+        return parse_type(ps)
     end
 end

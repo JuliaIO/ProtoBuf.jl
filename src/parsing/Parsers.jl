@@ -216,6 +216,8 @@ struct ProtoFile
     preamble::ProtoFilePreamble
     definitions::Dict{String,AbstractProtoType}
     sorted_definitions::Vector{String}
+    self_referential_definitions::Set{String} # We can probably drop this
+    cyclic_definitions::Set{String} # TODO: handle cyclic_definitions in codegen
     extends::Vector{ExtendType}
     external_refereces::Vector{String}
 end
@@ -255,10 +257,10 @@ function parse_proto_file(ps::ParserState)
             expectnext(ps, Tokens.SEMICOLON)
         elseif accept(ps, Tokens.EXTEND)
             # we collect top-level extends here
-            # Scoped extends are extracted in expand_namespaced_definitions!
-            push!(extends, parse_extend_type(ps))
+            # Scoped extends are extracted in find_external_references
+            push!(extends, parse_extend_type(ps, definitions))
         else
-            type = parse_type(ps)
+            type = parse_type(ps, definitions)
             definitions[type.name] = type
         end
     end
@@ -268,9 +270,19 @@ function parse_proto_file(ps::ParserState)
         options,
         imported_packages,
     )
-    external_references = expand_namespaced_definitions!(definitions, extends)
-    sorted_definitions = _topological_sort(definitions, external_references)
-    return ProtoFile(filepath(ps.l), preamble, definitions, sorted_definitions, extends, collect(external_references))
+    external_references = find_external_references(definitions)
+    topologically_sorted, cyclic_definitions, self_referential_definitions =
+        _topological_sort(definitions, external_references)
+    return ProtoFile(
+        filepath(ps.l),
+        preamble,
+        definitions,
+        topologically_sorted,
+        self_referential_definitions,
+        cyclic_definitions,
+        extends,
+        collect(external_references),
+    )
 end
 
 

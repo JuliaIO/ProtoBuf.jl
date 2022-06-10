@@ -3,43 +3,25 @@
 _get_fields(t::AbstractProtoType) = [t]
 _get_fields(::EnumType) = []
 _get_fields(t::GroupType) = _get_fields(t.type)
+_get_fields(t::ServiceType) = t.rpcs
 _get_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_fields, t.fields))
 
-function expand_namespaced_definitions!(
-    file_definitions::Dict{String, AbstractProtoType},
-    extends::Vector{ExtendType},
-)
+_get_types(t::AbstractProtoFieldType) = (t.type,)
+_get_types(t::RPCType) = (t.request_type, t.response_type)
+
+function find_external_references(definitions::Dict{String, AbstractProtoType})
     # Traverse all definition and see which of those referenced are not defined
     # in this module. Create a list of these imported definitions so that we can ignore
     # them when doing the topological sort. Also, if they're not containing a dot... error?
-    seen = Set{String}()
     referenced = Set{String}()
-
-    for (name, file_definition) in file_definitions
-        isa(file_definition, ExtendType) && continue # TODO: implement Extensions
-        push!(seen, name)
-        if isa(file_definition, MessageType) # only MessageType has a definitions field
-            for field in _get_fields(file_definition)
-                isa(field.type, ReferencedType) && push!(referenced, field.type.name)
-            end
-
-            while !isempty(file_definition.definitions)
-                inner_name, inner_definition = pop!(file_definition.definitions)
-                inner_definition.name in seen && continue
-                # TODO: handle Extensions
-                if isa(inner_definition, ExtendType)
-                    push!(extends, inner_definition)
-                else
-                    file_definitions[inner_name] = inner_definition
-                    push!(seen, inner_name)
-                end
-                for field in _get_fields(inner_definition)
-                    isa(field.type, ReferencedType) && push!(referenced, field.type.name)
-                end
+    for definition in values(definitions)
+        for field in _get_fields(definition)
+            for type in _get_types(field)
+                isa(type, ReferencedType) && push!(referenced, type.name)
             end
         end
     end
-    return setdiff(referenced, seen)
+    return setdiff(referenced, keys(definitions))
 end
 
 get_type_name(::AbstractProtoNumericType) = nothing
@@ -114,6 +96,8 @@ function _topological_sort(definitions#=::Dict{String,<:AbstractProtoType}=#, ex
     downstream_dependencies = Dict{String,Vector{String}}()
     topologically_sorted = String[]
     upstreams = Set{String}()
+    # TODO: we probably don't need the self_referential_definitions set
+    self_referential_definitions = Set{String}()
     queue = String[]
 
     for (name, definition) in definitions
@@ -144,11 +128,22 @@ function _topological_sort(definitions#=::Dict{String,<:AbstractProtoType}=#, ex
             end
         end
     end
+
+    cyclic_definitions = upstreams
+    empty!(cyclic_definitions)
     if !isempty(number_of_upstream_dependencies)
         @debug "The input is not a DAG."
-        cyclic_definitions = first.(sort!(collect(number_of_upstream_dependencies), by=last))
+        for cyclic_definition in first.(sort!(collect(number_of_upstream_dependencies), by=last))
+            deps = downstream_dependencies[cyclic_definition]
+            if length(deps) == 1 && only(deps) == cyclic_definition
+                push!(self_referential_definitions, cyclic_definition)
+            else
+                push!(cyclic_definitions, cyclic_definition)
+            end
+        end
+        append!(topologically_sorted, self_referential_definitions)
         append!(topologically_sorted, cyclic_definitions)
     end
-
-    return topologically_sorted
+    # TODO: we probably don't need the self_referential_definitions set
+    return topologically_sorted, cyclic_definitions, self_referential_definitions
 end

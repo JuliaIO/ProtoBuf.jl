@@ -193,7 +193,8 @@ function create_namespaced_packages(ns::NamespaceTrie, output_directory::Abstrac
     return nothing
 end
 
-function validate_search_directories!(search_directories)
+function validate_search_directories!(search_directories, include_vendored_wellknown_types::Bool)
+    include_vendored_wellknown_types && push!(search_directories, VENDORED_WELLKNOWN_TYPES_PARENT_PATH)
     unique!(map!(x->joinpath(abspath(x), ""), search_directories, search_directories))
     bad_dirs = filter(!isdir, search_directories)
     !isempty(bad_dirs) && error("`search_directories` $bad_dirs don't exist")
@@ -249,27 +250,21 @@ function resolve_imports!(imported_paths, parsed_files, search_directories)
 end
 
 function protojl(
-    relative_proto_file_path::String,
-    search_directories::Union{Vector{String},Nothing}=nothing,
-    output_directory::Union{String,Nothing}=nothing;
+    relative_paths::Union{AbstractString,Vector{<:AbstractString}},
+    search_directories::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
+    output_directory::Union{AbstractString,Nothing}=nothing;
     include_vendored_wellknown_types::Bool=true
 )
-    protojl([relative_proto_file_path], search_directories, output_directory; include_vendored_wellknown_types)
-end
-
-function protojl(
-    relative_paths::Vector{String},
-    search_directories::Union{Vector{String},Nothing}=nothing,
-    output_directory::Union{String,Nothing}=nothing;
-    include_vendored_wellknown_types::Bool=true
-)
-
     if isnothing(search_directories)
         search_directories = ["."]
+    elseif isa(search_directories, AbstractString)
+        search_directories = [search_directories]
     end
-    include_vendored_wellknown_types && push!(search_directories, VENDORED_WELLKNOWN_TYPES_PARENT_PATH)
+    validate_search_directories!(search_directories, include_vendored_wellknown_types)
 
-    validate_search_directories!(search_directories)
+    if isa(relative_paths, AbstractString)
+        relative_paths = [relative_paths]
+    end
     absolute_paths = validate_proto_file_paths!(relative_paths, search_directories)
 
     parsed_files = Dict{String,ResolvedProtoFile}()
