@@ -250,10 +250,10 @@ function resolve_imports!(imported_paths, parsed_files, search_directories)
 end
 
 function protojl(
-    relative_paths::Union{AbstractString,Vector{<:AbstractString}},
-    search_directories::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
+    relative_paths::Union{AbstractString,AbstractVector{<:AbstractString}},
+    search_directories::Union{AbstractString,AbstractVector{<:AbstractString},Nothing}=nothing,
     output_directory::Union{AbstractString,Nothing}=nothing;
-    include_vendored_wellknown_types::Bool=true
+    include_vendored_wellknown_types::Bool=true,
 )
     if isnothing(search_directories)
         search_directories = ["."]
@@ -286,4 +286,5 @@ function protojl(
 
     ns = NamespaceTrie(values(parsed_files))
     create_namespaced_packages(ns, output_directory, parsed_files)
+    return nothing
 end
