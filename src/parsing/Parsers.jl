@@ -3,7 +3,7 @@ module Parsers
 using ..Lexers: Lexers, Lexer, next_token, filepath
 using ..Tokens: Tokens, kind, val
 
-const MAX_FIELD_NUMBER = 536_870_911
+const MAX_FIELD_NUMBER = Int(typemax(UInt32) >> 3)
 
 mutable struct ParserState
     l::Lexer

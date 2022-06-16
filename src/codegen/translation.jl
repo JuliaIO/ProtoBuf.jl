@@ -47,30 +47,30 @@ function safename(name::AbstractString)
     end
 end
 
-function _is_message(t::Parsers.ReferencedType, ctx)
-    isa(get(ctx.proto_file.definitions, t.name, nothing), Parsers.MessageType) && return true
+function _is_message(t::ReferencedType, ctx)
+    isa(get(ctx.proto_file.definitions, t.name, nothing), MessageType) && return true
     lookup_name = try_strip_namespace(t.name, ctx.imports)
     for path in import_paths(ctx.proto_file)
         defs = ctx.file_map[path].proto_file.definitions
-        isa(get(defs, lookup_name, nothing), Parsers.MessageType) && return true
+        isa(get(defs, lookup_name, nothing), MessageType) && return true
     end
     return false
 end
 
-function _is_enum(t::Parsers.ReferencedType, ctx)
-    isa(get(ctx.proto_file.definitions, t.name, nothing), Parsers.EnumType) && return true
+function _is_enum(t::ReferencedType, ctx)
+    isa(get(ctx.proto_file.definitions, t.name, nothing), EnumType) && return true
     lookup_name = try_strip_namespace(t.name, ctx.imports)
     for path in import_paths(ctx.proto_file)
         defs = ctx.file_map[path].proto_file.definitions
-        isa(get(defs, lookup_name, nothing), Parsers.EnumType) && return true
+        isa(get(defs, lookup_name, nothing), EnumType) && return true
     end
     return false
 end
 
-jl_fieldname(f::Parsers.AbstractProtoFieldType) = safename(f.name)
-jl_fieldname(f::Parsers.GroupType) = f.field_name
+jl_fieldname(f::AbstractProtoFieldType) = safename(f.name)
+jl_fieldname(f::GroupType) = f.field_name
 
-function jl_typename(f::Parsers.AbstractProtoFieldType, ctx)
+function jl_typename(f::AbstractProtoFieldType, ctx)
     type_name = jl_typename(f.type, ctx)
     if _is_repeated_field(f)
         return string("Vector{", type_name, "}")
@@ -78,36 +78,40 @@ function jl_typename(f::Parsers.AbstractProtoFieldType, ctx)
     return type_name
 end
 
-jl_typename(::Parsers.DoubleType, ctx)   = "Float64"
-jl_typename(::Parsers.FloatType, ctx)    = "Float32"
-jl_typename(::Parsers.Int32Type, ctx)    = "Int32"
-jl_typename(::Parsers.Int64Type, ctx)    = "Int64"
-jl_typename(::Parsers.UInt32Type, ctx)   = "UInt32"
-jl_typename(::Parsers.UInt64Type, ctx)   = "UInt64"
-jl_typename(::Parsers.SInt32Type, ctx)   = "Int32"
-jl_typename(::Parsers.SInt64Type, ctx)   = "Int64"
-jl_typename(::Parsers.Fixed32Type, ctx)  = "UInt32"
-jl_typename(::Parsers.Fixed64Type, ctx)  = "UInt64"
-jl_typename(::Parsers.SFixed32Type, ctx) = "Int32"
-jl_typename(::Parsers.SFixed64Type, ctx) = "Int64"
-jl_typename(::Parsers.BoolType, ctx)     = "Bool"
-jl_typename(::Parsers.StringType, ctx)   = "String"
-jl_typename(::Parsers.BytesType, ctx)    = "Vector{UInt8}"
-jl_typename(t::Parsers.MessageType, ctx) = safename(t.name, ctx.imports)
-function jl_typename(t::Parsers.MapType, ctx)
+_decoding_val_type(t::AbstractProtoType) = ""
+_decoding_val_type(t::AbstractProtoFixedType) = ":fixed"
+_decoding_val_type(t::T) where {T<:Union{SInt32Type,SInt64Type}} = ":zigzag"
+
+jl_typename(::DoubleType, ctx)   = "Float64"
+jl_typename(::FloatType, ctx)    = "Float32"
+jl_typename(::Int32Type, ctx)    = "Int32"
+jl_typename(::Int64Type, ctx)    = "Int64"
+jl_typename(::UInt32Type, ctx)   = "UInt32"
+jl_typename(::UInt64Type, ctx)   = "UInt64"
+jl_typename(::SInt32Type, ctx)   = "Int32"
+jl_typename(::SInt64Type, ctx)   = "Int64"
+jl_typename(::Fixed32Type, ctx)  = "UInt32"
+jl_typename(::Fixed64Type, ctx)  = "UInt64"
+jl_typename(::SFixed32Type, ctx) = "Int32"
+jl_typename(::SFixed64Type, ctx) = "Int64"
+jl_typename(::BoolType, ctx)     = "Bool"
+jl_typename(::StringType, ctx)   = "String"
+jl_typename(::BytesType, ctx)    = "Vector{UInt8}"
+jl_typename(t::MessageType, ctx) = safename(t.name, ctx.imports)
+function jl_typename(t::MapType, ctx)
     key_type = jl_typename(t.keytype, ctx)
     val_type = jl_typename(t.valuetype, ctx)
     return string("Dict{", key_type, ',', val_type,"}")
 end
-function jl_typename(t::Parsers.ReferencedType, ctx)
+function jl_typename(t::ReferencedType, ctx)
     name = safename(t.name, ctx.imports)
     # This is where EnumX.jl bites us -- we need to search through all defitnition (including imported)
     # to make sure a ReferencedType is an Enum, in which case we need to add a `.T` suffix.
-    isa(get(ctx.proto_file.definitions, t.name, nothing), Parsers.EnumType) && return string(name, ".T")
+    isa(get(ctx.proto_file.definitions, t.name, nothing), EnumType) && return string(name, ".T")
     lookup_name = try_strip_namespace(t.name, ctx.imports)
     for path in import_paths(ctx.proto_file)
         defs = ctx.file_map[path].proto_file.definitions
-        isa(get(defs, lookup_name, nothing), Parsers.EnumType) && return string(name, ".T")
+        isa(get(defs, lookup_name, nothing), EnumType) && return string(name, ".T")
     end
     return name
 end
@@ -115,7 +119,7 @@ end
 #       Parent structs should be then be parametrized as well?
 # NOTE: If there is a self-reference to the parent type, we might get
 #       a Union{..., Union{Nothing,parentType}, ...}. This is probably ok?
-function jl_typename(t::Parsers.OneOfType, ctx)
+function jl_typename(t::OneOfType, ctx)
     union_types = unique!([jl_typename(f.type, ctx) for f in t.fields])
     if length(union_types) > 1
         return string("OneOf{Union{", join(union_types, ','), "}}")
@@ -124,42 +128,45 @@ function jl_typename(t::Parsers.OneOfType, ctx)
     end
 end
 
-_is_repeated_field(f::Parsers.AbstractProtoFieldType) = f.label == Parsers.REPEATED
-_is_repeated_field(::Parsers.OneOfType) = false
+_is_repeated_field(f::AbstractProtoFieldType) = f.label == Parsers.REPEATED
+_is_repeated_field(::OneOfType) = false
 
-function jl_decode_default(io, field::Parsers.FieldType, ctx)
+function jl_decode_default(io, field::FieldType, ctx)
     name = jl_fieldname(field)
     if _is_repeated_field(field)
         def_value = "$(jl_typename(field.type, ctx))[]"
     else
-        def_value = jl_type_default(field, field.type, ctx)
+        def_value = jl_type_default(field, ctx)
     end
     println(io, "    ", name, " = ", def_value)
 end
-jl_type_default(f, ::Parsers.BytesType, ctx)                 = get(f.options, "default", "UInt8[]")
-jl_type_default(f, ::Parsers.StringType, ctx)                = get(f.options, "default", "\"\"")
-jl_type_default(f, ::Parsers.BoolType, ctx)                  = get(f.options, "default", "false")
-jl_type_default(f, t::Parsers.AbstractProtoNumericType, ctx) = get(f.options, "default", "zero($(jl_typename(t, ctx)))")
-function jl_type_default(f, t::Parsers.ReferencedType, ctx)
-    if _is_enum(t, ctx)
+jl_type_default(f::FieldType{StringType}, ctx)               = get(f.options, "default", "\"\"")
+jl_type_default(f::FieldType{BoolType}, ctx)                 = get(f.options, "default", "false")
+jl_type_default(f::FieldType{<:AbstractProtoNumericType}, ctx) = get(f.options, "default", "zero($(jl_typename(f.type, ctx)))")
+function jl_type_default(f::FieldType{BytesType}, ctx)
+    out = get(f.options, "default", nothing)
+    return isnothing(out) ? "UInt8[]" : "b$(out)"
+end
+function jl_type_default(f::FieldType{ReferencedType}, ctx)
+    if _is_enum(f.type, ctx)
         default = get(f.options, "default", "0")
         if default == "0"
-            return "$(jl_typename(t, ctx))(0)"
+            return "$(jl_typename(f.type, ctx))(0)"
         else
-            return "$(jl_typename(t, ctx)[1:end-2]).$(default)"
+            return "$(jl_typename(f.type, ctx)[1:end-2]).$(default)"
         end
-    else
-        return get(f.options, "default", "nothing")
+    else # message, AFAIK services shouldn't be referenced
+        return "Ref{$(jl_typename(f.type, ctx))}()"
     end
 end
 # end
-function jl_type_default(f, t::Parsers.MapType, ctx)
-    return "Dict{$(jl_typename(t.keytype, ctx)),$(jl_typename(t.valuetype, ctx))}()"
+function jl_type_default(f::FieldType{MapType}, ctx)
+    return "Dict{$(jl_typename(f.type.keytype, ctx)),$(jl_typename(f.type.valuetype, ctx))}()"
 end
-function jl_decode_default(io, field::Parsers.OneOfType, ctx)
+function jl_decode_default(io, field::OneOfType, ctx)
     println(io, "    ", jl_fieldname(field), " = nothing")
 end
-function jl_decode_default(io, field::Parsers.GroupType, ctx)
+function jl_decode_default(io, field::GroupType, ctx)
     if _is_repeated_field(field)
         println(io, "    ", jl_fieldname(field), " = $(field.type.name)[]")
     else
@@ -167,66 +174,101 @@ function jl_decode_default(io, field::Parsers.GroupType, ctx)
     end
 end
 
-jl_type_decode_expr(f, t::Parsers.AbstractProtoType, ctx) = "$(jl_fieldname(f)) = PB.decode(d, $(jl_typename(t, ctx)))"
-jl_type_decode_expr(f, ::Parsers.SFixed32Type, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int32, Val(:fixed))"
-jl_type_decode_expr(f, ::Parsers.SFixed64Type, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int64, Val(:fixed))"
-jl_type_decode_expr(f, ::Parsers.Fixed32Type, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int32, Val(:fixed))"
-jl_type_decode_expr(f, ::Parsers.Fixed64Type, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int64, Val(:fixed))"
-jl_type_decode_expr(f, ::Parsers.SInt32Type, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int32, Val(:zigzag))"
-jl_type_decode_expr(f, ::Parsers.SInt64Type, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int64, Val(:zigzag))"
-jl_type_decode_expr(f, ::Parsers.MapType, ctx) = "PB.decode!(d, $(jl_fieldname(f)), $(jl_typename(f, ctx)))"
+jl_type_decode_expr(f::FieldType{<:AbstractProtoType}, ctx) = "$(jl_fieldname(f)) = PB.decode(d, $(jl_typename(f.type, ctx)))"
+jl_type_decode_expr(f::FieldType{SFixed32Type}, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int32, Val{:fixed})"
+jl_type_decode_expr(f::FieldType{SFixed64Type}, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int64, Val{:fixed})"
+jl_type_decode_expr(f::FieldType{Fixed32Type}, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int32, Val{:fixed})"
+jl_type_decode_expr(f::FieldType{Fixed64Type}, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int64, Val{:fixed})"
+jl_type_decode_expr(f::FieldType{SInt32Type}, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int32, Val{:zigzag})"
+jl_type_decode_expr(f::FieldType{SInt64Type}, ctx) = "$(jl_fieldname(f)) = PB.decode(d, Int64, Val{:zigzag})"
+function jl_type_decode_expr(f::FieldType{MapType}, ctx)
+    K = _decoding_val_type(f.type.keytype)
+    V = _decoding_val_type(f.type.valuetype)
+    isempty(V) && isempty(K) && return "PB.decode!(d, $(jl_fieldname(f)))"
+    !isempty(V) && isempty(K) && return "PB.decode!(d, $(jl_fieldname(f)), Val{Tuple{Nothing,$(V)}})"
+    isempty(V) && !isempty(K) && return "PB.decode!(d, $(jl_fieldname(f)), Val{Tuple{$(K),Nothing}})"
+    return "PB.decode!(d, $(jl_fieldname(f)), Val{Tuple{$(K),$(V)}})"
+end
 function jl_type_decode_repeated_expr(field, ctx)
     # We set `packed` to true for proto3 numeric types during option parsing
     is_packed = parse(Bool, get(field.options, "packed", "false"))
-    type_name = jl_typename(field.type, ctx)
-    is_packed && (type_name = string("Vector{", type_name, "}"))
-    return "PB.decode!(d, $(jl_fieldname(field)), $(type_name))"
+    if is_packed
+        return "PB.decode!(d, $(jl_fieldname(field)))"
+    else
+        return "push!($(jl_fieldname(field)), PB.decode(d, $(jl_typename(field.type, ctx))))"
+    end
 end
-function jl_type_decode_expr(f, t::Parsers.ReferencedType, ctx)
-    _is_message(t, ctx) && return "$(jl_fieldname(f)) = PB.decode_message(d, $(jl_fieldname(f)))"
-    return "$(jl_fieldname(f)) = PB.decode(d, $(jl_typename(t, ctx)))"
+function jl_type_decode_repeated_expr(field::FieldType{T}, ctx) where {T<:AbstractProtoFixedType}
+    # We set `packed` to true for proto3 numeric types during option parsing
+    is_packed = parse(Bool, get(field.options, "packed", "false"))
+    if is_packed
+        return "PB.decode!(d, $(jl_fieldname(field)), Var{:fixed})"
+    else
+        return "push!($(jl_fieldname(field)), PB.decode(d, $(jl_typename(field.type, ctx)), Var{:fixed}))"
+    end
+end
+function jl_type_decode_repeated_expr(field::FieldType{T}, ctx) where {T<:Union{SInt32Type,SInt64Type}}
+    # We set `packed` to true for proto3 numeric types during option parsing
+    is_packed = parse(Bool, get(field.options, "packed", "false"))
+    if is_packed
+        return "PB.decode!(d, $(jl_fieldname(field)), Var{:zigzag})"
+    else
+        return "push!($(jl_fieldname(field)), PB.decode(d, $(jl_typename(field.type, ctx)), Var{:zigzag}))"
+    end
 end
 
-function field_decode_expr(io, field::Parsers.FieldType, i, ctx)
+function jl_type_decode_expr(f::FieldType{ReferencedType}, ctx)
+    _is_message(f.type, ctx) && return "$(jl_fieldname(f)) = PB.decode!(d, $(jl_fieldname(f)))"
+    return "$(jl_fieldname(f)) = PB.decode(d, $(jl_typename(f.type, ctx)))"
+end
+
+function field_decode_expr(io, field::FieldType, i, ctx)
     if _is_repeated_field(field)
         decode_expr = jl_type_decode_repeated_expr(field, ctx)
     else
-        decode_expr = jl_type_decode_expr(field, field.type, ctx)
+        decode_expr = jl_type_decode_expr(field, ctx)
     end
     println(io, "    " ^ 2, i == 1 ? "if " : "elseif ", "field_number == ", field.number)
     println(io, "    " ^ 3, decode_expr)
     return nothing
 end
 
-jl_type_oneof_decode_expr(f, t, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(t, ctx))))"
-jl_type_oneof_decode_expr(f, ::Parsers.SFixed32Type, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:fixed)))"
-jl_type_oneof_decode_expr(f, ::Parsers.SFixed64Type, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:fixed)))"
-jl_type_oneof_decode_expr(f, ::Parsers.Fixed32Type, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:fixed)))"
-jl_type_oneof_decode_expr(f, ::Parsers.Fixed64Type, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:fixed)))"
-jl_type_oneof_decode_expr(f, ::Parsers.SInt32Type, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:zigzag)))"
-jl_type_oneof_decode_expr(f, ::Parsers.SInt64Type, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:zigzag)))"
-# function jl_type_decode_expr(f, t::Parsers.ReferencedType, ctx)
+jl_type_oneof_decode_expr(f::FieldType, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
+jl_type_oneof_decode_expr(f::GroupType, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
+jl_type_oneof_decode_expr(f::FieldType{SFixed32Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:fixed)))"
+jl_type_oneof_decode_expr(f::FieldType{SFixed64Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:fixed)))"
+jl_type_oneof_decode_expr(f::FieldType{Fixed32Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:fixed)))"
+jl_type_oneof_decode_expr(f::FieldType{Fixed64Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:fixed)))"
+jl_type_oneof_decode_expr(f::FieldType{SInt32Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:zigzag)))"
+jl_type_oneof_decode_expr(f::FieldType{SInt64Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:zigzag)))"
+# function jl_type_decode_expr(f, t::ReferencedType, ctx)
 #     _is_message(t, ctx) && return "OneOf(:$(jl_fieldname(f)),PB.decode_message(d, $(jl_fieldname(f))))"
 #     return "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(t, ctx))))"
 # end
-function field_decode_expr(io, field::Parsers.OneOfType, i, ctx)
+function field_decode_expr(io, field::OneOfType, i, ctx)
     field_name = jl_fieldname(field)
     for (j, case) in enumerate(field.fields)
         j += i
         println(io, "    " ^ 2, j == 2 ? "if " : "elseif ", "field_number == ", case.number)
-        println(io, "    " ^ 3, field_name, " = ", jl_type_oneof_decode_expr(case, case.type, ctx))
+        println(io, "    " ^ 3, field_name, " = ", jl_type_oneof_decode_expr(case, ctx))
     end
     return nothing
 end
 
-function field_decode_expr(io, field::Parsers.GroupType, i, ctx)
+function field_decode_expr(io, field::GroupType, i, ctx)
     field_name = jl_fieldname(field)
     println(io, "    " ^ 2, i == 1 ? "if " : "elseif ", "field_number == ", field.number)
     println(io, "    " ^ 3, field_name, " = PB.decode_message(d, ", field_name, ")")
     return nothing
 end
 
-function generate_decode_method(io, t::Parsers.MessageType, ctx)
+jl_fieldname_deref(f, ctx) = jl_fieldname(f)
+function jl_fieldname_deref(f::FieldType{ReferencedType}, ctx)
+    should_deref = !_is_repeated_field(f) & _is_message(f.type, ctx)
+    return should_deref ? "$(jl_fieldname(f))[]" : jl_fieldname(f)
+end
+
+function generate_decode_method(io, t::MessageType, ctx)
     println(io, "function PB.decode(d::PB.ProtoDecoder, ::Type{$(t.name)})")
     # defaults
     for field in t.fields
@@ -243,7 +285,7 @@ function generate_decode_method(io, t::Parsers.MessageType, ctx)
     println(io, "        PB.try_eat_end_group(d, wire_type)")
     println(io, "    end")
     print(io, "    return ", jl_typename(t, ctx), "(")
-    print(io, join(map(jl_fieldname, t.fields), ", "))
+    print(io, join(map(f->jl_fieldname_deref(f, ctx), t.fields), ", "))
     println(io, ")")
     println(io, "end")
 end
@@ -257,13 +299,13 @@ function generate_struct_field(io, field, struct_name, ctx)
     # for repeated (`Vector{...}`) types; at this point `type_name`
     # is already a vector if if the field was repeated.
     struct_name == type_name && (type_name = string("Union{Nothing,", type_name,"}"))
-    isa(field, Parsers.OneOfType) && (type_name = string("Union{Nothing,", type_name,"}"))
+    isa(field, OneOfType) && (type_name = string("Union{Nothing,", type_name,"}"))
     println(io, "    ", field_name, "::", type_name)
 end
 
-codegen(t::Parsers.AbstractProtoType, ctx::Context) = codegen(stdin, t, ctx::Context)
+codegen(t::AbstractProtoType, ctx::Context) = codegen(stdin, t, ctx::Context)
 
-function codegen(io, t::Parsers.MessageType, ctx::Context)
+function codegen(io, t::MessageType, ctx::Context)
     struct_name = safename(t.name)
     print(io, "struct ", struct_name, length(t.fields) > 0 ? "" : ' ')
     length(t.fields) > 0 && println(io)
@@ -276,14 +318,14 @@ function codegen(io, t::Parsers.MessageType, ctx::Context)
     end
 end
 
-codegen(io, t::Parsers.GroupType, ctx::Context) = codegen(io, t.type, ctx)
+codegen(io, t::GroupType, ctx::Context) = codegen(io, t.type, ctx)
 
-function codegen(io, t::Parsers.EnumType, ::Context)
+function codegen(io, t::EnumType, ::Context)
     name = safename(t.name)
     println(io, "@enumx ", name, join(" $k=$n" for (k, n) in zip(keys(t.elements), t.elements)))
 end
 
-function codegen(io, t::Parsers.ServiceType, ::Context)
+function codegen(io, t::ServiceType, ::Context)
     println(io, "# TODO: SERVICE")
     println(io, "#    ", t)
 end

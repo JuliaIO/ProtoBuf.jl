@@ -13,6 +13,17 @@ function try_eat_end_group(d::ProtoDecoder, wire_type::WireType)
     return nothing
 end
 
+# Any of the following decode statements can appear in a translated
+# decode method.
+decode(d::ProtoDecoder, ::Type{T}) where {T} = decode(d.io, T)
+decode(d::ProtoDecoder, ::Type{T}, ::Type{V}) where {T,V} = decode(d.io, T, V)
+decode!(d::ProtoDecoder, buffer::Base.RefValue) = decode!(d.io, buffer)
+decode!(d::ProtoDecoder, buffer::Vector) = decode!(d.io, buffer)
+decode!(d::ProtoDecoder, buffer::Vector, ::Type{V}) where {V} = decode!(d.io, buffer, V)
+decode!(d::ProtoDecoder, buffer::Dict) = decode!(d.io, buffer)
+decode!(d::ProtoDecoder, buffer::Dict, ::Type{V}) where {V} = decode!(d.io, buffer, V)
+
+
 zigzag_encode(x::T) where {T <: Integer} = xor(x << 1, x >> (8 * sizeof(T) - 1))
 zigzag_decode(x::T) where {T <: Integer} = xor(x >> 1, -(x & T(1)))
 
@@ -276,11 +287,41 @@ end
 decode(io::IO, ::Type{Bool}) = Bool(read(io, UInt8))
 decode(io::IO, ::Type{T}) where {T <: Base.Enum} = T(vbyte_decode(io, Int32))
 decode(io::IO, ::Type{T}) where {T <: Union{Float64,Float32}} = read(io, T)
-function decode!(io::IO, buffer::Dict{K,V}, ::Type{Dict{K,V}}) where {K,V}
-     len = vbyte_decode(io, UInt32) + position(io)
+function decode!(io::IO, buffer::Dict{K,V}) where {K,V}
+    len = vbyte_decode(io, UInt32) + position(io)
     while position(io) < len
         key = decode(io, K)
         val = decode(io, V)
+        buffer[key] = val
+    end
+    nothing
+end
+
+function decode!(io::IO, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,W}}}) where {K,V,W}
+    len = vbyte_decode(io, UInt32) + position(io)
+    while position(io) < len
+        key = decode(io, K)
+        val = decode(io, V, Var{W})
+        buffer[key] = val
+    end
+    nothing
+end
+
+function decode!(io::IO, buffer::Dict{K,V}, ::Type{Val{Tuple{Q,Nothing}}}) where {K,V,Q}
+    len = vbyte_decode(io, UInt32) + position(io)
+    while position(io) < len
+        key = decode(io, K, Var{Q})
+        val = decode(io, V)
+        buffer[key] = val
+    end
+    nothing
+end
+
+function decode!(io::IO, buffer::Dict{K,V}, ::Type{Val{Tuple{Q,W}}}) where {K,V,Q,W}
+    len = vbyte_decode(io, UInt32) + position(io)
+    while position(io) < len
+        key = decode(io, K, Var{Q})
+        val = decode(io, V, Var{W})
         buffer[key] = val
     end
     nothing
@@ -305,12 +346,8 @@ function decode!(io::IO, buffer::Vector{T}, ::Type{Vector{T}}) where T
     return nothing
 end
 
-# TODO: The sizehint is not a proper lower bound for int32 as those are 10 bytes long for negative values.
-# TODO: Replace non-packed with push!(buffer, decode(...)) and infer the type from the buffer alone here
 # TODO: Messages should be initialized as Ref{Union{MessageType,Nothing}}(nothing)
-# TODO: Vector decoders should also accept Val{:fixed} and Val{:zigzag} to handle all kinds of ints properly
-# TODO: uknknown fields -- skip over them based on the wiretype
-function decode!(io::IO, buffer::Vector{T}, ::Type{Vector{T}}) where {T <: Union{Int32,Int64,UInt32,UInt32}}
+function decode!(io::IO, buffer::Vector{T}) where {T <: Union{Int64,UInt32,UInt32}}
     len = vbyte_decode(io, UInt32)
     if len > _max_varint_size(T)
         sizehint!(buffer, length(buffer) + cld(len, _max_varint_size(T)))
@@ -322,12 +359,79 @@ function decode!(io::IO, buffer::Vector{T}, ::Type{Vector{T}}) where {T <: Union
     return nothing
 end
 
-# not packed
-function decode!(io::IO, buffer::Vector{T}, ::Type{T}) where T
-    push!(buffer, decode(io, T))
+function decode!(io::IO, buffer::Vector{Int32})
+    len = vbyte_decode(io, UInt32)
+    if len > _max_varint_size(UInt64) # negative int32 take up 10 bytes
+        sizehint!(buffer, length(buffer) + cld(len, _max_varint_size(UInt64)))
+    end
+    endpos = len + position(io)
+    while position(io) < endpos
+        push!(buffer, decode(io, Int32))
+    end
     return nothing
 end
 
+function decode!(io::IO, buffer::Vector{T}) where {T <: Base.Enum}
+    len = vbyte_decode(io, UInt32)
+    if len > _max_varint_size(UInt32)
+        sizehint!(buffer, length(buffer) + cld(len, _max_varint_size(UInt32)))
+    end
+    endpos = len + position(io)
+    while position(io) < endpos
+        push!(buffer, decode(io, T))
+    end
+    return nothing
+end
+
+function decode!(io::IO, buffer::Vector{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
+    len = vbyte_decode(io, UInt32)
+    if len > _max_varint_size(T)
+        sizehint!(buffer, length(buffer) + cld(len, _max_varint_size(T)))
+    end
+    endpos = len + position(io)
+    while position(io) < endpos
+        push!(buffer, decode(io, T, Val{:zigzag}))
+    end
+    return nothing
+end
+
+function decode!(io::IO, buffer::Vector{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64}}
+    len = vbyte_decode(io, UInt32)
+    n_incoming = div(len, sizeof(T))
+    n_current = length(buffer)
+    resize!(buffer, n_current + n_incoming)
+    endpos = len + position(io)
+    for i in (n_current+1):n_incoming
+        @inbounds buffer[i] = decode(io, T, Val{:fixed})
+    end
+    @assert position(io) == endpos
+    return nothing
+end
+
+function decode!(io::IO, buffer::Vector{T}) where {T <: Union{Bool,Float32,Float64}}
+    len = vbyte_decode(io, UInt32)
+    n_incoming = div(len, sizeof(T))
+    n_current = length(buffer)
+    resize!(buffer, n_current + n_incoming)
+    endpos = len + position(io)
+    for i in (n_current+1):n_incoming
+        @inbounds buffer[i] = decode(io, T)
+    end
+    @assert position(io) == endpos
+    return nothing
+end
+
+function decode!(io::IO, buffer::Base.RefValue{T}) where {T}
+    len = vbyte_decode(io, UInt32)
+    endpos = len + position(io)
+    if isassigned(buffer)
+        buffer[] =_merge_structs(buffer[], decode(d, T))
+    else
+        buffer[] = decode(d, T)
+    end
+    @assert position(io) == endpos
+    return nothing
+end
 
 # From docs: Normally, an encoded message would never have more than one instance of a non-repeated field.
 # ...
@@ -344,9 +448,9 @@ end
     #       Would be easier if we have a HolyTrait for user defined structs
     merged_values = Tuple(
         (
+            type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8}} ? :(s2.$name) :
             type <: AbstractVector ? :(vcat(s1.$name, s2.$name)) :
-            type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String} ? :(s2.$name) :
-            :(merge_structs(s1.$name, s2.$name))
+            :(_merge_structs(s1.$name, s2.$name))
         )
         for (name, type)
         in zip(fieldnames(T), fieldtypes(T))
@@ -354,16 +458,9 @@ end
     return quote T($(merged_values...)) end
 end
 
-decode_message(d::ProtoDecoder, ::Type{T}, ::Nothing) where {T} = decode(d, T)
-decode_message(d::ProtoDecoder, ::Type{T}, t::T)      where {T} = _merge_structs(t, decode(d, T))
-
-decode(d::ProtoDecoder, ::Type{T}) where {T} = decode(d.io, T)
-decode(d::ProtoDecoder, ::Type{T}, ::Type{S}) where {T,S} = decode(d.io, T, S)
-decode!(d::ProtoDecoder, buffer, ::Type{T}) where {T} = decode!(d.io, buffer, T)
-
 @inline function Base.skip(d::ProtoDecoder, wire_type::WireType)
     if wire_type == VARINT
-        while read(d.io, UInt8) < 0x80 end
+        while read(d.io, UInt8) >= 0x80 end
     elseif wire_type == FIXED64
         skip(d.io, 8)
     elseif wire_type == LENGTH_DELIMITED

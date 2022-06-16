@@ -280,7 +280,7 @@ function protojl(
         output_directory = mktempdir(tempdir(); prefix="jl_proto_", cleanup=false)
         @info output_directory
     else
-        isdir(output_directory) || error("`output_directory` $output_directory doesn't exist")
+        isdir(output_directory) || error("`output_directory` \"$output_directory\" doesn't exist")
         output_directory = abspath(output_directory)
     end
 
