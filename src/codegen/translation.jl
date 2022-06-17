@@ -131,14 +131,12 @@ end
 _is_repeated_field(f::AbstractProtoFieldType) = f.label == Parsers.REPEATED
 _is_repeated_field(::OneOfType) = false
 
-function jl_decode_default(io, field::FieldType, ctx)
-    name = jl_fieldname(field)
+function jl_default_value(field::FieldType, ctx)
     if _is_repeated_field(field)
-        def_value = "$(jl_typename(field.type, ctx))[]"
+        return "$(jl_typename(field.type, ctx))[]"
     else
-        def_value = jl_type_default(field, ctx)
+        return jl_type_default(field, ctx)
     end
-    println(io, "    ", name, " = ", def_value)
 end
 jl_type_default(f::FieldType{StringType}, ctx)               = get(f.options, "default", "\"\"")
 jl_type_default(f::FieldType{BoolType}, ctx)                 = get(f.options, "default", "false")
@@ -163,14 +161,14 @@ end
 function jl_type_default(f::FieldType{MapType}, ctx)
     return "Dict{$(jl_typename(f.type.keytype, ctx)),$(jl_typename(f.type.valuetype, ctx))}()"
 end
-function jl_decode_default(io, field::OneOfType, ctx)
-    println(io, "    ", jl_fieldname(field), " = nothing")
+function jl_default_value(::OneOfType, ctx)
+    return "nothing"
 end
-function jl_decode_default(io, field::GroupType, ctx)
+function jl_default_value(field::GroupType, ctx)
     if _is_repeated_field(field)
-        println(io, "    ", jl_fieldname(field), " = $(field.type.name)[]")
+        return "$(field.type.name)[]"
     else
-        println(io, "    ", jl_fieldname(field), " = nothing")
+        return "nothing"
     end
 end
 
@@ -272,7 +270,7 @@ function generate_decode_method(io, t::MessageType, ctx)
     println(io, "function PB.decode(d::PB.ProtoDecoder, ::Type{$(t.name)})")
     # defaults
     for field in t.fields
-        jl_decode_default(io, field, ctx)
+        println(io, "    ", jl_fieldname(field), " = ", jl_default_value(field, ctx))
     end
     println(io, "    while !PB.message_done(d)")
     println(io, "        field_number, wire_type = PB.decode_tag(d)")
@@ -287,6 +285,66 @@ function generate_decode_method(io, t::MessageType, ctx)
     print(io, "    return ", jl_typename(t, ctx), "(")
     print(io, join(map(f->jl_fieldname_deref(f, ctx), t.fields), ", "))
     println(io, ")")
+    println(io, "end")
+end
+
+function encode_condition(f::FieldType, ctx)
+    if _is_repeated_field(f)
+        return "!isempty(x.$(jl_fieldname(f)))"
+    else
+        return _encode_condition(f, ctx)
+    end
+end
+_encode_condition(f::FieldType, ctx) = "x.$(jl_fieldname(f)) != $(jl_default_value(f, ctx))"
+_encode_condition(f::OneOfType, ctx) = "!isnothing(x.$(jl_fieldname(f)))"
+function _encode_condition(f::FieldType{ReferencedType}, ctx)
+    if _is_message(f.type, ctx)
+        return "!isnothing(x.$(jl_fieldname(f)))"
+    else
+        return "x.$(jl_fieldname(f)) != $(jl_default_value(f, ctx))"
+    end
+end
+
+
+function field_encode_expr(f::FieldType, ctx)
+    if _is_repeated_field(f)
+        encoding_val_type = _decoding_val_type(f.type)
+        !isempty(encoding_val_type) && (encoding_val_type = ", $encoding_val_type")
+        is_packed = parse(Bool, get(f.options, "packed", "false"))
+        if is_packed
+            return "PB.encode(d, $(f.number), x.$(jl_fieldname(f))$(encoding_val_type))"
+        else
+            return """
+            for el in x.$(jl_fieldname(f))
+                        PB.encode(d, $(f.number), el$(encoding_val_type))
+                    end"""
+        end
+    else
+        return _field_encode_expr(f, ctx)
+    end
+end
+
+_field_encode_expr(f::FieldType, ctx) = "PB.encode(d, $(f.number), x.$(jl_fieldname(f)))"
+_field_encode_expr(f::FieldType{<:AbstractProtoFixedType}, ctx) = "PB.encode(d, $(f.number), x.$(jl_fieldname(f)), Val{:fixed})"
+_field_encode_expr(f::FieldType{<:Union{SInt32Type,SInt64Type}}, ctx) = "PB.encode(d, $(f.number), x.$(jl_fieldname(f)), Val{:zigzag})"
+function _field_encode_expr(f::FieldType{<:MapType}, ctx)
+    K = _decoding_val_type(f.type.keytype)
+    V = _decoding_val_type(f.type.valuetype)
+    isempty(V) && isempty(K) && return "PB.encode(d, $(f.number), $(jl_fieldname(f)))"
+    !isempty(V) && isempty(K) && return "PB.encode(d, $(f.number), $(jl_fieldname(f)), Val{Tuple{Nothing,$(V)}})"
+    isempty(V) && !isempty(K) && return "PB.encode(d, $(f.number), $(jl_fieldname(f)), Val{Tuple{$(K),Nothing}})"
+    return "PB.encode(d, $(f.number), $(jl_fieldname(f)), Val{Tuple{$(K),$(V)}})"
+end
+
+function generate_encode_method(io, t::MessageType, ctx)
+    println(io, "function PB.encode(d::IO, x::$(t.name))")
+    println(io, "    initpos = position(d)")
+    for field in t.fields
+        println(io, "    if ", encode_condition(field, ctx))
+        println(io, "    " ^ 2, field_encode_expr(field, ctx))
+        println(io, "    end")
+    end
+    println(io, "    return position(d) - initpos", )
     println(io, "end")
 end
 
@@ -315,6 +373,7 @@ function codegen(io, t::MessageType, ctx::Context)
     println(io, "end")
     if !isempty(t.fields)
         generate_decode_method(io, t, ctx)
+        generate_encode_method(io, t, ctx)
     end
 end
 
