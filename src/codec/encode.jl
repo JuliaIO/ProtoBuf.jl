@@ -8,7 +8,7 @@
 # encode(d::ProtoEncoder, i::Int, buffer::Dict, ::Type{V}) where {V} = encode(d.io, i, buffer, V)
 
 function encode_tag(io::IO, field_number, wire_type::WireType)
-    vbyte_encode(io, UInt32(field_number << 3) | UInt32(wire_type))
+    vbyte_encode(io, (UInt32(field_number) << 3) | UInt32(wire_type))
     return nothing
 end
 
@@ -17,7 +17,7 @@ end
     GC.@preserve ref unsafe_write(io, Base.unsafe_convert(Ref{T}, ref)::Ptr, nb)
 end
 
-@inline function vbyte_encode(io::IO, x::T) where {T <: Union{UInt32,Int32}}
+@inline function vbyte_encode(io::IO, x::UInt32)
     if (x < (one(UInt32) << 7))
         write(io, UInt8(x & 0x7F))
     elseif (x < (one(UInt32) << 14))
@@ -62,7 +62,7 @@ end
     return nothing;
 end
 
-@inline function vbyte_encode(io::IO, x::T) where {T <: Union{UInt64,Int64}}
+@inline function vbyte_encode(io::IO, x::UInt64)
     if (x < (one(UInt64) << 7))
         write(io, UInt8(x & 0x7F))
     elseif (x < (one(UInt64) << 14))
@@ -178,22 +178,27 @@ end
 end
 
 function encode(io::IO, i::Int, x::T) where {T}
-    tmpbuf = IOBuffer(sizehint=sizeof(T))
-    encode(tmpbuf, x)
+    _io = PipeBuffer() # TODO: preallocate?
+    encode(_io, x)
     encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(position(tmpbuf)))
-    write(tmpbuf, io)
-    close(tmpbuf)
+    vbyte_encode(io, UInt32(position(_io)))
+    write(_io, io)
+    close(_io)
     return nothing
 end
 
-function encode(io::IO, x::T) where {T<:Union{Int64,UInt32,UInt64}}
+function encode(io::IO, x::T) where {T<:Union{UInt32,UInt64}}
     vbyte_encode(io, x)
     return nothing
 end
 
+@inline function encode(io::IO, x::Int64)
+    vbyte_encode(io, reinterpret(UInt64, x))
+    return nothing
+end
+
 function encode(io::IO, x::Int32)
-    vbyte_encode(io, Int64(x))
+    x < 0 ? vbyte_encode(io, reinterpret(UInt64, Int64(x))) : vbyte_encode(io, reinterpret(UInt32, x))
     return nothing
 end
 
@@ -203,13 +208,13 @@ function encode(io::IO, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int32,Int64,V
 end
 
 function encode(io::IO, x::T, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
-    vbyte_encode(io, zigzag_encode(x))
+    vbyte_encode(io, reinterpret(unsigned(T), zigzag_encode(x)))
     return nothing
 end
 
 function encode(io::IO, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
     for el in x
-        vbyte_encode(io, zigzag_encode(el))
+        encode(io, el, Val{:zigzag})
     end
     return nothing
 end
@@ -219,9 +224,9 @@ function encode(io::IO, x::T) where {S<:Union{Bool,UInt8,Float32,Float64},T<:Uni
     return nothing
 end
 
-function encode(io::IO, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int64,Int32}}
+function encode(io::IO, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
     for el in x
-        vbyte_encode(io, el)
+        encode(io, el)
     end
     return nothing
 end
@@ -310,17 +315,13 @@ function encode(io::IO, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) where {T<:Uni
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int64}}
+function encode(io::IO, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
+    _io = PipeBuffer(Vector{UInt8}(undef, length(x)), maxsize=10length(x))
+    encode(_io, x)
     encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(sum(_varint_size, x)))
-    encode(io, x)
-    return nothing
-end
-
-function encode(io::IO, i::Int, x::Vector{Int32})
-    encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(sum(y->_varint_size(Int64(y)), x)))
-    encode(io, x)
+    vbyte_encode(io, UInt32(position(_io)))
+    write(_io, io)
+    close(_io)
     return nothing
 end
 
@@ -339,30 +340,10 @@ end
 
 function encode(io::IO, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
     encode_tag(io, i, LENGTH_DELIMITED)
-    tmpbuf = IOBuffer(sizehint=cld(sizeof(x), _max_varint_size(T)))
-    encode(tmpbuf, x)
-    vbyte_encode(io, UInt32(position(tmpbuf)))
-    write(tmpbuf, io)
-    close(tmpbuf)
+    _io = IOBuffer(sizehint=cld(sizeof(x), _max_varint_size(T)))
+    encode(_io, x)
+    vbyte_encode(io, UInt32(position(_io)))
+    write(_io, io)
+    close(_io)
     return nothing
 end
-
-# function encode2(io::IO, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int64}}
-#     encode_tag(io, i, LENGTH_DELIMITED)
-#     tmpbuf = IOBuffer(sizehint=cld(sizeof(x), _max_varint_size(T)))
-#     encode(tmpbuf, x)
-#     vbyte_encode(io, UInt32(position(tmpbuf)))
-#     write(tmpbuf, io)
-#     close(tmpbuf)
-#     return nothing
-# end
-
-# function encode2(io::IO, i::Int, x::Vector{Int32})
-#     encode_tag(io, i, LENGTH_DELIMITED)
-#     tmpbuf = IOBuffer(sizehint=cld(sizeof(x), _max_varint_size(Int64)))
-#     encode(tmpbuf, x)
-#     vbyte_encode(io, UInt32(position(tmpbuf)))
-#     write(tmpbuf, io)
-#     close(tmpbuf)
-#     return nothing
-# end

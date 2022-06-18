@@ -20,6 +20,7 @@ zigzag_encode(x::T) where {T <: Integer} = xor(x << 1, x >> (8 * sizeof(T) - 1))
 zigzag_decode(x::T) where {T <: Integer} = xor(x >> 1, -(x & T(1)))
 _max_varint_size(::Type{T}) where {T} = (sizeof(T) + div(sizeof(T), 4))
 _varint_size(x) = cld((8sizeof(x) - leading_zeros(x)), 7)
+_varint_size1(x) = max(1, _varint_size(x))
 
 include("decode.jl")
 include("encode.jl")
