@@ -46,7 +46,7 @@ include("codec/Codecs.jl")
 import .Parsers
 import .CodeGenerators
 import .CodeGenerators: protojl
-import .Codecs: decode, decode!, encode, ProtoDecoder, ProtoEncoder, message_done, try_eat_end_group, decode_tag, skip
+import .Codecs: decode, decode!, encode, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, try_eat_end_group, decode_tag, skip
 import .Codecs
 
 end # module

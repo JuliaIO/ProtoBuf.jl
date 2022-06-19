@@ -3,97 +3,17 @@
 decode(d::ProtoDecoder, ::Type{T}) where {T} = decode(d.io, T)
 decode(d::ProtoDecoder, ::Type{T}, ::Type{V}) where {T,V} = decode(d.io, T, V)
 decode!(d::ProtoDecoder, buffer::Base.RefValue) = decode!(d.io, buffer)
-decode!(d::ProtoDecoder, buffer::Vector) = decode!(d.io, buffer)
-decode!(d::ProtoDecoder, buffer::Vector, ::Type{V}) where {V} = decode!(d.io, buffer, V)
+decode!(d::ProtoDecoder, wire_type::WireType, buffer::BufferedVector) = decode!(d.io, wire_type, buffer)
+decode!(d::ProtoDecoder, wire_type::WireType, buffer::BufferedVector, ::Type{V}) where {V} = decode!(d.io, wire_type, buffer, V)
+decode!(d::ProtoDecoder, buffer::BufferedVector) = decode!(d.io, buffer)
 decode!(d::ProtoDecoder, buffer::Dict) = decode!(d.io, buffer)
 decode!(d::ProtoDecoder, buffer::Dict, ::Type{V}) where {V} = decode!(d.io, buffer, V)
-
-# TODO: Messages should be initialized as Ref{Union{MessageType,Nothing}}(nothing)
-# TODO: instead of UnpackedBuffer{T} vs Vector{T}, the decode method must
-# handle both situations based on wire type
-mutable struct UnpackedBuffer{T}
-    elements::Vector{T}
-    occupied::Int
-end
-UnpackedBuffer{T}() where {T} = UnpackedBuffer(T[], 0)
-Base.getindex(x::UnpackedBuffer) = resize!(x.elements, x.occupied)
-decode!(d::ProtoDecoder, buffer::UnpackedBuffer) = decode!(d.io, buffer)
 
 function decode_tag(d::ProtoDecoder)
     b = vbyte_decode(d.io, UInt32)
     field_number = b >> 3
     wire_type = WireType(b & 0x07)
     return field_number, wire_type
-end
-
-@inline function vbyte_decode(io, ::Type{T}) where {T<:Union{UInt32,Int32}}
-    b = T(read(io, UInt8))
-    b < 0x80 && return b
-
-    x = b & 0x7F
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 7))
-
-    x |= (b & 0x7F) << 7
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 14))
-
-    x |= (b & 0x7F) << 14
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 21))
-
-    x |= (b & 0x7F) << 21
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 28))
-
-    x |= (b & 0x7F) << 28
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 7))
-
-    return zero(T)
-end
-
-@inline function vbyte_decode(io, ::Type{T}) where {T<:Union{UInt64,Int64}}
-    b = T(read(io, UInt8))
-    b < 0x80 && return b
-
-    x = b & 0x7F
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 7))
-
-    x |= (b & 0x7F) << 7
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 14))
-
-    x |= (b & 0x7F) << 14
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 21))
-
-    x |= (b & 0x7F) << 21
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 28))
-
-    x |= (b & 0x7F) << 28
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 35))
-
-    x |= (b & 0x7F) << 35
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 42))
-
-    x |= (b & 0x7F) << 42
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 49))
-
-    x |= (b & 0x7F) << 49
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 56))
-
-    x |= (b & 0x7F) << 56
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 63))
-
-    return zero(T)
 end
 
 # uint32, uint64
@@ -154,19 +74,12 @@ end
 
 function decode(io::IO, ::Type{String})
     bytelen = vbyte_decode(io, UInt32)
-    buf = Base.StringVector(bytelen)
-    read!(io, buf)
-    return String(buf)
-end
-function decode!(io::IO, buffer::UnpackedBuffer{String})
-    bytelen = vbyte_decode(io, UInt32)
     bytes = Base.StringVector(bytelen)
     read!(io, bytes)
-    if length(buffer.elements) == buffer.occupied
-        Base._growend!(buffer.elements, 8)
-    end
-    buffer.occupied += 1
-    @inbounds buffer.elements[buffer.occupied] = String(bytes)
+    return String(bytes)
+end
+function decode!(io::IO, buffer::BufferedVector{String})
+    buffer[] = decode(io, String)
     return nothing
 end
 
@@ -174,72 +87,72 @@ function decode(io::IO, ::Type{Vector{UInt8}})
     bytelen = vbyte_decode(io, UInt32)
     return read(io, bytelen)
 end
+function decode!(io::IO, buffer::BufferedVector{Vector{UInt8}})
+    buffer[] = decode(io, Vector{UInt8})
+    return nothing
+end
 
-function decode!(io::IO, buffer::Vector{T}) where {T <: Union{Int32,Int64,UInt32,UInt32}}
-    bytelen = vbyte_decode(io, UInt32)
-    endpos = bytelen + position(io)
-    occupied = length(buffer)
-    while position(io) < endpos
-        if length(buffer) == occupied
-            Base._growend!(buffer, div(128, sizeof(T)))
+function decode!(io::IO, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Int32,Int64,UInt32,UInt32,Base.Enum}}
+    if w == LENGTH_DELIMITED
+        bytelen = vbyte_decode(io, UInt32)
+        endpos = bytelen + position(io)
+        while position(io) < endpos
+            buffer[] = decode(io, T)
         end
-        occupied += 1
-        @inbounds buffer[occupied] = decode(io, T)
+        @assert position(io) == endpos
+    else
+        buffer[] = decode(io, T)
     end
-    resize!(buffer, occupied)
-    @assert position(io) == endpos
     return nothing
 end
 
-function decode!(io::IO, buffer::Vector{T}) where {T <: Base.Enum}
-    bytelen = vbyte_decode(io, UInt32)
-    if bytelen > _max_varint_size(UInt32)
-        sizehint!(buffer, length(buffer) + cld(bytelen, _max_varint_size(UInt32)))
+function decode!(io::IO, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
+    if w == LENGTH_DELIMITED
+        bytelen = vbyte_decode(io, UInt32)
+        endpos = bytelen + position(io)
+        while position(io) < endpos
+            buffer[] = decode(io, T, Val{:zigzag})
+        end
+        @assert position(io) == endpos
+    else
+        buffer[] = decode(io, T, Val{:zigzag})
     end
-    endpos = bytelen + position(io)
-    while position(io) < endpos
-        push!(buffer, decode(io, T))
-    end
-    @assert position(io) == endpos
     return nothing
 end
 
-function decode!(io::IO, buffer::Vector{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
-    bytelen = vbyte_decode(io, UInt32)
-    if bytelen > _max_varint_size(T)
-        sizehint!(buffer, length(buffer) + cld(bytelen, _max_varint_size(T)))
+function decode!(io::IO, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64}}
+    if w == LENGTH_DELIMITED
+        bytelen = vbyte_decode(io, UInt32)
+        n_incoming = div(bytelen, sizeof(T))
+        n_current = length(buffer.elements)
+        resize!(buffer.elements, n_current + n_incoming)
+        endpos = bytelen + position(io)
+        for i in (n_current+1):n_incoming
+            buffer.occupied += 1
+            @inbounds buffer.elements[i] = decode(io, T, Val{:fixed})
+        end
+        @assert position(io) == endpos
+    else
+        buffer[] = decode(io, T, Val{:fixed})
     end
-    endpos = bytelen + position(io)
-    while position(io) < endpos
-        push!(buffer, decode(io, T, Val{:zigzag}))
-    end
-    @assert position(io) == endpos
     return nothing
 end
 
-function decode!(io::IO, buffer::Vector{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64}}
-    bytelen = vbyte_decode(io, UInt32)
-    n_incoming = div(bytelen, sizeof(T))
-    n_current = length(buffer)
-    resize!(buffer, n_current + n_incoming)
-    endpos = bytelen + position(io)
-    for i in (n_current+1):n_incoming
-        @inbounds buffer[i] = decode(io, T, Val{:fixed})
+function decode!(io::IO, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Bool,Float32,Float64}}
+    if w == LENGTH_DELIMITED
+        bytelen = vbyte_decode(io, UInt32)
+        n_incoming = div(bytelen, sizeof(T))
+        n_current = length(buffer.elements)
+        resize!(buffer.elements, n_current + n_incoming)
+        endpos = bytelen + position(io)
+        for i in (n_current+1):n_incoming
+            buffer.occupied += 1
+            @inbounds buffer.elements[i] = decode(io, T)
+        end
+        @assert position(io) == endpos
+    else
+        buffer[] = decode(io, T)
     end
-    @assert position(io) == endpos
-    return nothing
-end
-
-function decode!(io::IO, buffer::Vector{T}) where {T <: Union{Bool,Float32,Float64}}
-    bytelen = vbyte_decode(io, UInt32)
-    n_incoming = div(bytelen, sizeof(T))
-    n_current = length(buffer)
-    resize!(buffer, n_current + n_incoming)
-    endpos = bytelen + position(io)
-    for i in (n_current+1):n_incoming
-        @inbounds buffer[i] = decode(io, T)
-    end
-    @assert position(io) == endpos
     return nothing
 end
 

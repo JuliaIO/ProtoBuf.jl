@@ -133,13 +133,13 @@ _is_repeated_field(::OneOfType) = false
 
 function jl_default_value(field::FieldType, ctx)
     if _is_repeated_field(field)
-        return "$(jl_typename(field.type, ctx))[]"
+        return "PB.BufferedVector{$(jl_typename(field.type, ctx))}()"
     else
         return jl_type_default(field, ctx)
     end
 end
-jl_type_default(f::FieldType{StringType}, ctx)               = get(f.options, "default", "\"\"")
-jl_type_default(f::FieldType{BoolType}, ctx)                 = get(f.options, "default", "false")
+jl_type_default(f::FieldType{StringType}, ctx)                 = get(f.options, "default", "\"\"")
+jl_type_default(f::FieldType{BoolType}, ctx)                   = get(f.options, "default", "false")
 jl_type_default(f::FieldType{<:AbstractProtoNumericType}, ctx) = get(f.options, "default", "zero($(jl_typename(f.type, ctx)))")
 function jl_type_default(f::FieldType{BytesType}, ctx)
     out = get(f.options, "default", nothing)
@@ -166,9 +166,9 @@ function jl_default_value(::OneOfType, ctx)
 end
 function jl_default_value(field::GroupType, ctx)
     if _is_repeated_field(field)
-        return "$(field.type.name)[]"
+        return "PB.BufferedVector{$(jl_typename(field.type, ctx))}()"
     else
-        return "nothing"
+        return "Ref{$(jl_typename(f.type, ctx))}()"
     end
 end
 
@@ -187,34 +187,23 @@ function jl_type_decode_expr(f::FieldType{MapType}, ctx)
     isempty(V) && !isempty(K) && return "PB.decode!(d, $(jl_fieldname(f)), Val{Tuple{$(K),Nothing}})"
     return "PB.decode!(d, $(jl_fieldname(f)), Val{Tuple{$(K),$(V)}})"
 end
-function jl_type_decode_repeated_expr(field, ctx)
-    # We set `packed` to true for proto3 numeric types during option parsing
-    is_packed = parse(Bool, get(field.options, "packed", "false"))
-    if is_packed
-        return "PB.decode!(d, $(jl_fieldname(field)))"
-    else
-        return "push!($(jl_fieldname(field)), PB.decode(d, $(jl_typename(field.type, ctx))))"
-    end
+
+function jl_type_decode_repeated_expr(field::FieldType{T}, ctx) where {T<:Union{StringType,BytesType}}
+    return "PB.decode!(d, $(jl_fieldname(field)))"
+end
+function jl_type_decode_repeated_expr(field::FieldType{T}, ctx) where {T<:AbstractProtoNumericType}
+    return "PB.decode!(d, wire_type, $(jl_fieldname(field)))"
 end
 function jl_type_decode_repeated_expr(field::FieldType{T}, ctx) where {T<:AbstractProtoFixedType}
-    # We set `packed` to true for proto3 numeric types during option parsing
-    is_packed = parse(Bool, get(field.options, "packed", "false"))
-    if is_packed
-        return "PB.decode!(d, $(jl_fieldname(field)), Var{:fixed})"
-    else
-        return "push!($(jl_fieldname(field)), PB.decode(d, $(jl_typename(field.type, ctx)), Var{:fixed}))"
-    end
+    return "PB.decode!(d, wire_type, $(jl_fieldname(field)), Var{:fixed})"
 end
 function jl_type_decode_repeated_expr(field::FieldType{T}, ctx) where {T<:Union{SInt32Type,SInt64Type}}
-    # We set `packed` to true for proto3 numeric types during option parsing
-    is_packed = parse(Bool, get(field.options, "packed", "false"))
-    if is_packed
-        return "PB.decode!(d, $(jl_fieldname(field)), Var{:zigzag})"
-    else
-        return "push!($(jl_fieldname(field)), PB.decode(d, $(jl_typename(field.type, ctx)), Var{:zigzag}))"
-    end
+    return "PB.decode!(d, wire_type, $(jl_fieldname(field)), Var{:zigzag})"
 end
-
+function jl_type_decode_repeated_expr(field::FieldType{ReferencedType}, ctx)
+    _is_message(f.type, ctx) && return "$(jl_fieldname(f)) = PB.decode!(d, $(jl_fieldname(f)))"
+    return "PB.decode!(d, wire_type, $(jl_fieldname(field)))"
+end
 function jl_type_decode_expr(f::FieldType{ReferencedType}, ctx)
     _is_message(f.type, ctx) && return "$(jl_fieldname(f)) = PB.decode!(d, $(jl_fieldname(f)))"
     return "$(jl_fieldname(f)) = PB.decode(d, $(jl_typename(f.type, ctx)))"
@@ -260,9 +249,9 @@ function field_decode_expr(io, field::GroupType, i, ctx)
     return nothing
 end
 
-jl_fieldname_deref(f, ctx) = jl_fieldname(f)
+jl_fieldname_deref(f, ctx) = _is_repeated_field(f) ? "$(jl_fieldname(f))[]" : jl_fieldname(f)
 function jl_fieldname_deref(f::FieldType{ReferencedType}, ctx)
-    should_deref = !_is_repeated_field(f) & _is_message(f.type, ctx)
+    should_deref = _is_repeated_field(f) | _is_message(f.type, ctx)
     return should_deref ? "$(jl_fieldname(f))[]" : jl_fieldname(f)
 end
 
