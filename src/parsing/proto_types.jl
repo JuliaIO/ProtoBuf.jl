@@ -258,7 +258,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
     name = val(expectnext(ps, Tokens.IDENTIFIER))
 
     options = Dict{String,Union{String,Dict{String,String}}}()
-    field_options = Dict{String,Dict{String,String}}()
+    field_options = Dict{String,Union{String,Dict{String,String}}}()
     element_names = String[]
     element_values = Int[]
     reserved_nums = Vector{Union{Int,UnitRange{Int}}}()
@@ -280,7 +280,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
             expectnext(ps, Tokens.EQ)
             push!(element_values, parse_integer_value(ps))
             if accept(ps, Tokens.LBRACKET)
-                parse_field_options!(ps, get!(field_options, element_name, Dict()))
+                parse_field_options!(ps, get!(field_options, element_name, Dict{String,String}()))
             end
             expectnext(ps, Tokens.SEMICOLON)
         else
