@@ -1,19 +1,21 @@
 abstract type AbstractProtoType end
 abstract type AbstractProtoNumericType <: AbstractProtoType end
+abstract type AbstractProtoFixedType <: AbstractProtoNumericType end
+abstract type AbstractProtoFloatType <: AbstractProtoNumericType end
 abstract type AbstractProtoFieldType <: AbstractProtoType end
 
-struct DoubleType   <: AbstractProtoNumericType end
-struct FloatType    <: AbstractProtoNumericType end
+struct DoubleType   <: AbstractProtoFloatType end
+struct FloatType    <: AbstractProtoFloatType end
 struct Int32Type    <: AbstractProtoNumericType end
 struct Int64Type    <: AbstractProtoNumericType end
 struct UInt32Type   <: AbstractProtoNumericType end
 struct UInt64Type   <: AbstractProtoNumericType end
 struct SInt32Type   <: AbstractProtoNumericType end
 struct SInt64Type   <: AbstractProtoNumericType end
-struct Fixed32Type  <: AbstractProtoNumericType end
-struct Fixed64Type  <: AbstractProtoNumericType end
-struct SFixed32Type <: AbstractProtoNumericType end
-struct SFixed64Type <: AbstractProtoNumericType end
+struct Fixed32Type  <: AbstractProtoFixedType end
+struct Fixed64Type  <: AbstractProtoFixedType end
+struct SFixed32Type <: AbstractProtoFixedType end
+struct SFixed64Type <: AbstractProtoFixedType end
 struct BoolType     <: AbstractProtoNumericType end
 struct StringType <: AbstractProtoType end
 struct BytesType  <: AbstractProtoType end
@@ -70,7 +72,7 @@ _dot_join(prefix, s) = isempty(prefix) ? s : string(prefix, ".", s)
 
 # We're reusing the same FieldType for both Message and OneOf fields
 # OneOf fields don't use the label field
-struct FieldType <: AbstractProtoFieldType
+struct FieldType{T<:AbstractProtoType} <: AbstractProtoFieldType
     label::FieldLabel
     type::AbstractProtoType
     name::String
@@ -151,7 +153,7 @@ function parse_field(ps::ParserState)
     end
     accept(ps, Tokens.LBRACKET) && parse_field_options!(ps, options)
     expectnext(ps, Tokens.SEMICOLON)
-    return FieldType(label, type, name, number, options)
+    return FieldType{typeof(type)}(label, type, name, number, options)
 end
 
 # Can appear in parse_message_type, parse_oneof_type and parse_extend_type
@@ -256,7 +258,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
     name = val(expectnext(ps, Tokens.IDENTIFIER))
 
     options = Dict{String,Union{String,Dict{String,String}}}()
-    field_options = Dict{String,Dict{String,String}}()
+    field_options = Dict{String,Union{String,Dict{String,String}}}()
     element_names = String[]
     element_values = Int[]
     reserved_nums = Vector{Union{Int,UnitRange{Int}}}()
@@ -278,7 +280,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
             expectnext(ps, Tokens.EQ)
             push!(element_values, parse_integer_value(ps))
             if accept(ps, Tokens.LBRACKET)
-                parse_field_options!(ps, get!(field_options, element_name, Dict()))
+                parse_field_options!(ps, get!(field_options, element_name, Dict{String,String}()))
             end
             expectnext(ps, Tokens.SEMICOLON)
         else

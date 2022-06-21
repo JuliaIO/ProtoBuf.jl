@@ -3,7 +3,7 @@ module Parsers
 using ..Lexers: Lexers, Lexer, next_token, filepath
 using ..Tokens: Tokens, kind, val
 
-const MAX_FIELD_NUMBER = 536_870_911
+const MAX_FIELD_NUMBER = Int(typemax(UInt32) >> 3)
 
 mutable struct ParserState
     l::Lexer
@@ -74,7 +74,7 @@ function expectnext(ps, f::Function)
     t = peektoken(ps)
     if !f(kind(t))
         ps.errored = true
-        throw(error("Found $(t) (value: `$(val(t))`), expected one of $(k) at $(t.startpos)"))
+        throw(error("Found $(t) (value: `$(val(t))`), expected one of $(kind(t)) at $(t.startpos)"))
     end
     return readtoken(ps)
 end
@@ -107,7 +107,7 @@ function _parse_option_value(ps) # TODO: proper value parsing with validation
 end
 
 # We consumed a LBRACKET ([)
-function parse_field_options!(ps::ParserState, options)
+function parse_field_options!(ps::ParserState, options::Dict{String,<:Union{String,Dict{String,String}}})
     while true
         _parse_option!(ps, options)
         accept(ps, Tokens.COMMA) && continue
@@ -137,7 +137,7 @@ end
 
 # WE consumed OPTION
 # NOTE: does not eat SEMICOLON
-function _parse_option!(ps::ParserState, options)
+function _parse_option!(ps::ParserState, options::Dict{String,<:Union{String,Dict{String,String}}})
     option_name = ""
     last_name_part = ""
     prev_had_parens = false

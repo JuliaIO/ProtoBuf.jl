@@ -39,7 +39,7 @@
         IMPORT,
         PUBLIC,
         WEAK,
-        
+
         OPTION,
         EXTENSIONS,
         TO,
@@ -73,7 +73,7 @@
         BOOL,
         STRING,
         BYTES,
-        
+
         MAP,
         MESSAGE,
         ENUM,
@@ -96,14 +96,14 @@
     # end_assignments,
 )
 
-isident(k::Kind) = begin_identifiers < k < end_identifiers 
+isident(k::Kind) = begin_identifiers < k < end_identifiers
 isliteral(k::Kind) = begin_literals < k < end_literals
 
 # TODO: proper handling of valid names, this rule is too loose
-maybevalidname(k::Kind) = begin_identifiers < k < end_literals 
+maybevalidname(k::Kind) = begin_identifiers < k < end_literals
 
-is_reserved_word(k::Kind) = begin_reserved_words < k < end_reserved_words 
-is_single_letter_lexical_item(k::Kind) = start_single_character_lexical_items < k < end_single_character_lexical_items 
+is_reserved_word(k::Kind) = begin_reserved_words < k < end_reserved_words
+is_single_letter_lexical_item(k::Kind) = begin_single_character_lexical_items < k < end_single_character_lexical_items
 
 
 @enum(TokenError,

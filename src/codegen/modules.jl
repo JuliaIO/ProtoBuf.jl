@@ -19,7 +19,7 @@ namespaced_path(p::ProtoFile) = joinpath(namespaced_dirpath(p), basename(p.filep
 proto_module_file_name(p::ProtoFile) = proto_module_file_name(p.filepath)
 proto_module_file_path(p::ProtoFile) = proto_module_file_path(p.filepath)
 proto_module_name(p::ProtoFile) = proto_module_name(p.filepath)
-proto_module_path(p::ProtoFile) = proto_module(p.filepath)
+proto_module_path(p::ProtoFile) = proto_module_path(p.filepath)
 proto_script_name(p::ProtoFile) = proto_script_name(p.filepath)
 proto_script_path(p::ProtoFile) = proto_script_path(p.filepath)
 import_paths(p::ProtoFile) = (i.path for i in p.preamble.imports)
@@ -193,7 +193,7 @@ function create_namespaced_packages(ns::NamespaceTrie, output_directory::Abstrac
     return nothing
 end
 
-function validate_search_directories!(search_directories, include_vendored_wellknown_types::Bool)
+function validate_search_directories!(search_directories::Vector{String}, include_vendored_wellknown_types::Bool)
     include_vendored_wellknown_types && push!(search_directories, VENDORED_WELLKNOWN_TYPES_PARENT_PATH)
     unique!(map!(x->joinpath(abspath(x), ""), search_directories, search_directories))
     bad_dirs = filter(!isdir, search_directories)
@@ -201,7 +201,8 @@ function validate_search_directories!(search_directories, include_vendored_wellk
     return nothing
 end
 
-function validate_proto_file_paths!(relative_paths, search_directories)
+function validate_proto_file_paths!(relative_paths::Vector{<:AbstractString}, search_directories)
+    @assert !isempty(relative_paths)
     unique!(map!(normpath, relative_paths, relative_paths))
     full_paths = copy(relative_paths)
     proto_files_not_within_reach = String[]
@@ -227,7 +228,7 @@ function validate_proto_file_paths!(relative_paths, search_directories)
     return full_paths
 end
 
-function resolve_imports!(imported_paths, parsed_files, search_directories)
+function resolve_imports!(imported_paths::Set{String}, parsed_files, search_directories)
     missing_imports = String[]
     while !isempty(imported_paths)
         found = false
@@ -250,10 +251,10 @@ function resolve_imports!(imported_paths, parsed_files, search_directories)
 end
 
 function protojl(
-    relative_paths::Union{AbstractString,Vector{<:AbstractString}},
-    search_directories::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
+    relative_paths::Union{<:AbstractString,<:AbstractVector{<:AbstractString}},
+    search_directories::Union{<:AbstractString,<:AbstractVector{<:AbstractString},Nothing}=nothing,
     output_directory::Union{AbstractString,Nothing}=nothing;
-    include_vendored_wellknown_types::Bool=true
+    include_vendored_wellknown_types::Bool=true,
 )
     if isnothing(search_directories)
         search_directories = ["."]
@@ -280,10 +281,11 @@ function protojl(
         output_directory = mktempdir(tempdir(); prefix="jl_proto_", cleanup=false)
         @info output_directory
     else
-        isdir(output_directory) || error("`output_directory` $output_directory doesn't exist")
+        isdir(output_directory) || error("`output_directory` \"$output_directory\" doesn't exist")
         output_directory = abspath(output_directory)
     end
 
     ns = NamespaceTrie(values(parsed_files))
     create_namespaced_packages(ns, output_directory, parsed_files)
+    return nothing
 end
