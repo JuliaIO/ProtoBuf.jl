@@ -20,7 +20,7 @@ mutable struct Lexer{IO_t <: IO}
     io::IO_t
     filepath::String
     # To know where to start from while iterating
-    # tokens multiple times 
+    # tokens multiple times
     io_start_pos::Int
 
     # Start of the Token we're currently constructing
@@ -32,11 +32,11 @@ mutable struct Lexer{IO_t <: IO}
     current_row::Int
     current_col::Int
     current_pos::Int
-    
+
     # (current char, next char, the char after next)
     chars::Tuple{Char,Char,Char}
     charspos::Tuple{Int,Int,Int}
-    
+
     # Should we start reading the contents of io into
     # charstore so that we can then dump it into the Token
     doread::Bool
@@ -157,13 +157,13 @@ function emit(l::Lexer{IO_t}, kind::Tokens.Kind, err::Tokens.TokenError=Tokens.N
         str = ""
     end
     tok = Tokens.Token(
-        kind, 
+        kind,
         err,
         (l.token_start_row, l.token_start_col),
         (l.current_row, l.current_col - 1),
-        l.token_start_pos, 
+        l.token_start_pos,
         position(l) - 1,
-        str, 
+        str,
     )
     readoff(l)
     return tok
@@ -206,12 +206,12 @@ function lex_forwardslash(l::Lexer, c)
             if c == '/' && pc == '*'
                 n_start += 1
                 iseof(ppc) && return emit_error(l, Tokens.EOF_MULTICOMMENT)
-                readchar(l) # skip past the '*' to avoid ambiguities like "/*/*" being decomposed to "/*" "*/" "/*" 
+                readchar(l) # skip past the '*' to avoid ambiguities like "/*/*" being decomposed to "/*" "*/" "/*"
                 c = readchar(l)
                 pc, ppc = dpeekchar(l)
             elseif c == '*' && pc == '/'
                 n_end += 1
-                readchar(l) # skip past the '/' to avoid ambiguities like "/*/*" being decomposed to "/*" "*/" "/*" 
+                readchar(l) # skip past the '/' to avoid ambiguities like "/*/*" being decomposed to "/*" "*/" "/*"
                 n_start == n_end && return emit(l, Tokens.COMMENT)
                 iseof(ppc) && n_start != n_end && return emit_error(l, Tokens.EOF_MULTICOMMENT)
                 c = readchar(l)
@@ -250,10 +250,10 @@ function _tryparse_exponent(l)
     return true
 end
 
-# floatLit = ( 
-#     decimals "." [ decimals ] [ exponent ] | 
-#     decimals exponent | 
-#     "."decimals [ exponent ] ) | 
+# floatLit = (
+#     decimals "." [ decimals ] [ exponent ] |
+#     decimals exponent |
+#     "."decimals [ exponent ] ) |
 # )
 # decimals  = decimalDigit { decimalDigit }
 # exponent  = ( "e" | "E" ) [ "+" | "-" ] decimals
@@ -301,6 +301,7 @@ end
 # `c` is a consumed '\'' or '"'
 function lex_quote(l::Lexer, c)
     enclosing_quote = c
+    other_quote = ifelse(c=='"', '\'', '"')
     while true
         pc, ppc = dpeekchar(l)
         if iseof(pc)
@@ -309,8 +310,20 @@ function lex_quote(l::Lexer, c)
             readchar(l)
             return emit_error(l, Tokens.EOL_STRING)
         elseif pc == '\\'
-            if ppc in "abfnrtv?\\'\""
+            if ppc in "abfnrtv\\\""
                 readchar(l)
+                readchar(l)
+            elseif ppc in "?'"
+                # The single quote must not be escaped in the resulting julia string
+                # Similarly, from unittest.proto:
+                # // Tests for C++ trigraphs.
+                # // Trigraphs should be escaped in C++ generated files, but they should not be
+                # // escaped for other languages.
+                # // Note that in .proto file, "\?" is a valid way to escape ? in string
+                # // literals.
+                l.doread = false
+                readchar(l)
+                l.doread = true
                 readchar(l)
             # TODO: check that these codepoints are not immediately followed by a different string?
             elseif isoctal(ppc) # UTF-8 byte in octal
@@ -356,6 +369,10 @@ function lex_quote(l::Lexer, c)
         elseif pc == enclosing_quote
             readchar(l)
             break
+        elseif pc == '$' && ppc == '{'
+            write(l.charstore, '\\')
+            readchar(l)
+            readchar(l)
         else
             readchar(l)
         end
@@ -465,10 +482,10 @@ function tryread(l, chars, k)
 end
 
 const _PROTOBUF_TYPES_AND_KEYWORDS = [
-    "reserved", "syntax", "package", "import", "public", "weak", "option", "extensions", 
-    "to", "max", "service", "stream", "rpc", "returns", "repeated", "oneof", "optional", 
-    "required", "float", "double", "int32", "int64", "uint32", "uint64", "sint32", 
-    "sint64", "fixed32", "fixed64", "sfixed32", "sfixed64", "bool", "string", "bytes", 
+    "reserved", "syntax", "package", "import", "public", "weak", "option", "extensions",
+    "to", "max", "service", "stream", "rpc", "returns", "repeated", "oneof", "optional",
+    "required", "float", "double", "int32", "int64", "uint32", "uint64", "sint32",
+    "sint64", "fixed32", "fixed64", "sfixed32", "sfixed64", "bool", "string", "bytes",
     "map", "message", "enum", "extend", "group", "true", "false",
 ]
 

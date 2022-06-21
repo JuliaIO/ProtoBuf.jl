@@ -176,26 +176,6 @@ end
         lexer_test("/", Tokens.FORWARD_SLASH, "")
     end
 
-    @testset "single letter lexical items" begin
-        lexer_test("{", Tokens.LBRACE, "")
-        lexer_test("}", Tokens.RBRACE, "")
-        lexer_test(">", Tokens.GREATER, "")
-        lexer_test("<", Tokens.LESS, "")
-        lexer_test(",", Tokens.COMMA, "")
-        lexer_test(".", Tokens.DOT, "")
-        lexer_test("(", Tokens.LPAREN, "")
-        lexer_test(")", Tokens.RPAREN, "")
-        lexer_test("[", Tokens.LBRACKET, "")
-        lexer_test("]", Tokens.RBRACKET, "")
-        lexer_test("+", Tokens.PLUS, "")
-        lexer_test("-", Tokens.MINUS, "")
-        lexer_test(":", Tokens.COLON, "")
-        lexer_test("=", Tokens.EQ, "")
-        lexer_test(";", Tokens.SEMICOLON, "")
-        lexer_test("\\", Tokens.BACKWARD_SLASH, "")
-        lexer_test("/", Tokens.FORWARD_SLASH, "")
-    end
-
     @testset "test quotes" begin
         lexer_test("\"\\\\\"", Tokens.STRING_LIT)
         lexer_test("\"\\a\"", Tokens.STRING_LIT)
@@ -205,7 +185,7 @@ end
         lexer_test("\"\\r\"", Tokens.STRING_LIT)
         lexer_test("\"\\t\"", Tokens.STRING_LIT)
         lexer_test("\"\\v\"", Tokens.STRING_LIT)
-        lexer_test("\"\\'\"", Tokens.STRING_LIT)
+        lexer_test("\"\\'\"", Tokens.STRING_LIT, "\"'\"")
         lexer_test("\"\\0\"", Tokens.STRING_LIT)
         lexer_test("\"'\"", Tokens.STRING_LIT)
 
@@ -217,12 +197,18 @@ end
         lexer_test("'\\r'", Tokens.STRING_LIT)
         lexer_test("'\\t'", Tokens.STRING_LIT)
         lexer_test("'\\v'", Tokens.STRING_LIT)
-        lexer_test("'\\''", Tokens.STRING_LIT)
+        lexer_test("'\\''", Tokens.STRING_LIT, "'''")
         lexer_test("'\\0'", Tokens.STRING_LIT)
         lexer_test("'\"'", Tokens.STRING_LIT)
 
         lexer_test("\"Hello\\\"World\\\"\"", Tokens.STRING_LIT)
-        lexer_test("\"\\0\\001\\a\\b\\f\\n\\r\\t\\v\\\\\\'\\\"\\xfe\"", Tokens.STRING_LIT)
+        lexer_test("\"\\0\\001\\a\\b\\f\\n\\r\\t\\v\\\\\\'\\\"\\xfe\"", Tokens.STRING_LIT, "\"\\0\\001\\a\\b\\f\\n\\r\\t\\v\\\\'\\\"\\xfe\"")
+        lexer_test("\"\\?\"", Tokens.STRING_LIT, "\"?\"")
+        lexer_test("\"\${\"", Tokens.STRING_LIT, "\"\\\${\"")
+        lexer_test("'Hello\\\"World\\\"'", Tokens.STRING_LIT)
+        lexer_test("'\\0\\001\\a\\b\\f\\n\\r\\t\\v\\\\\\'\\\"\\xfe'", Tokens.STRING_LIT, "'\\0\\001\\a\\b\\f\\n\\r\\t\\v\\\\'\\\"\\xfe'")
+        lexer_test("'\\?'", Tokens.STRING_LIT, "'?'")
+        lexer_test("'\${'", Tokens.STRING_LIT, "'\\\${'")
     end
 
     @testset "identifiers" begin
