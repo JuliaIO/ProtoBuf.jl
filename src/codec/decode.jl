@@ -13,7 +13,7 @@ decode(d::ProtoDecoder, ::Type{Int32}) = reinterpret(Int32, UInt32(vbyte_decode(
 # int64
 decode(d::ProtoDecoder, ::Type{Int64}) = reinterpret(Int64, vbyte_decode(d.io, UInt64))
 # sfixed32, sfixed64, # fixed32, fixed64
-decode(d::ProtoDecoder, ::Type{T}, ::Val{:fixed}) where {T <: Union{Int32,Int64}} = read(d.io, T)
+decode(d::ProtoDecoder, ::Type{T}, ::Val{:fixed}) where {T <: Union{Int32,Int64,UInt32,UInt64}} = read(d.io, T)
 # sint32, sint64
 function decode(d::ProtoDecoder, ::Type{T}, ::Val{:zigzag}) where {T <: Union{Int32,Int64}}
     return convert(T, zigzag_decode(vbyte_decode(d.io, unsigned(T))))
@@ -119,7 +119,7 @@ function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type
     return nothing
 end
 
-function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64}}
+function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64,UInt32,UInt64}}
     if w == LENGTH_DELIMITED
         bytelen = vbyte_decode(d.io, UInt32)
         n_incoming = div(bytelen, sizeof(T))
