@@ -29,7 +29,7 @@ function namespaced_top_include(p::ProtoFile)
 end
 function namespaced_top_import(p::ProtoFile)
     top = first(split(namespace(p), "/"))
-    return string(".", proto_module_file_name(top))
+    return string(".", proto_module_name(top))
 end
 
 has_dependencies(p::ResolvedProtoFile) = has_dependencies(p.proto_file)
@@ -83,52 +83,10 @@ function NamespaceTrie(files::Union{AbstractVector,Base.ValueIterator}, s::Abstr
     namespace
 end
 
-# TODO: merge with Parsers/utils.jl
 function get_upstream_dependencies!(file::ResolvedProtoFile, upstreams)
     for path in import_paths(file)
         push!(upstreams, path)
     end
-end
-function _topological_sort!(files_in_scope, ignored_keys)
-    has_ignored_keys = !isempty(ignored_keys)
-    number_of_upstream_dependencies = Dict{String,Int}()
-    downstream_dependencies = Dict{String,Vector{String}}()
-    topologically_sorted = String[]
-    upstreams = Set{String}()
-    queue = String[]
-
-    for (name, file) in files_in_scope
-        empty!(upstreams)
-        get_upstream_dependencies!(file, upstreams)
-        has_ignored_keys && setdiff!(upstreams, ignored_keys)
-        if length(upstreams) == 0
-            push!(queue, name)
-        else
-            number_of_upstream_dependencies[name] = length(upstreams)
-        end
-        get!(downstream_dependencies, name, String[])
-        for u in upstreams
-            # add current definition as an downstream dependency to it's upstreams
-            push!(get!(downstream_dependencies, u, String[]), name)
-        end
-    end
-    has_ignored_keys && setdiff!(upstreams, has_ignored_keys)
-    while !isempty(queue)
-        u = popfirst!(queue)
-        push!(topologically_sorted, u)
-        for d in downstream_dependencies[u]
-            if (number_of_upstream_dependencies[d] -= 1) == 0
-                pop!(number_of_upstream_dependencies, d)
-                push!(queue, d)
-            end
-        end
-    end
-    if !isempty(number_of_upstream_dependencies)
-        @debug "The input is not a DAG."
-        cyclic_definitions = first.(sort!(collect(number_of_upstream_dependencies), by=last))
-        append!(topologically_sorted, cyclic_definitions)
-    end
-    return topologically_sorted
 end
 
 # TODO: so far we're creating julia files that are not modules which are including their
@@ -169,7 +127,7 @@ function create_namespaced_packages(ns::NamespaceTrie, output_directory::Abstrac
             end
 
             # load in imported proto files that are defined in this package (the files ending with `_pb.jl`)
-            sorted_files = _topological_sort!(
+            sorted_files, _ = _topological_sort(
                 (file.import_path => file for file in ns.proto_files),
                 setdiff(keys(parsed_files), map(x->x.import_path, ns.proto_files))
             )

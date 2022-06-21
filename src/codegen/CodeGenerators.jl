@@ -12,7 +12,8 @@ import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixe
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
 import Pkg
 import Dates
-import ..ProtocolBuffers: VENDORED_WELLKNOWN_TYPES_PARENT_PATH
+import ..ProtocolBuffers: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
+import ..ProtocolBuffers: _topological_sort, get_upstream_dependencies!
 
 include("modules.jl")
 include("translation.jl")

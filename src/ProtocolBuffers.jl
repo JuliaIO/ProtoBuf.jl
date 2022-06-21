@@ -1,6 +1,12 @@
 module ProtocolBuffers
 import EnumX
 import TranscodingStreams
+using TOML
+
+const PACKAGE_VERSION = let
+    project = TOML.parsefile(joinpath(pkgdir(@__MODULE__), "Project.toml"))
+    VersionNumber(project["version"])
+end
 
 const VENDORED_WELLKNOWN_TYPES_PARENT_PATH = dirname(@__FILE__)
 struct OneOf{T}
@@ -28,13 +34,16 @@ end
 #     else
 #         error(string(
 #             "This `OneOf` has no field `$(s)` (Did you mean `$(Base.getfield(t, :name))`? ",
-#             "Alternatvely, you can get the value by invoking getinde `[]`)"
+#             "Alternatvely, you can get the value by invoking getindex `[]`)"
 #         ))
 #     end
 # end
 Base.getindex(t::OneOf) = getfield(t, :value)
 Base.nameof(t::OneOf) = getfield(t, :name) # is this the right thing to overload?
 Base.Pair(t::OneOf) = nameof(t) => t[]
+
+
+include("topological_sort.jl")
 
 include("lexing/Tokens.jl")
 include("lexing/Lexers.jl")

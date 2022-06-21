@@ -2,6 +2,7 @@ module Parsers
 
 using ..Lexers: Lexers, Lexer, next_token, filepath
 using ..Tokens: Tokens, kind, val
+import ..ProtocolBuffers: _topological_sort, get_upstream_dependencies!
 
 const MAX_FIELD_NUMBER = Int(typemax(UInt32) >> 3)
 
@@ -216,7 +217,6 @@ struct ProtoFile
     preamble::ProtoFilePreamble
     definitions::Dict{String,AbstractProtoType}
     sorted_definitions::Vector{String}
-    self_referential_definitions::Set{String} # We can probably drop this
     cyclic_definitions::Set{String} # TODO: handle cyclic_definitions in codegen
     extends::Vector{ExtendType}
     external_refereces::Vector{String}
@@ -271,14 +271,12 @@ function parse_proto_file(ps::ParserState)
         imported_packages,
     )
     external_references = find_external_references(definitions)
-    topologically_sorted, cyclic_definitions, self_referential_definitions =
-        _topological_sort(definitions, external_references)
+    topologically_sorted, cyclic_definitions = _topological_sort(definitions, external_references)
     return ProtoFile(
         filepath(ps.l),
         preamble,
         definitions,
         topologically_sorted,
-        self_referential_definitions,
         cyclic_definitions,
         extends,
         collect(external_references),
