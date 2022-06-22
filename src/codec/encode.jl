@@ -1,28 +1,28 @@
-function encode_tag(io::IO, field_number, wire_type::WireType)
-    vbyte_encode(io, (UInt32(field_number) << 3) | UInt32(wire_type))
+function encode_tag(e::ProtoEncoder, field_number, wire_type::WireType)
+    vbyte_encode(e.io, (UInt32(field_number) << 3) | UInt32(wire_type))
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Vector{T}) where {T}
+function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T}
     _io = IOBuffer(sizehint=sizeof(T))
-    Base.ensureroom(io, length(x) * sizeof(T))
+    Base.ensureroom(e.io, length(x) * sizeof(T))
     for el in x
         _encode(_io, el)
-        encode_tag(io, i, LENGTH_DELIMITED)
-        vbyte_encode(io, UInt32(position(_io)))
-        write(_io, io)
+        encode_tag(e, i, LENGTH_DELIMITED)
+        vbyte_encode(e.io, UInt32(position(_io)))
+        write(_io, e.io)
         seekstart(_io)
     end
     close(_io)
     return nothing
 end
 
-function encode(io::IO, i::Int, x::T) where {T}
+function encode(e::ProtoEncoder, i::Int, x::T) where {T}
     _io = PipeBuffer(Vector{UInt8}(undef, sizeof(T)))
     _encode(_io, x)
-    encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(position(_io)))
-    write(_io, io)
+    encode_tag(e, i, LENGTH_DELIMITED)
+    vbyte_encode(e.io, UInt32(position(_io)))
+    write(_io, e.io)
     close(_io)
     return nothing
 end
@@ -96,7 +96,7 @@ function _encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,Nothing}}}) wher
     nothing
 end
 
-function encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,W}}}) where {K,V,W}
+function encode(e::ProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,W}}}) where {K,V,W}
     Base.ensureroom(io, 2length(x))
     for (k, v) in x
         _encode(io, k)
@@ -125,112 +125,112 @@ end
 
 
 
-function encode(io::IO, i::Int, x::T) where {T<:Union{Bool,Int32,Int64,UInt32,UInt64}}
-    encode_tag(io, i, VARINT)
-    _encode(io, x)
+function encode(e::ProtoEncoder, i::Int, x::T) where {T<:Union{Bool,Int32,Int64,UInt32,UInt64}}
+    encode_tag(e, i, VARINT)
+    _encode(e.io, x)
     return nothing
 end
 
-function encode(io::IO, i::Int, x::T, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
-    encode_tag(io, i, VARINT)
-    _encode(io, x, Val{:zigzag})
+function encode(e::ProtoEncoder, i::Int, x::T, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
+    encode_tag(e, i, VARINT)
+    _encode(e.io, x, Val{:zigzag})
     return nothing
 end
 
-function encode(io::IO, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int32,UInt32}}
-    encode_tag(io, i, FIXED32)
-    _encode(io, x, Val{:fixed})
+function encode(e::ProtoEncoder, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int32,UInt32}}
+    encode_tag(e, i, FIXED32)
+    _encode(e.io, x, Val{:fixed})
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Float32)
-    encode_tag(io, i, FIXED32)
-    _encode(io, x)
+function encode(e::ProtoEncoder, i::Int, x::Float32)
+    encode_tag(e, i, FIXED32)
+    _encode(e.io, x)
     return nothing
 end
 
-function encode(io::IO, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int64,UInt64}}
-    encode_tag(io, i, FIXED64)
-    _encode(io, x, Val{:fixed})
+function encode(e::ProtoEncoder, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int64,UInt64}}
+    encode_tag(e, i, FIXED64)
+    _encode(e.io, x, Val{:fixed})
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Float64)
-    encode_tag(io, i, FIXED64)
-    _encode(io, x)
+function encode(e::ProtoEncoder, i::Int, x::Float64)
+    encode_tag(e, i, FIXED64)
+    _encode(e.io, x)
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Vector{T}) where {T<:Union{Bool,UInt8,Float32,Float64}}
-    encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(sizeof(x)))
-    _encode(io, x)
+function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{Bool,UInt8,Float32,Float64}}
+    encode_tag(e, i, LENGTH_DELIMITED)
+    vbyte_encode(e.io, UInt32(sizeof(x)))
+    _encode(e.io, x)
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Vector{String})
-    Base.ensureroom(io, 9length(x))
+function encode(e::ProtoEncoder, i::Int, x::Vector{String})
+    Base.ensureroom(e.io, 9length(x))
     for el in x
-        encode_tag(io, i, LENGTH_DELIMITED)
-        vbyte_encode(io, UInt32(sizeof(el)))
-        _encode(io, el)
+        encode_tag(e, i, LENGTH_DELIMITED)
+        vbyte_encode(e.io, UInt32(sizeof(el)))
+        _encode(e.io, el)
     end
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Vector{Vector{UInt8}})
-    Base.ensureroom(io, sizeof(x) + length(x))
+function encode(e::ProtoEncoder, i::Int, x::Vector{Vector{UInt8}})
+    Base.ensureroom(e.io, sizeof(x) + length(x))
     for el in x
-        encode_tag(io, i, LENGTH_DELIMITED)
-        vbyte_encode(io, UInt32(sizeof(el)))
-        _encode(io, el)
+        encode_tag(e, i, LENGTH_DELIMITED)
+        vbyte_encode(e.io, UInt32(sizeof(el)))
+        _encode(e.io, el)
     end
     return nothing
 end
 
-function encode(io::IO, i::Int, x::String)
-    encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(sizeof(x)))
-    _encode(io, x)
+function encode(e::ProtoEncoder, i::Int, x::String)
+    encode_tag(e, i, LENGTH_DELIMITED)
+    vbyte_encode(e.io, UInt32(sizeof(x)))
+    _encode(e.io, x)
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
-    encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(sizeof(x)))
-    _encode(io, x, Val{:fixed})
+function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
+    encode_tag(e, i, LENGTH_DELIMITED)
+    vbyte_encode(e.io, UInt32(sizeof(x)))
+    _encode(e.io, x, Val{:fixed})
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
+function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
     _io = PipeBuffer(Vector{UInt8}(undef, length(x)), maxsize=10length(x))
     _encode(_io, x)
-    encode_tag(io, i, LENGTH_DELIMITED)
-    vbyte_encode(io, UInt32(position(_io)))
-    write(_io, io)
+    encode_tag(e, i, LENGTH_DELIMITED)
+    vbyte_encode(e.io, UInt32(position(_io)))
+    write(_io, e.io)
     close(_io)
     return nothing
 end
 
-function encode(io::IO, i::Int, x::Dict{K,V}) where {K,V}
-    encode_tag(io, i, LENGTH_DELIMITED)
-    _encode(io, x)
+function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
+    encode_tag(e, i, LENGTH_DELIMITED)
+    _encode(e.io, x)
     nothing
 end
 
-function encode(io::IO, i::Int, x::Dict{K,V}, ::Type{W}) where {K,V,W}
-    encode_tag(io, i, LENGTH_DELIMITED)
-    _encode(io, x, W)
+function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}, ::Type{W}) where {K,V,W}
+    encode_tag(e, i, LENGTH_DELIMITED)
+    _encode(e.io, x, W)
     nothing
 end
 
 
-function encode(io::IO, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
-    encode_tag(io, i, LENGTH_DELIMITED)
+function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
+    encode_tag(e, i, LENGTH_DELIMITED)
     _io = IOBuffer(sizehint=cld(sizeof(x), _max_varint_size(T)))
     _encode(_io, x)
-    vbyte_encode(io, UInt32(position(_io)))
-    write(_io, io)
+    vbyte_encode(e.io, UInt32(position(_io)))
+    write(_io, e.io)
     close(_io)
     return nothing
 end
