@@ -27,6 +27,15 @@ end
 # within message / group
 mutable struct ReferencedType <: AbstractProtoType
     name::String
+    package::String
+    enclosing_type::Union{Nothing,String}
+    type_name::String
+    leading_dot::Bool
+end
+function ReferencedType(name::String)
+    leading_dot = startswith(name, '.')
+    package_parts = split(name, '.'; keepempty=false)
+    ReferencedType(package_parts[end], join(package_parts[1:end-1], '.'), nothing, "", leading_dot)
 end
 struct RPCType <: AbstractProtoType
     name::String
@@ -60,6 +69,7 @@ function __try_namespace_referenced_types!(fields, definitions, namespace)
             namespaced_name = string(namespace, ".", field.type.name)
             if namespaced_name in keys(definitions)
                 field.type.name = namespaced_name
+                field.type.enclosing_type = namespace
             end
         end
     end

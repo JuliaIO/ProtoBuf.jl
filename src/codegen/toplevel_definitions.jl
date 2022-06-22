@@ -110,7 +110,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "using EnumX: @enumx")
     if is_namespaced(p)
         println(io)
-        println(io, "export ", join(Iterators.map(x->safename(x, imports), keys(p.definitions)), ", "))
+        println(io, "export ", join(Iterators.map(x->safename(x, ctx), keys(p.definitions)), ", "))
     end
     !isempty(p.cyclic_definitions) && println(io, "\n# Abstract types to help resolve mutually recursive definitions")
     for name in p.cyclic_definitions

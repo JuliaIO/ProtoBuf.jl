@@ -54,6 +54,9 @@ function jl_type_default(f::FieldType{ReferencedType}, ctx)
             return "$(jl_typename(f.type, ctx)[1:end-2]).$(default)"
         end
     else # message, AFAIK services shouldn't be referenced
+        if f.type.name in ctx.proto_file.cyclic_definitions || f.label == Parsers.OPTIONAL
+            return "Ref{Union{Nothing,$(jl_typename(f.type, ctx))}}(nothing)"
+        end
         return "Ref{$(jl_typename(f.type, ctx))}()"
     end
 end
@@ -68,6 +71,9 @@ function jl_default_value(f::GroupType, ctx)
     if _is_repeated_field(f)
         return "PB.BufferedVector{$(jl_typename(f.type, ctx))}()"
     else
+        if f.type.name in ctx.proto_file.cyclic_definitions || f.label == Parsers.OPTIONAL
+            return "Ref{Union{Nothing,$(jl_typename(f.type, ctx))}}(nothing)"
+        end
         return "Ref{$(jl_typename(f.type, ctx))}()"
     end
 end

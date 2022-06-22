@@ -7,7 +7,7 @@ import ..Parsers: Int64Type, UInt32Type, UInt64Type, SInt32Type, SInt64Type
 import ..Parsers: Fixed32Type, Fixed64Type, SFixed32Type, SFixed64Type, BoolType
 import ..Parsers: StringType, BytesType
 import ..Parsers: GroupType, OneOfType, MapType, FieldType
-import ..Parsers: MessageType, EnumType, ServiceType, ReferencedType
+import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType
 import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixedType
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
 import Pkg

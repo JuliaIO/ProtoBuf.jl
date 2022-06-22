@@ -8,17 +8,9 @@ const JULIA_RESERVED_KEYWORDS = Set{String}([
     "PB", "OneOf", "Nothing", "Vector", "zero", "isempty", "isnothing", "Ref",
 ])
 
-function try_strip_namespace(name::AbstractString, imports::Set{String})
-    for _import in imports
-        if startswith(name, "$(_import).")
-            return @view name[nextind(name, length(_import), 2):end]
-        end
-    end
-    return name
-end
 
-function safename(name::AbstractString, imports::Set{String})
-    for _import in imports
+function safename(name::AbstractString, ctx)
+    for _import in ctx.imports
         if startswith(name, "$(_import).")
             namespaced_name = @view name[nextind(name, length(_import), 2):end]
             return string(proto_module_name(_import), '.', safename(namespaced_name))

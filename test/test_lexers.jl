@@ -1,5 +1,6 @@
 using ProtocolBuffers: Lexers
 using .Lexers: Tokens
+using Test
 
 const KEYWORDS_AND_TYPES = Dict{String, Tokens.Kind}()
 @test allunique(Lexers._PROTOBUF_TYPES_AND_KEYWORDS)

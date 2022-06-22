@@ -26,22 +26,21 @@ jl_typename(::SFixed64Type, ctx) = "Int64"
 jl_typename(::BoolType, ctx)     = "Bool"
 jl_typename(::StringType, ctx)   = "String"
 jl_typename(::BytesType, ctx)    = "Vector{UInt8}"
-jl_typename(t::MessageType, ctx) = safename(t.name, ctx.imports)
+jl_typename(t::MessageType, ctx) = safename(t.name, ctx) #TODO: the method with ctx is probably useless
 function jl_typename(t::MapType, ctx)
     key_type = jl_typename(t.keytype, ctx)
     val_type = jl_typename(t.valuetype, ctx)
     return string("Dict{", key_type, ',', val_type,"}")
 end
 function jl_typename(t::ReferencedType, ctx)
-    name = safename(t.name, ctx.imports)
+    name = safename(t.name)
+    # TODO: explain the confusion between enclosing type and package
+    if !isempty(t.package) && isnothing(t.enclosing_type) && t.package != namespace(ctx.proto_file)
+        name = string(proto_module_name(t.package), '.', name)
+    end
     # This is where EnumX.jl bites us -- we need to search through all defitnition (including imported)
     # to make sure a ReferencedType is an Enum, in which case we need to add a `.T` suffix.
-    isa(get(ctx.proto_file.definitions, t.name, nothing), EnumType) && return string(name, ".T")
-    lookup_name = try_strip_namespace(t.name, ctx.imports)
-    for path in import_paths(ctx.proto_file)
-        defs = ctx.file_map[path].proto_file.definitions
-        isa(get(defs, lookup_name, nothing), EnumType) && return string(name, ".T")
-    end
+    _get_referenced_type_type!(t, ctx) == "enum" && return string(name, ".T")
     return name
 end
 # NOTE: If there is a self-reference to the parent type, we might get
@@ -55,26 +54,37 @@ function _jl_inner_typename(t::OneOfType, ctx)
     return length(union_types) == 1 ? only(union_types) : string("Union{", join(union_types, ','), '}')
 end
 
-
-function _is_message(t::ReferencedType, ctx)
-    isa(get(ctx.proto_file.definitions, t.name, nothing), MessageType) && return true
-    lookup_name = try_strip_namespace(t.name, ctx.imports)
-    for path in import_paths(ctx.proto_file)
-        defs = ctx.file_map[path].proto_file.definitions
-        isa(get(defs, lookup_name, nothing), MessageType) && return true
+function _search_imports(proto_file::ProtoFile, file_map, t::ReferencedType, depth=0)
+    def = get(proto_file.definitions, t.name, nothing)
+    !isnothing(def) && return def
+    for _import in proto_file.preamble.imports
+        ((depth > 1) && _import.import_option != Parsers.PUBLIC) && continue
+        def = _search_imports(file_map[_import.path].proto_file, file_map, t, depth+1)
+        !isnothing(def) && return def
     end
-    return false
 end
 
-function _is_enum(t::ReferencedType, ctx)
-    isa(get(ctx.proto_file.definitions, t.name, nothing), EnumType) && return true
-    lookup_name = try_strip_namespace(t.name, ctx.imports)
-    for path in import_paths(ctx.proto_file)
-        defs = ctx.file_map[path].proto_file.definitions
-        isa(get(defs, lookup_name, nothing), EnumType) && return true
+function _get_referenced_type_type!(t::ReferencedType, ctx)
+    if isempty(t.type_name)
+        def = _search_imports(ctx.proto_file, ctx.file_map, t)
+        isnothing(def) && error("Referenced type `$(t)` not found in any imported package ('$(join(union(ctx.imports, [namespace(ctx.proto_file)]), "', '"))').")
+        if isa(def, MessageType)
+            t.type_name = "message"
+        elseif isa(def, EnumType)
+            t.type_name = "enum"
+        elseif isa(def, ServiceType)
+            t.type_name = "service"
+        elseif isa(def, RPCType)
+            t.type_name = "rpc"
+        else
+            error("Referenced type `$(t.name)` has unsupported type $(typeof(def))")
+        end
     end
-    return false
+    return t.type_name
 end
+
+_is_message(t::ReferencedType, ctx) = _get_referenced_type_type!(t, ctx) == "message"
+_is_enum(t::ReferencedType, ctx)    = _get_referenced_type_type!(t, ctx) == "enum"
 
 _needs_type_params(f::FieldType{ReferencedType}, ctx) = f.type.name in ctx._curr_cyclic_defs
 _needs_type_params(f::FieldType, ctx) = false
