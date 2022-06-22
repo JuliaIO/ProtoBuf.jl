@@ -420,7 +420,6 @@ end
 
 function generate_struct_field(io, field::OneOfType, struct_name, ctx, type_params)
     field_name = jl_fieldname(field)
-    @info field_name
     # When a field type is self-referential, we'll use Nothing to signal
     # the bottom of the recursion. Note that we don't have to do this
     # for repeated (`Vector{...}`) types; at this point `type_name`

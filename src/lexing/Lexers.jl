@@ -161,8 +161,6 @@ function emit(l::Lexer{IO_t}, kind::Tokens.Kind, err::Tokens.TokenError=Tokens.N
         err,
         (l.token_start_row, l.token_start_col),
         (l.current_row, l.current_col - 1),
-        l.token_start_pos,
-        position(l) - 1,
         str,
     )
     readoff(l)
@@ -231,7 +229,7 @@ function lex_forwardslash(l::Lexer, c)
     end
 end
 
-# We consumed a a letter or a '_'
+# We consumed a letter or a '_'
 function lex_ident(l::Lexer)
     accept_batch(l, is_fully_qualified_ident_char)
     return emit(l, Tokens.IDENTIFIER)
@@ -369,9 +367,8 @@ function lex_quote(l::Lexer, c)
         elseif pc == enclosing_quote
             readchar(l)
             break
-        elseif pc == '$' && ppc == '{'
+        elseif pc == '$'
             write(l.charstore, '\\')
-            readchar(l)
             readchar(l)
         else
             readchar(l)

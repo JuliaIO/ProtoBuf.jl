@@ -35,9 +35,9 @@ function ParserState(input::Union{IO,String})
     ps = ParserState(
         Lexer(input),
         false,
-        Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), 0, 0, ""),
-        Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), 0, 0, ""),
-        Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), 0, 0, ""),
+        Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
+        Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
+        Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
         false,
     )
     readtoken(ps)
