@@ -26,17 +26,19 @@ jl_typename(::SFixed64Type, ctx) = "Int64"
 jl_typename(::BoolType, ctx)     = "Bool"
 jl_typename(::StringType, ctx)   = "String"
 jl_typename(::BytesType, ctx)    = "Vector{UInt8}"
-jl_typename(t::MessageType, ctx) = safename(t.name, ctx) #TODO: the method with ctx is probably useless
+jl_typename(t::MessageType, ctx) = safename(t) #TODO: the method with ctx is probably useless
 function jl_typename(t::MapType, ctx)
     key_type = jl_typename(t.keytype, ctx)
     val_type = jl_typename(t.valuetype, ctx)
     return string("Dict{", key_type, ',', val_type,"}")
 end
 function jl_typename(t::ReferencedType, ctx)
-    name = safename(t.name)
-    # TODO: explain the confusion between enclosing type and package
-    if !isempty(t.package) && isnothing(t.enclosing_type) && t.package != namespace(ctx.proto_file)
-        name = string(proto_module_name(t.package), '.', name)
+    name = safename(t)
+    # The identifier might have been prefixed with either the name of the enclosing type
+    # or with the module it was defined in. Here we determine whether the namespace is
+    # actually a package and if it is, we prefix the safename of the type with it.
+    if !(isempty(t.namespace) || !isnothing(t.enclosing_type) || t.namespace_is_type || t.namespace == namespace(ctx.proto_file))
+        name = string(proto_module_name(t.namespace), '.', name)
     end
     # This is where EnumX.jl bites us -- we need to search through all defitnition (including imported)
     # to make sure a ReferencedType is an Enum, in which case we need to add a `.T` suffix.

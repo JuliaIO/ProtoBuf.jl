@@ -27,15 +27,21 @@ end
 # within message / group
 mutable struct ReferencedType <: AbstractProtoType
     name::String
-    package::String
+    # Either [.]?(namespace).name, (type).name
+    # In the beginning, we cannot distinguish between packages vs types
+    # so we update the type later in the pipeline
+    namespace::String
+    # Whether we're pointing to something defined within a type
+    # set in `_try_namespace_referenced_types!`
     enclosing_type::Union{Nothing,String}
-    type_name::String
+    type_name::String # message | enum | service | rpc
     leading_dot::Bool
+    namespace_is_type::Bool # true if (Type).name; we set this in `find_external_references`
 end
 function ReferencedType(name::String)
     leading_dot = startswith(name, '.')
-    package_parts = split(name, '.'; keepempty=false)
-    ReferencedType(package_parts[end], join(package_parts[1:end-1], '.'), nothing, "", leading_dot)
+    package_path = split(name, '.'; keepempty=false)
+    ReferencedType(package_path[end], join(package_path[1:end-1], '.'), nothing, "", leading_dot, false)
 end
 struct RPCType <: AbstractProtoType
     name::String
@@ -65,8 +71,8 @@ function __try_namespace_referenced_types!(fields, definitions, namespace)
     for field in fields
         if isa(field, OneOfType)
             _try_namespace_referenced_types!(field.fields, definitions, namespace)
-        elseif isa(field.type, ReferencedType) && !occursin('.', field.type.name)
-            namespaced_name = string(namespace, ".", field.type.name)
+        elseif isa(field.type, ReferencedType) && isempty(field.type.namespace)
+            namespaced_name = string(namespace, '.', field.type.name)
             if namespaced_name in keys(definitions)
                 field.type.name = namespaced_name
                 field.type.enclosing_type = namespace
@@ -76,7 +82,7 @@ function __try_namespace_referenced_types!(fields, definitions, namespace)
     return nothing
 end
 
-_dot_join(prefix, s) = isempty(prefix) ? s : string(prefix, ".", s)
+_dot_join(prefix, s) = isempty(prefix) ? s : string(prefix, '.', s)
 
 @enum(FieldLabel, DEFAULT, REQUIRED, OPTIONAL, REPEATED)
 

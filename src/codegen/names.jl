@@ -8,34 +8,22 @@ const JULIA_RESERVED_KEYWORDS = Set{String}([
     "PB", "OneOf", "Nothing", "Vector", "zero", "isempty", "isnothing", "Ref",
 ])
 
+_get_name(t::AbstractProtoType) = t.name
 
-function safename(name::AbstractString, ctx)
-    for _import in ctx.imports
-        if startswith(name, "$(_import).")
-            namespaced_name = @view name[nextind(name, length(_import), 2):end]
-            return string(proto_module_name(_import), '.', safename(namespaced_name))
-        end
-    end
-    return safename(name)
-end
+safename(t::AbstractProtoType) = _safename(_get_name(t))
 
-function safename(name::AbstractString)
-    # TODO: handle namespaced definitions (pkg_name.MessageType)
+function _safename(name::AbstractString)
     dot_pos = findfirst(==('.'), name)
     if name in JULIA_RESERVED_KEYWORDS
         return string("var\"#", name, '"')
     elseif isnothing(dot_pos) && !('#' in name)
         return name
-    elseif dot_pos == 1
-        return string("@__MODULE__.", safename(@view name[2:end]))
     else
         return string("var\"", name, '"')
     end
 end
 
-function abstract_type_name(name::AbstractString)
-    return string("var\"##Abstract", name, '"')
-end
+abstract_type_name(name::AbstractString) = string("var\"##Abstract", name, '"')
 
-jl_fieldname(f::AbstractProtoFieldType) = safename(f.name)
-jl_fieldname(f::GroupType) = safename(f.field_name)
+jl_fieldname(f::AbstractProtoFieldType) = _safename(f.name)
+jl_fieldname(f::GroupType) = _safename(f.field_name)

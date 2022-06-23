@@ -86,7 +86,7 @@ function jl_fieldname_deref(f::FieldType{ReferencedType}, ctx)
 end
 
 function generate_decode_method(io, t::MessageType, ctx)
-    println(io, "function PB.decode(d::PB.ProtoDecoder, ::Type{$(safename(t.name))})")
+    println(io, "function PB.decode(d::PB.ProtoDecoder, ::Type{$(safename(t))})")
     # defaults
     for field in t.fields
         println(io, "    ", jl_fieldname(field), " = ", jl_default_value(field, ctx))

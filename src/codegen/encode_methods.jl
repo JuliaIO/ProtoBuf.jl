@@ -65,16 +65,16 @@ function print_field_encode_expr(io, f::GroupType, ctx)
 end
 
 function print_field_encode_expr(io, fs::OneOfType, ctx)
-    println(io, "    if isnothing(x.$(safename(fs.name)));")
+    println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
-        println(io, "    elseif ", "x.$(safename(fs.name)).name == :", jl_fieldname(f))
+        println(io, "    elseif ", "x.$(safename(fs)).name == :", jl_fieldname(f))
         println(io, "    " ^ 2, field_encode_expr(f, ctx))
     end
     println(io, "    end")
 end
 
 function generate_encode_method(io, t::MessageType, ctx)
-    println(io, "function PB.encode(e::PB.ProtoEncoder, x::$(safename(t.name)))")
+    println(io, "function PB.encode(e::PB.ProtoEncoder, x::$(safename(t)))")
     println(io, "    initpos = position(e.io)")
     for field in t.fields
         print_field_encode_expr(io, field, ctx)

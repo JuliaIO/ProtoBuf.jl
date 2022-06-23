@@ -29,7 +29,7 @@ function namespaced_top_include(p::ProtoFile)
 end
 function namespaced_top_import(p::ProtoFile)
     top = first(split(namespace(p), "/"))
-    return string(".", proto_module_name(top))
+    return string('.', proto_module_name(top))
 end
 
 has_dependencies(p::ResolvedProtoFile) = has_dependencies(p.proto_file)

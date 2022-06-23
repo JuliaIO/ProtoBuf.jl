@@ -24,12 +24,26 @@ function generate_struct_field(io, field, struct_name, ctx, type_params)
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::OneOfType, _, ctx, type_params)
+function generate_struct_field(io, field::FieldType{ReferencedType}, struct_name, ctx, type_params)
     field_name = jl_fieldname(field)
+    type_name = jl_typename(field, ctx)
     # When a field type is self-referential, we'll use Nothing to signal
     # the bottom of the recursion. Note that we don't have to do this
     # for repeated (`Vector{...}`) types; at this point `type_name`
     # is already a vector if the field was repeated.
+    type_param = get(type_params, field.name, nothing)
+    if struct_name == type_name
+        type_name = string("Union{Nothing,", type_name,"}")
+    elseif !isnothing(type_param)
+        type_name = string("Union{Nothing,", type_param.param,"}")
+    elseif field.label == Parsers.OPTIONAL && _is_message(field.type, ctx)
+        type_name = string("Union{Nothing,", type_name,"}")
+    end
+    println(io, "    ", field_name, "::", type_name)
+end
+
+function generate_struct_field(io, field::OneOfType, _, ctx, type_params)
+    field_name = jl_fieldname(field)
     type_param = get(type_params, field.name, nothing)
     if !isnothing(type_param)
         type_name = string("Union{Nothing,OneOf{", type_param.param,"}}")
@@ -42,7 +56,7 @@ end
 codegen(t::AbstractProtoType, ctx::Context) = codegen(stdin, t, ctx::Context)
 
 function codegen(io, t::MessageType, ctx::Context)
-    struct_name = safename(t.name)
+    struct_name = safename(t)
     # After we're done with this struct, all the subsequent definitions can use it
     # so we pop it from the list of cyclic definitions.
     abstract_base_name = pop!(ctx._curr_cyclic_defs, t.name, "")
@@ -66,13 +80,13 @@ end
 codegen(io, t::GroupType, ctx::Context) = codegen(io, t.type, ctx)
 
 function codegen(io, t::EnumType, ::Context)
-    name = safename(t.name)
+    name = safename(t)
     println(io, "@enumx ", name, join(" $k=$n" for (k, n) in zip(keys(t.elements), t.elements)))
 end
 
 function codegen(io, t::ServiceType, ::Context)
     println(io, "# TODO: SERVICE")
-    println(io, "#    ", safename(t.name))
+    println(io, "#    ", safename(t))
 end
 
 function translate(path::String, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile})
@@ -110,7 +124,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "using EnumX: @enumx")
     if is_namespaced(p)
         println(io)
-        println(io, "export ", join(Iterators.map(x->safename(x, ctx), keys(p.definitions)), ", "))
+        println(io, "export ", join(Iterators.map(x->_safename(x), keys(p.definitions)), ", "))
     end
     !isempty(p.cyclic_definitions) && println(io, "\n# Abstract types to help resolve mutually recursive definitions")
     for name in p.cyclic_definitions

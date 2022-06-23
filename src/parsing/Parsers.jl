@@ -150,7 +150,7 @@ function _parse_option!(ps::ParserState, options::Dict{String,<:Union{String,Dic
         elseif accept(ps, Tokens.IDENTIFIER)
             last_name_part = val(token(ps))
             if prev_had_parens
-                startswith(last_name_part, ".") || error("Invalid option identifier $(option_name)$(last_name_part)")
+                startswith(last_name_part, '.') || error("Invalid option identifier $(option_name)$(last_name_part)")
             end
             option_name *= last_name_part
         elseif accept(ps, Tokens.DOT)

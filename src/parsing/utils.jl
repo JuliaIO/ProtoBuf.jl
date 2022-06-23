@@ -12,12 +12,20 @@ _get_types(t::RPCType) = (t.request_type, t.response_type)
 function find_external_references(definitions::Dict{String, AbstractProtoType})
     # Traverse all definition and see which of those referenced are not defined
     # in this module. Create a list of these imported definitions so that we can ignore
-    # them when doing the topological sort. Also, if they're not containing a dot... error?
+    # them when doing the topological sort.
     referenced = Set{String}()
     for definition in values(definitions)
         for field in _get_fields(definition)
             for type in _get_types(field)
-                isa(type, ReferencedType) && push!(referenced, type.name)
+                if isa(type, ReferencedType)
+                    push!(referenced, type.name)
+                    if type.namespace in keys(definitions)
+                        type.namespace_is_type = true
+                        # The prefix is referring to another type in which the referenced type is defined
+                        # we need to change the name to reflect that to prevent name collisions.
+                        type.name = string(type.namespace, '.', type.name)
+                    end
+                end
             end
         end
     end

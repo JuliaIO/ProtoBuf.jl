@@ -111,6 +111,9 @@ end
         for b in Iterators.product(((0x00, 0x80) for _ in 1:4)...)
             test_roundtrip(reinterpret(UInt32, collect(b))[1])
         end
+        for b in Iterators.product(((0x00, 0xaa) for _ in 1:4)...)
+            test_roundtrip(reinterpret(UInt32, collect(b))[1])
+        end
     end
 
     @testset "UInt64" begin
@@ -121,6 +124,9 @@ end
             test_roundtrip(reinterpret(UInt64, collect(b))[1])
         end
         for b in Iterators.product(((0x00, 0x80) for _ in 1:8)...)
+            test_roundtrip(reinterpret(UInt64, collect(b))[1])
+        end
+        for b in Iterators.product(((0x00, 0xaa) for _ in 1:8)...)
             test_roundtrip(reinterpret(UInt64, collect(b))[1])
         end
     end
