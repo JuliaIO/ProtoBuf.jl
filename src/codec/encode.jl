@@ -110,24 +110,34 @@ function encode(e::ProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,W}}}) wh
     nothing
 end
 
-function _encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{Q,Nothing}}}) where {K,V,Q}
-    Base.ensureroom(io, 2length(x))
-    for (k, v) in x
-        _encode(io, k, Val{Q})
-        _encode(io, v)
+for T in (:(:fixed), :(:zigzag))
+    @eval function _encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
+        Base.ensureroom(io, 2length(x))
+        for (k, v) in x
+            _encode(io, k, Val{$(T)})
+            _encode(io, v)
+        end
+        nothing
     end
-    nothing
+    @eval function _encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
+        Base.ensureroom(io, 2length(x))
+        for (k, v) in x
+            _encode(io, k)
+            _encode(io, v, Val{$(T)})
+        end
+        nothing
+    end
 end
 
-function _encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{Q,W}}}) where {K,V,Q,W}
-    Base.ensureroom(io, 2length(x))
-    # FIXME: `Nothing` makes is here as Q for some reason:/
-    @info Q W
-    for (k, v) in x
-        _encode(io, k, Val{Q})
-        _encode(io, v, Val{W})
+for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
+    @eval function _encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
+        Base.ensureroom(io, 2length(x))
+        for (k, v) in x
+            _encode(io, k, Val{$(T)})
+            _encode(io, v, Val{$(S)})
+        end
+        nothing
     end
-    nothing
 end
 
 

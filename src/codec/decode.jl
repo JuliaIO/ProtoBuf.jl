@@ -33,7 +33,7 @@ function decode!(d::ProtoDecoder, buffer::Dict{K,V}) where {K,V}
     nothing
 end
 
-function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,Nothing}}}) where {K,V}
+function decode!(d::ProtoDecoder, buffer::Dict{K,V}) where {K,V}
     bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
     while position(d.io) < bytelen
         key = decode(d, K)
@@ -43,34 +43,38 @@ function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,No
     nothing
 end
 
-function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,W}}}) where {K,V,W}
-    bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-    while position(d.io) < bytelen
-        key = decode(d, K)
-        val = decode(d, V, Val{W})
-        buffer[key] = val
+for T in (:(:fixed), :(:zigzag))
+    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
+        bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
+        while position(d.io) < bytelen
+            key = decode(d, K)
+            val = decode(d, V, Val{$(T)})
+            buffer[key] = val
+        end
+        nothing
     end
-    nothing
+
+    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
+        bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
+        while position(d.io) < bytelen
+            key = decode(d, K, Val{$(T)})
+            val = decode(d, V)
+            buffer[key] = val
+        end
+        nothing
+    end
 end
 
-function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Q,Nothing}}}) where {K,V,Q}
-    bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-    while position(d.io) < bytelen
-        key = decode(d, K, Val{Q})
-        val = decode(d, V)
-        buffer[key] = val
+for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
+    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
+        bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
+        while position(d.io) < bytelen
+            key = decode(d, K, Val{$(T)})
+            val = decode(d, V, Val{$(S)})
+            buffer[key] = val
+        end
+        nothing
     end
-    nothing
-end
-
-function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Q,W}}}) where {K,V,Q,W}
-    bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-    while position(d.io) < bytelen
-        key = decode(d, K, Val{Q})
-        val = decode(d, V, Val{W})
-        buffer[key] = val
-    end
-    nothing
 end
 
 function decode(d::ProtoDecoder, ::Type{String})
