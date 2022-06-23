@@ -24,10 +24,10 @@ end
     b < 0x80 && return (x | (b << 28))
 
     x |= (b & 0x7F) << 28
-    b = T(read(io, UInt8))
-    b < 0x80 && return (x | (b << 7))
 
-    return zero(T)
+    while Bool(read(io, UInt8) >> 7) end
+
+    return x
 end
 
 @inline function vbyte_decode(io, ::Type{T}) where {T<:Union{UInt64,Int64}}
