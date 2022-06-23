@@ -13,10 +13,12 @@ decode(d::ProtoDecoder, ::Type{Int32}) = reinterpret(Int32, UInt32(vbyte_decode(
 # int64
 decode(d::ProtoDecoder, ::Type{Int64}) = reinterpret(Int64, vbyte_decode(d.io, UInt64))
 # sfixed32, sfixed64, # fixed32, fixed64
-decode(d::ProtoDecoder, ::Type{T}, ::Val{:fixed}) where {T <: Union{Int32,Int64,UInt32,UInt64}} = read(d.io, T)
+decode(d::ProtoDecoder, ::Type{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64,UInt32,UInt64}} = read(d.io, T)
 # sint32, sint64
-function decode(d::ProtoDecoder, ::Type{T}, ::Val{:zigzag}) where {T <: Union{Int32,Int64}}
-    return convert(T, zigzag_decode(vbyte_decode(d.io, unsigned(T))))
+function decode(d::ProtoDecoder, ::Type{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
+    v = vbyte_decode(d.io, unsigned(T))
+    z = zigzag_decode(v)
+    return reinterpret(T, z)
 end
 decode(d::ProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
 decode(d::ProtoDecoder, ::Type{T}) where {T <: Base.Enum} = T(vbyte_decode(d.io, Int32))
@@ -86,12 +88,16 @@ function decode(d::ProtoDecoder, ::Type{Vector{UInt8}})
     bytelen = vbyte_decode(d.io, UInt32)
     return read(d.io, bytelen)
 end
+function decode(d::ProtoDecoder, ::Type{Base.CodeUnits{UInt8, String}})
+    bytelen = vbyte_decode(d.io, UInt32)
+    return read(d.io, bytelen)
+end
 function decode!(d::ProtoDecoder, buffer::BufferedVector{Vector{UInt8}})
     buffer[] = decode(d, Vector{UInt8})
     return nothing
 end
 
-function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Int32,Int64,UInt32,UInt32,Base.Enum}}
+function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Int32,Int64,UInt32,UInt64,Base.Enum}}
     if w == LENGTH_DELIMITED
         bytelen = vbyte_decode(d.io, UInt32)
         endpos = bytelen + position(d.io)
@@ -126,7 +132,7 @@ function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type
         n_current = length(buffer.elements)
         resize!(buffer.elements, n_current + n_incoming)
         endpos = bytelen + position(d.io)
-        for i in (n_current+1):n_incoming
+        for i in (n_current+1):(n_current + n_incoming)
             buffer.occupied += 1
             @inbounds buffer.elements[i] = decode(d, T, Val{:fixed})
         end
@@ -144,7 +150,7 @@ function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where 
         n_current = length(buffer.elements)
         resize!(buffer.elements, n_current + n_incoming)
         endpos = bytelen + position(d.io)
-        for i in (n_current+1):n_incoming
+        for i in (n_current+1):(n_current + n_incoming)
             buffer.occupied += 1
             @inbounds buffer.elements[i] = decode(d, T)
         end

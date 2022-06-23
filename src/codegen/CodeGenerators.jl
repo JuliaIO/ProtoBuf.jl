@@ -10,7 +10,6 @@ import ..Parsers: GroupType, OneOfType, MapType, FieldType
 import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType
 import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixedType
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
-import Pkg
 import Dates
 import ..ProtocolBuffers: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
 import ..ProtocolBuffers: _topological_sort, get_upstream_dependencies!

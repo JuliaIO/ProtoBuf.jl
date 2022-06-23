@@ -31,6 +31,7 @@ mutable struct BufferedVector{T}
     occupied::Int
 end
 BufferedVector{T}() where {T} = BufferedVector(T[], 0)
+BufferedVector(v::Vector{T}) where {T} = BufferedVector{T}(v, length(v))
 Base.getindex(x::BufferedVector) = resize!(x.elements, x.occupied)
 @inline function Base.setindex!(buffer::BufferedVector{T}, x::T) where {T}
     if length(buffer.elements) == buffer.occupied

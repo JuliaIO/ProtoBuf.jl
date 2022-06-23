@@ -2,8 +2,12 @@ using Test
 using Aqua
 import ProtocolBuffers
 
-include("test_lexers.jl")
+@testset "ProtocolBuffers" begin
+    include("test_lexers.jl")
+    include("test_vbyte.jl")
+    include("test_encode.jl")
 
-@testset "Aqua" begin
-    Aqua.test_all(ProtocolBuffers)
+    @testset "Aqua" begin
+        Aqua.test_all(ProtocolBuffers)
+    end
 end

@@ -70,6 +70,11 @@ function _encode(io::IO, x::Vector{T}) where {T<:Union{Bool,UInt8,Float32,Float6
     return nothing
 end
 
+function _encode(io::IO, x::Base.CodeUnits{UInt8, String})
+    write(io, x)
+    return nothing
+end
+
 function _encode(io::IO, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64,Base.Enum}}
     Base.ensureroom(io, length(x))
     for el in x
@@ -116,6 +121,8 @@ end
 
 function _encode(io::IO, x::Dict{K,V}, ::Type{Val{Tuple{Q,W}}}) where {K,V,Q,W}
     Base.ensureroom(io, 2length(x))
+    # FIXME: `Nothing` makes is here as Q for some reason:/
+    @info Q W
     for (k, v) in x
         _encode(io, k, Val{Q})
         _encode(io, v, Val{W})
@@ -168,6 +175,13 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{Bool,UInt
     return nothing
 end
 
+function encode(e::ProtoEncoder, i::Int, x::Base.CodeUnits{UInt8, String})
+    encode_tag(e, i, LENGTH_DELIMITED)
+    vbyte_encode(e.io, UInt32(sizeof(x)))
+    _encode(e.io, x)
+    return nothing
+end
+
 function encode(e::ProtoEncoder, i::Int, x::Vector{String})
     Base.ensureroom(e.io, 9length(x))
     for el in x
@@ -203,34 +217,45 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) wher
 end
 
 function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
-    _io = PipeBuffer(Vector{UInt8}(undef, length(x)), maxsize=10length(x))
+    _io = IOBuffer(sizehint=length(x), maxsize=10length(x)) # TODO: is sizehint necessary when we ensureroom in _encode?
     _encode(_io, x)
     encode_tag(e, i, LENGTH_DELIMITED)
     vbyte_encode(e.io, UInt32(position(_io)))
-    write(_io, e.io)
+    seekstart(_io)
+    write(e.io, _io)
     close(_io)
     return nothing
 end
 
 function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
+    _io = IOBuffer(sizehint=2length(x))
+    _encode(_io, x)
     encode_tag(e, i, LENGTH_DELIMITED)
-    _encode(e.io, x)
+    vbyte_encode(e.io, UInt32(position(_io)))
+    seekstart(_io)
+    write(e.io, _io)
+    close(_io)
     nothing
 end
 
 function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}, ::Type{W}) where {K,V,W}
+    _io = IOBuffer(sizehint=2length(x))
+    _encode(_io, x, W)
     encode_tag(e, i, LENGTH_DELIMITED)
-    _encode(e.io, x, W)
+    vbyte_encode(e.io, UInt32(position(_io)))
+    seekstart(_io)
+    write(e.io, _io)
+    close(_io)
     nothing
 end
-
 
 function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
     encode_tag(e, i, LENGTH_DELIMITED)
     _io = IOBuffer(sizehint=cld(sizeof(x), _max_varint_size(T)))
-    _encode(_io, x)
+    _encode(_io, x, Val{:zigzag})
     vbyte_encode(e.io, UInt32(position(_io)))
-    write(_io, e.io)
+    seekstart(_io)
+    write(e.io, _io)
     close(_io)
     return nothing
 end
