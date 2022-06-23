@@ -41,10 +41,7 @@ function _topological_sort(definitions, ignored_keys::Set{String})
     if !isempty(number_of_upstream_dependencies)
         @debug "The input is not a DAG."
         for cyclic_definition in first.(sort!(collect(number_of_upstream_dependencies), by=last))
-            deps = downstream_dependencies[cyclic_definition]
-            if !(length(deps) == 1 && only(deps) == cyclic_definition)
-                push!(cyclic_definitions, cyclic_definition)
-            end
+            push!(cyclic_definitions, cyclic_definition)
         end
         append!(topologically_sorted, cyclic_definitions)
     end
