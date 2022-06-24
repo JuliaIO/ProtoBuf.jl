@@ -24,55 +24,93 @@ decode(d::ProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
 decode(d::ProtoDecoder, ::Type{T}) where {T <: Base.Enum} = T(vbyte_decode(d.io, Int32))
 decode(d::ProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
 function decode!(d::ProtoDecoder, buffer::Dict{K,V}) where {K,V}
-    bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-    while position(d.io) < bytelen
+    len = vbyte_decode(d.io, UInt32)
+    endpos = position(d.io) + len
+    while position(d.io) < endpos
+        field_number, wire_type = decode_tag(d)
         key = decode(d, K)
+        field_number, wire_type = decode_tag(d)
         val = decode(d, V)
         buffer[key] = val
     end
+    @assert position(d.io) == endpos
     nothing
 end
 
-function decode!(d::ProtoDecoder, buffer::Dict{K,V}) where {K,V}
-    bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-    while position(d.io) < bytelen
+function decode!(d::ProtoDecoder, buffer::Dict{K,Vector{V}}) where {K,V}
+    len = vbyte_decode(d.io, UInt32)
+    endpos = position(d.io) + len
+    vals_buffer = BufferedVector{V}()
+    while position(d.io) < endpos
+        field_number, wire_type = decode_tag(d)
         key = decode(d, K)
-        val = decode(d, V)
-        buffer[key] = val
+        field_number, wire_type = decode_tag(d)
+        decode!(d, wire_type, vals_buffer)
+        buffer[key] = copy(vals_buffer[])
+        empty!(vals_buffer)
     end
+    @assert position(d.io) == endpos
     nothing
 end
 
 for T in (:(:fixed), :(:zigzag))
     @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
-        bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-        while position(d.io) < bytelen
+        len = vbyte_decode(d.io, UInt32)
+        endpos = position(d.io) + len
+        while position(d.io) < endpos
+            field_number, wire_type = decode_tag(d)
             key = decode(d, K)
+            field_number, wire_type = decode_tag(d)
             val = decode(d, V, Val{$(T)})
             buffer[key] = val
         end
+        @assert position(d.io) == endpos
+        nothing
+    end
+
+    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,Vector{V}}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
+        len = vbyte_decode(d.io, UInt32)
+        endpos = position(d.io) + len
+        vals_buffer = BufferedVector{V}()
+        while position(d.io) < endpos
+            field_number, wire_type = decode_tag(d)
+            key = decode(d, K)
+            field_number, wire_type = decode_tag(d)
+            decode!(d, wire_type, vals_buffer, Val{$(T)})
+            buffer[key] = copy(vals_buffer[])
+            empty!(vals_buffer)
+        end
+        @assert position(d.io) == endpos
         nothing
     end
 
     @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
-        bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-        while position(d.io) < bytelen
+        len = vbyte_decode(d.io, UInt32)
+        endpos = position(d.io) + len
+        while position(d.io) < endpos
+            field_number, wire_type = decode_tag(d)
             key = decode(d, K, Val{$(T)})
+            field_number, wire_type = decode_tag(d)
             val = decode(d, V)
             buffer[key] = val
         end
+        @assert position(d.io) == endpos
         nothing
     end
 end
 
 for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
     @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
-        bytelen = vbyte_decode(d.io, UInt32) + position(d.io)
-        while position(d.io) < bytelen
+        len = vbyte_decode(d.io, UInt32)
+        endpos = position(d.io) + len
+        while position(d.io) < endpos
+            field_number, wire_type = decode_tag(d)
             key = decode(d, K, Val{$(T)})
+            field_number, wire_type = decode_tag(d)
             val = decode(d, V, Val{$(S)})
             buffer[key] = val
         end
+        @assert position(d.io) == endpos
         nothing
     end
 end

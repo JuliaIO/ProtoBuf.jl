@@ -123,8 +123,19 @@ end
             @testset "string,fixed32" begin test_encode(Dict{String,UInt32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
             @testset "string,fixed64" begin test_encode(Dict{String,UInt64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
 
-            @testset "string,sint32" begin test_encode(Dict{String,Int32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x10, 0x02], Val{Tuple{Nothing,:zigzag}}) end
-            @testset "string,sint64" begin test_encode(Dict{String,Int64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x10, 0x02], Val{Tuple{Nothing,:zigzag}}) end
+            @testset "string,repeated int32" begin test_encode(Dict{String,Vector{Int32}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x01]) end
+            @testset "string,repeated int64" begin test_encode(Dict{String,Vector{Int64}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x01]) end
+            @testset "string,repeated uint32" begin test_encode(Dict{String,Vector{UInt32}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x01]) end
+            @testset "string,repeated uint64" begin test_encode(Dict{String,Vector{UInt64}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x01]) end
+            @testset "string,repeated bool" begin test_encode(Dict{String,Vector{Bool}}("a" => [true]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x01]) end
+
+            @testset "string,repeated sfixed32" begin test_encode(Dict{String,Vector{Int32}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x04, 0x01, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+            @testset "string,repeated sfixed64" begin test_encode(Dict{String,Vector{Int64}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+            @testset "string,repeated fixed32" begin test_encode(Dict{String,Vector{UInt32}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x04, 0x01, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+            @testset "string,repeated fixed64" begin test_encode(Dict{String,Vector{UInt64}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+
+            @testset "string,repeated sint32" begin test_encode(Dict{String,Vector{Int32}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Val{Tuple{Nothing,:zigzag}}) end
+            @testset "string,repeated sint64" begin test_encode(Dict{String,Vector{Int64}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Val{Tuple{Nothing,:zigzag}}) end
         end
     end
 
