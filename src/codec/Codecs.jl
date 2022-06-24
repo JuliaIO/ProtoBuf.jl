@@ -4,7 +4,7 @@ module Codecs
 # decoder should handle it. This means all struct fields need to be Union{Nothing,T}
 # at least if not REQUIRED. Bummer.
 
-@enum(WireType, VARINT=0, FIXED64=1, LENGTH_DELIMITED=2, START_GROUP=3, END_GROUP=4, FIXED32=5)
+@enum(WireType::UInt32, VARINT=0, FIXED64=1, LENGTH_DELIMITED=2, START_GROUP=3, END_GROUP=4, FIXED32=5)
 
 struct ProtoDecoder{I<:IO,F<:Function}
     io::I
