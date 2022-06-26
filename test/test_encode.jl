@@ -1,6 +1,9 @@
 using ProtocolBuffers: Codecs
 using .Codecs: encode, ProtoEncoder, WireType
 using Test
+using EnumX: @enumx
+
+@enumx EncodeTestEnum A B C
 
 function test_encode(input, i, w::WireType, expected, V::Type=Nothing)
     d = ProtoEncoder(IOBuffer())
@@ -52,6 +55,10 @@ end
         @testset "repeated int32" begin
             test_encode(Int32[1, 2], 2, Codecs.LENGTH_DELIMITED, [0x01, 0x02])
             test_encode(Int32[-1], 2, Codecs.LENGTH_DELIMITED, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01])
+        end
+
+        @testset "repeated enum" begin
+            test_encode([EncodeTestEnum.B, EncodeTestEnum.C], 2, Codecs.LENGTH_DELIMITED, [0x01, 0x02])
         end
 
         @testset "repeated int64" begin
@@ -151,6 +158,10 @@ end
         @testset "int32" begin
             test_encode(Int32(2), 2, Codecs.VARINT, [0x02])
             test_encode(Int32(-1), 2, Codecs.VARINT, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01])
+        end
+
+        @testset "enum" begin
+            test_encode(EncodeTestEnum.C, 2, Codecs.VARINT, [0x02])
         end
 
         @testset "int64" begin

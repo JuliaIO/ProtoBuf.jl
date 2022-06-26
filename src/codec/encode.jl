@@ -10,13 +10,18 @@ function _encode(io::IO, x::T) where {T<:Union{UInt32,UInt64}}
     return nothing
 end
 
-@inline function _encode(io::IO, x::Int64)
+function _encode(io::IO, x::Int64)
     vbyte_encode(io, reinterpret(UInt64, x))
     return nothing
 end
 
 function _encode(io::IO, x::Int32)
     x < 0 ? vbyte_encode(io, reinterpret(UInt64, Int64(x))) : vbyte_encode(io, reinterpret(UInt32, x))
+    return nothing
+end
+
+function _encode(io::IO, x::T) where {T<:Union{Enum{Int32},Enum{UInt32}}}
+    vbyte_encode(io, reinterpret(UInt32, x))
     return nothing
 end
 
@@ -53,7 +58,7 @@ function _encode(io::IO, x::Base.CodeUnits{UInt8, String})
     return nothing
 end
 
-function _encode(io::IO, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64,Base.Enum}}
+function _encode(io::IO, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64,Enum{Int32},Enum{UInt32}}}
     Base.ensureroom(io, length(x))
     for el in x
         _encode(io, el)
@@ -102,7 +107,7 @@ end
 
 
 
-function encode(e::ProtoEncoder, i::Int, x::T) where {T<:Union{Bool,Int32,Int64,UInt32,UInt64}}
+function encode(e::ProtoEncoder, i::Int, x::T) where {T<:Union{Bool,Int32,Int64,UInt32,UInt64,Enum{Int32},Enum{UInt32}}}
     encode_tag(e, i, VARINT)
     _encode(e.io, x)
     return nothing
@@ -186,7 +191,7 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) wher
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
+function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64,Enum{Int32},Enum{UInt32}}}
     _io = IOBuffer(sizehint=length(x), maxsize=10length(x)) # TODO: is sizehint necessary when we ensureroom in _encode?
     encode_tag(e, i, LENGTH_DELIMITED)
     _encode(_io, x)

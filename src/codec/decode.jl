@@ -21,7 +21,7 @@ function decode(d::ProtoDecoder, ::Type{T}, ::Type{Val{:zigzag}}) where {T <: Un
     return reinterpret(T, z)
 end
 decode(d::ProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
-decode(d::ProtoDecoder, ::Type{T}) where {T <: Base.Enum} = T(vbyte_decode(d.io, Int32))
+decode(d::ProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}} = T(vbyte_decode(d.io, UInt32))
 decode(d::ProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
 function decode!(d::ProtoDecoder, buffer::Dict{K,V}) where {K,V}
     len = vbyte_decode(d.io, UInt32)
@@ -139,7 +139,7 @@ function decode!(d::ProtoDecoder, buffer::BufferedVector{Vector{UInt8}})
     return nothing
 end
 
-function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Int32,Int64,UInt32,UInt64,Base.Enum}}
+function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Int32,Int64,UInt32,UInt64,Enum{Int32},Enum{UInt32}}}
     if w == LENGTH_DELIMITED
         bytelen = vbyte_decode(d.io, UInt32)
         endpos = bytelen + position(d.io)

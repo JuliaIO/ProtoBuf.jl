@@ -41,7 +41,7 @@ empty!(buffer::BufferedVector) = buffer.occupied = 0
     buffer.occupied += 1
     @inbounds buffer.elements[buffer.occupied] = x
 end
-_grow_by(::Type{T}) where {T<:Union{UInt32,UInt64,Int64,Int32,Base.Enum}} = div(128, sizeof(T))
+_grow_by(::Type{T}) where {T<:Union{UInt32,UInt64,Int64,Int32,Enum{Int32},Enum{UInt32}}} = div(128, sizeof(T))
 _grow_by(::Type) = 16
 _grow_by(::Type{T}) where {T<:Union{Bool,UInt8}} = 64
 

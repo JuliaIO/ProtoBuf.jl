@@ -1,22 +1,27 @@
 using ProtocolBuffers: Codecs
 using .Codecs: decode, decode!, ProtoDecoder, BufferedVector
 using Test
+using EnumX: @enumx
 
-wire_type(::Type{<:Union{Int32,Int64}},                    V::Type{Val{:zigzag}}) = Codecs.VARINT
-wire_type(::Type{<:Union{UInt32,UInt64,Int64,Int32,Bool}}, V::Type{Nothing})      = Codecs.VARINT
-wire_type(::Type{<:Union{UInt32,Int32}},                   V::Type{Val{:fixed}})  = Codecs.FIXED32
-wire_type(::Type{Float32},                                 V::Type{Nothing})      = Codecs.FIXED32
-wire_type(::Type{<:Union{UInt64,Int64}},                   V::Type{Val{:fixed}})  = Codecs.FIXED64
-wire_type(::Type{Float64},                                 V::Type{Nothing})      = Codecs.FIXED64
-wire_type(::Type{<:AbstractVector},                        V::Type)               = Codecs.LENGTH_DELIMITED
-wire_type(::Type{<:AbstractDict},                          V::Type)               = Codecs.LENGTH_DELIMITED
-wire_type(::Type{<:AbstractString},                        V::Type)               = Codecs.LENGTH_DELIMITED
-wire_type(::Type{<:Union{UInt32,UInt64,Int64,Int32,Bool}})                        = Codecs.VARINT
-wire_type(::Type{Float64})                                                        = Codecs.FIXED64
-wire_type(::Type{Float32})                                                        = Codecs.FIXED32
-wire_type(::Type{<:AbstractVector})                                               = Codecs.LENGTH_DELIMITED
-wire_type(::Type{<:AbstractDict})                                                 = Codecs.LENGTH_DELIMITED
-wire_type(::Type{<:AbstractString})                                               = Codecs.LENGTH_DELIMITED
+@enumx DecodeTestEnum A B C
+
+const _Varint = Union{UInt32,UInt64,Int64,Int32,Bool,Enum}
+
+wire_type(::Type{<:Union{Int32,Int64}},  V::Type{Val{:zigzag}}) = Codecs.VARINT
+wire_type(::Type{<:_Varint},             V::Type{Nothing})      = Codecs.VARINT
+wire_type(::Type{<:Union{UInt32,Int32}}, V::Type{Val{:fixed}})  = Codecs.FIXED32
+wire_type(::Type{Float32},               V::Type{Nothing})      = Codecs.FIXED32
+wire_type(::Type{<:Union{UInt64,Int64}}, V::Type{Val{:fixed}})  = Codecs.FIXED64
+wire_type(::Type{Float64},               V::Type{Nothing})      = Codecs.FIXED64
+wire_type(::Type{<:AbstractVector},      V::Type)               = Codecs.LENGTH_DELIMITED
+wire_type(::Type{<:AbstractDict},        V::Type)               = Codecs.LENGTH_DELIMITED
+wire_type(::Type{<:AbstractString},      V::Type)               = Codecs.LENGTH_DELIMITED
+wire_type(::Type{<:_Varint})                                    = Codecs.VARINT
+wire_type(::Type{Float64})                                      = Codecs.FIXED64
+wire_type(::Type{Float32})                                      = Codecs.FIXED32
+wire_type(::Type{<:AbstractVector})                             = Codecs.LENGTH_DELIMITED
+wire_type(::Type{<:AbstractDict})                               = Codecs.LENGTH_DELIMITED
+wire_type(::Type{<:AbstractString})                             = Codecs.LENGTH_DELIMITED
 
 function test_decode(input_bytes, expected, V::Type=Nothing)
     w = wire_type(typeof(expected), V)
@@ -74,6 +79,10 @@ end
         @testset "repeated int32" begin
             test_decode([0x01, 0x02], Int32[1, 2])
             test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01], Int32[-1])
+        end
+
+        @testset "repeated enum" begin
+            test_decode([0x01, 0x02], [DecodeTestEnum.B, DecodeTestEnum.C])
         end
 
         @testset "repeated int64" begin
@@ -193,6 +202,10 @@ end
 
         @testset "sint64" begin
             test_decode([0x04], Int64(2), Val{:zigzag})
+        end
+
+        @testset "enum" begin
+            test_decode([0x02], DecodeTestEnum.C)
         end
     end
 
