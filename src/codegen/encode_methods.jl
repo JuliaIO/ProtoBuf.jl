@@ -68,7 +68,7 @@ function print_field_encode_expr(io, fs::OneOfType, ctx)
     println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
         println(io, "    elseif ", "x.$(safename(fs)).name == :", jl_fieldname(f))
-        println(io, "    " ^ 2, field_encode_expr(f, ctx))
+        println(io, "    " ^ 2, "PB.encode(e, x.$(safename(fs))[])")
     end
     println(io, "    end")
 end
