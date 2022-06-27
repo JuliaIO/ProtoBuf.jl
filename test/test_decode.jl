@@ -5,29 +5,48 @@ using Test
 using EnumX: @enumx
 
 # Without this, we'll get an invalid redefinition when re-running this file
-if !isdefined(@__MODULE__, :DecodeTestEnum)
-    @enumx DecodeTestEnum A B C
+if !isdefined(@__MODULE__, :TestEnum)
+    @enumx TestEnum A B C
 end
-if !isdefined(@__MODULE__, :DecodeTestStruct)
-    struct DecodeTestStruct{T<:Union{Vector{UInt8},DecodeTestEnum.T}}
-        oneof::PB.OneOf{T}
+if !isdefined(@__MODULE__, :TestStruct)
+    struct TestInner
+        x::Int
+    end
+    struct TestStruct{T<:Union{Vector{UInt8},TestEnum.T,TestInner}}
+        oneof::Union{Nothing, PB.OneOf{T}}
     end
 end
 
-function PB.decode(d::PB.ProtoDecoder, ::Type{<:DecodeTestStruct})
+function PB.decode(d::PB.ProtoDecoder, ::Type{TestInner})
+    x = 0
+    while !PB.message_done(d)
+        field_number, wire_type = PB.decode_tag(d)
+        if field_number == 1
+            x = PB.decode(d, Int64)
+        else
+            PB.skip(d, wire_type)
+        end
+        PB.try_eat_end_group(d, wire_type)
+    end
+    return TestInner(x)
+end
+
+function PB.decode(d::PB.ProtoDecoder, ::Type{<:TestStruct})
     oneof = nothing
     while !PB.message_done(d)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
             oneof = PB.OneOf(:bytes, PB.decode(d, Vector{UInt8}))
         elseif field_number == 2
-            oneof = PB.OneOf(:enum, PB.decode(d, DecodeTestEnum.T))
+            oneof = PB.OneOf(:enum, PB.decode(d, TestEnum.T))
+        elseif field_number == 3
+            oneof = PB.OneOf(:struct, PB.decode(d, Ref{TestInner}))
         else
             PB.skip(d, wire_type)
         end
         PB.try_eat_end_group(d, wire_type)
     end
-    return DecodeTestStruct(oneof)
+    return TestStruct(oneof)
 end
 
 const _Varint = Union{UInt32,UInt64,Int64,Int32,Bool,Enum}
@@ -83,7 +102,7 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
     @test x == expected
 end
 
-function test_decode_message(input_bytes, expected::DecodeTestStruct)
+function test_decode_message(input_bytes, expected::TestStruct)
     input_bytes = collect(input_bytes)
     e = ProtoDecoder(PipeBuffer(input_bytes))
     x = decode(e, typeof(expected))
@@ -116,7 +135,7 @@ end
         end
 
         @testset "repeated enum" begin
-            test_decode([0x01, 0x02], [DecodeTestEnum.B, DecodeTestEnum.C])
+            test_decode([0x01, 0x02], [TestEnum.B, TestEnum.C])
         end
 
         @testset "repeated int64" begin
@@ -207,8 +226,9 @@ end
         end
 
         @testset "message" begin
-            test_decode_message([0x0a, 0x03, 0x31, 0x32, 0x33], DecodeTestStruct(PB.OneOf(:bytes, collect(b"123"))))
-            test_decode_message([0x10, 0x02], DecodeTestStruct(PB.OneOf(:enum, DecodeTestEnum.C)))
+            test_decode_message([0x0a, 0x03, 0x31, 0x32, 0x33], TestStruct(PB.OneOf(:bytes, collect(b"123"))))
+            test_decode_message([0x10, 0x02], TestStruct(PB.OneOf(:enum, TestEnum.C)))
+            test_decode_message([0x1a, 0x02, 0x08, 0x02], TestStruct(PB.OneOf(:struct, TestInner(2))))
         end
     end
 
@@ -244,7 +264,7 @@ end
         end
 
         @testset "enum" begin
-            test_decode([0x02], DecodeTestEnum.C)
+            test_decode([0x02], TestEnum.C)
         end
     end
 

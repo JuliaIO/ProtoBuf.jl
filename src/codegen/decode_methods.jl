@@ -52,16 +52,16 @@ end
 
 jl_type_oneof_decode_expr(f::FieldType, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
 jl_type_oneof_decode_expr(f::GroupType, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
-jl_type_oneof_decode_expr(f::FieldType{SFixed32Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:fixed)))"
-jl_type_oneof_decode_expr(f::FieldType{SFixed64Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:fixed)))"
-jl_type_oneof_decode_expr(f::FieldType{Fixed32Type}, ctx)  = "OneOf(:$(jl_fieldname(f)), PB.decode(d, UInt32, Val(:fixed)))"
-jl_type_oneof_decode_expr(f::FieldType{Fixed64Type}, ctx)  = "OneOf(:$(jl_fieldname(f)), PB.decode(d, UInt64, Val(:fixed)))"
-jl_type_oneof_decode_expr(f::FieldType{SInt32Type}, ctx)   = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val(:zigzag)))"
-jl_type_oneof_decode_expr(f::FieldType{SInt64Type}, ctx)   = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val(:zigzag)))"
-# function jl_type_decode_expr(f, t::ReferencedType, ctx)
-#     _is_message(t, ctx) && return "OneOf(:$(jl_fieldname(f)),PB.decode_message(d, $(jl_fieldname(f))))"
-#     return "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(t, ctx))))"
-# end
+jl_type_oneof_decode_expr(f::FieldType{SFixed32Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val{:fixed}))"
+jl_type_oneof_decode_expr(f::FieldType{SFixed64Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val{:fixed}))"
+jl_type_oneof_decode_expr(f::FieldType{Fixed32Type}, ctx)  = "OneOf(:$(jl_fieldname(f)), PB.decode(d, UInt32, Val{:fixed}))"
+jl_type_oneof_decode_expr(f::FieldType{Fixed64Type}, ctx)  = "OneOf(:$(jl_fieldname(f)), PB.decode(d, UInt64, Val{:fixed}))"
+jl_type_oneof_decode_expr(f::FieldType{SInt32Type}, ctx)   = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val{:zigzag}))"
+jl_type_oneof_decode_expr(f::FieldType{SInt64Type}, ctx)   = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val{:zigzag}))"
+function jl_type_oneof_decode_expr(f::FieldType{ReferencedType}, ctx)
+      _is_message(f.type, ctx) && return "OneOf(:$(jl_fieldname(f)), PB.decode(d, Ref{$(jl_typename(f.type, ctx))}))"
+      return "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
+end
 function field_decode_expr(io, field::OneOfType, i, ctx)
     field_name = jl_fieldname(field)
     for (j, case) in enumerate(field.fields)

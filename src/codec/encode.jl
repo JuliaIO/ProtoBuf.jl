@@ -235,27 +235,32 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) whe
     return nothing
 end
 
+# Overload this for new struct types
+function encode(e::ProtoEncoder, x::T) where {T} end
+
+# T is a struct/message type
 function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T}
-    _io = IOBuffer(sizehint=sizeof(T))
+    _e = ProtoEncoder(IOBuffer(sizehint=sizeof(T)))
     Base.ensureroom(e.io, length(x) * sizeof(T))
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
-        _encode(_io, el)
-        vbyte_encode(e.io, UInt32(position(_io)))
-        seekstart(_io)
-        write(_io, e.io)
-        # seekstart(_io)
+        encode(_e, el)
+        vbyte_encode(e.io, UInt32(position(_e.io)))
+        seekstart(_e.io)
+        write(e.io, _e.io)
+        seekstart(_e.io)
     end
     close(_io)
     return nothing
 end
 
 function encode(e::ProtoEncoder, i::Int, x::T) where {T}
-    _io = PipeBuffer(Vector{UInt8}(undef, sizeof(T)))
+    _e = ProtoEncoder(IOBuffer(sizehint=sizeof(T)))
     encode_tag(e, i, LENGTH_DELIMITED)
-    _encode(_io, x)
-    vbyte_encode(e.io, UInt32(position(_io)))
-    write(_io, e.io)
-    close(_io)
+    encode(_e, x)
+    vbyte_encode(e.io, UInt32(position(_e.io)))
+    seekstart(_e.io)
+    write(e.io, _e.io)
+    close(_e.io)
     return nothing
 end

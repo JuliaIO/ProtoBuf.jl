@@ -215,6 +215,19 @@ function decode!(d::ProtoDecoder, buffer::Base.RefValue{T}) where {T}
     return nothing
 end
 
+# This method handles messages decoded as OneOf. We expect `decode(d, T)`
+# to be generated / provided by the user. We do this so that we can conditionally
+# eat the length varint (which is not present when decoding a toplevel message).
+# We don't reuse the decode!(d::ProtoDecoder, buffer::Base.RefValue{T}) method above
+# as with OneOf fields, we can't be sure that the previous OneOf value was also T.
+function decode(d::ProtoDecoder, ::Type{Ref{T}}) where {T}
+    bytelen = vbyte_decode(d.io, UInt32)
+    endpos = bytelen + position(d.io)
+    out = decode(d, T)
+    @assert position(d.io) == endpos
+    return out
+end
+
 function decode!(d::ProtoDecoder, buffer::Vector{T}) where {T}
     bytelen = vbyte_decode(d.io, UInt32)
     endpos = bytelen + position(d.io)
@@ -253,6 +266,26 @@ end
     )
     return quote T($(merged_values...)) end
 end
+
+# @generated function _merge_structs!(s1::Union{Nothing,T}, s2::T) where {T}
+#     isnothing(s1) && return s2
+#     isnothing(s2) && return s2
+#     # TODO: Error gracefully on unsuported types like Missing, Matrices...
+#     #       Would be easier if we have a HolyTrait for user defined structs
+#     merged_values = Tuple(
+#         (
+#             type <: AbstractVector ? :(append!(s2.$name, s1.$name)) :
+#             :(_merge_structs!(s1.$name, s2.$name))
+#         )
+#         for (name, type)
+#         in zip(fieldnames(T), fieldtypes(T))
+#         if !(type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8})
+#     )
+#     return quote
+#         T($(merged_values...))
+#         return s2
+#     end
+# end
 
 @inline function Base.skip(d::ProtoDecoder, wire_type::WireType)
     if wire_type == VARINT

@@ -6,34 +6,44 @@ using EnumX: @enumx
 
 
 # Without this, we'll get an invalid redefinition when re-running this file
-if !isdefined(@__MODULE__, :EncodeTestEnum)
-    @enumx EncodeTestEnum A B C
+if !isdefined(@__MODULE__, :TestEnum)
+    @enumx TestEnum A B C
 end
-if !isdefined(@__MODULE__, :EncodeTestStruct)
-    struct EncodeTestStruct{T<:Union{Vector{UInt8},EncodeTestEnum.T}}
-        oneof::PB.OneOf{T}
+if !isdefined(@__MODULE__, :TestStruct)
+    struct TestInner
+        x::Int
+    end
+    struct TestStruct{T<:Union{Vector{UInt8},TestEnum.T,TestInner}}
+        oneof::Union{Nothing, PB.OneOf{T}}
     end
 end
 
-function PB.encode(e::PB.ProtoEncoder, x::EncodeTestStruct)
+function PB.encode(e::PB.ProtoEncoder, x::TestInner)
+    initpos = position(e.io)
+    x.x != 0 && PB.encode(e, 1, x.x)
+    return position(e.io) - initpos
+end
+
+function PB.encode(e::PB.ProtoEncoder, x::TestStruct)
     initpos = position(e.io)
     if isnothing(x.oneof);
     elseif x.oneof.name == :bytes
         PB.encode(e, 1, x.oneof[])
     elseif x.oneof.name == :enum
         PB.encode(e, 2, x.oneof[])
+    elseif x.oneof.name == :struct
+        PB.encode(e, 3, x.oneof[])
     end
     return position(e.io) - initpos
 end
 
-
-function test_encode_struct(input::EncodeTestStruct, i, expected)
+function test_encode_struct(input::TestStruct, i, expected)
     d = ProtoEncoder(IOBuffer())
     encode(d, input)
     bytes = take!(d.io)
     tag = first(bytes)
     bytes = bytes[2:end]
-    if isa(input.oneof[], AbstractVector)
+    if !isa(input.oneof[], Enum)
         len = first(bytes)
         bytes = bytes[2:end]
         @testset "length" begin
@@ -105,7 +115,7 @@ end
         end
 
         @testset "repeated enum" begin
-            test_encode([EncodeTestEnum.B, EncodeTestEnum.C], 2, Codecs.LENGTH_DELIMITED, [0x01, 0x02])
+            test_encode([TestEnum.B, TestEnum.C], 2, Codecs.LENGTH_DELIMITED, [0x01, 0x02])
         end
 
         @testset "repeated int64" begin
@@ -193,8 +203,9 @@ end
         end
 
         @testset "message" begin
-            test_encode_struct(EncodeTestStruct(PB.OneOf(:bytes, collect(b"123"))), 1, b"123")
-            test_encode_struct(EncodeTestStruct(PB.OneOf(:enum, EncodeTestEnum.C)), 2, [0x02])
+            test_encode_struct(TestStruct(PB.OneOf(:bytes, collect(b"123"))), 1, b"123")
+            test_encode_struct(TestStruct(PB.OneOf(:enum, TestEnum.C)), 2, [0x02])
+            test_encode_struct(TestStruct(PB.OneOf(:struct, TestInner(2))), 3, [0x08, 0x02])
         end
     end
 
@@ -213,7 +224,7 @@ end
         end
 
         @testset "enum" begin
-            test_encode(EncodeTestEnum.C, 2, Codecs.VARINT, [0x02])
+            test_encode(TestEnum.C, 2, Codecs.VARINT, [0x02])
         end
 
         @testset "int64" begin
