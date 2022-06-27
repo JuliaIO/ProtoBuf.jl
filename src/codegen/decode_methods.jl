@@ -35,7 +35,7 @@ function jl_type_decode_repeated_expr(f::FieldType{ReferencedType}, ctx)
     return "PB.decode!(d, wire_type, $(jl_fieldname(f)))"
 end
 function jl_type_decode_expr(f::FieldType{ReferencedType}, ctx)
-    _is_message(f.type, ctx) && return "$(jl_fieldname(f)) = PB.decode!(d, $(jl_fieldname(f)))"
+    _is_message(f.type, ctx) && return "PB.decode!(d, $(jl_fieldname(f)))"
     return "$(jl_fieldname(f)) = PB.decode(d, $(jl_typename(f.type, ctx)))"
 end
 
