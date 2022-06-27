@@ -1,9 +1,56 @@
+import ProtocolBuffers as PB
 using ProtocolBuffers: Codecs
 using .Codecs: encode, ProtoEncoder, WireType
 using Test
 using EnumX: @enumx
 
-@enumx EncodeTestEnum A B C
+
+# Without this, we'll get an invalid redefinition when re-running this file
+if !isdefined(@__MODULE__, :EncodeTestEnum)
+    @enumx EncodeTestEnum A B C
+end
+if !isdefined(@__MODULE__, :EncodeTestStruct)
+    struct EncodeTestStruct{T<:Union{Vector{UInt8},EncodeTestEnum.T}}
+        oneof::PB.OneOf{T}
+    end
+end
+
+function PB.encode(e::PB.ProtoEncoder, x::EncodeTestStruct)
+    initpos = position(e.io)
+    if isnothing(x.oneof);
+    elseif x.oneof.name == :bytes
+        PB.encode(e, 1, x.oneof[])
+    elseif x.oneof.name == :enum
+        PB.encode(e, 2, x.oneof[])
+    end
+    return position(e.io) - initpos
+end
+
+
+function test_encode_struct(input::EncodeTestStruct, i, expected)
+    d = ProtoEncoder(IOBuffer())
+    encode(d, input)
+    bytes = take!(d.io)
+    tag = first(bytes)
+    bytes = bytes[2:end]
+    if isa(input.oneof[], AbstractVector)
+        len = first(bytes)
+        bytes = bytes[2:end]
+        @testset "length" begin
+            @test len == length(expected)
+        end
+        w = Codecs.LENGTH_DELIMITED
+    else
+        w = Codecs.VARINT
+    end
+    @testset "tag" begin
+        @test tag >> 3 == i
+        @test tag & 0x07 == Int(w)
+    end
+    @testset "encoded payload" begin
+        @test bytes == expected
+    end
+end
 
 function test_encode(input, i, w::WireType, expected, V::Type=Nothing)
     d = ProtoEncoder(IOBuffer())
@@ -143,6 +190,11 @@ end
 
             @testset "string,repeated sint32" begin test_encode(Dict{String,Vector{Int32}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Val{Tuple{Nothing,:zigzag}}) end
             @testset "string,repeated sint64" begin test_encode(Dict{String,Vector{Int64}}("a" => [1]), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Val{Tuple{Nothing,:zigzag}}) end
+        end
+
+        @testset "message" begin
+            test_encode_struct(EncodeTestStruct(PB.OneOf(:bytes, collect(b"123"))), 1, b"123")
+            test_encode_struct(EncodeTestStruct(PB.OneOf(:enum, EncodeTestEnum.C)), 2, [0x02])
         end
     end
 

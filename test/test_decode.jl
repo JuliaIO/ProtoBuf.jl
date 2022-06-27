@@ -1,9 +1,34 @@
 using ProtocolBuffers: Codecs
+import ProtocolBuffers as PB
 using .Codecs: decode, decode!, ProtoDecoder, BufferedVector
 using Test
 using EnumX: @enumx
 
-@enumx DecodeTestEnum A B C
+# Without this, we'll get an invalid redefinition when re-running this file
+if !isdefined(@__MODULE__, :DecodeTestEnum)
+    @enumx DecodeTestEnum A B C
+end
+if !isdefined(@__MODULE__, :DecodeTestStruct)
+    struct DecodeTestStruct{T<:Union{Vector{UInt8},DecodeTestEnum.T}}
+        oneof::PB.OneOf{T}
+    end
+end
+
+function PB.decode(d::PB.ProtoDecoder, ::Type{<:DecodeTestStruct})
+    oneof = nothing
+    while !PB.message_done(d)
+        field_number, wire_type = PB.decode_tag(d)
+        if field_number == 1
+            oneof = PB.OneOf(:bytes, PB.decode(d, Vector{UInt8}))
+        elseif field_number == 2
+            oneof = PB.OneOf(:enum, PB.decode(d, DecodeTestEnum.T))
+        else
+            PB.skip(d, wire_type)
+        end
+        PB.try_eat_end_group(d, wire_type)
+    end
+    return DecodeTestStruct(oneof)
+end
 
 const _Varint = Union{UInt32,UInt64,Int64,Int32,Bool,Enum}
 
@@ -56,6 +81,15 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
     end
 
     @test x == expected
+end
+
+function test_decode_message(input_bytes, expected::DecodeTestStruct)
+    input_bytes = collect(input_bytes)
+    e = ProtoDecoder(PipeBuffer(input_bytes))
+    x = decode(e, typeof(expected))
+    @test x.oneof[] == expected.oneof[]
+    @test typeof(x) === typeof(expected)
+    @test typeof(x.oneof) === typeof(expected.oneof)
 end
 
 @testset "decode" begin
@@ -170,6 +204,11 @@ end
 
             @testset "string,repeated sint32" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Dict{String,Vector{Int32}}("a" => [1]), Val{Tuple{Nothing,:zigzag}}) end
             @testset "string,repeated sint64" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Dict{String,Vector{Int64}}("a" => [1]), Val{Tuple{Nothing,:zigzag}}) end
+        end
+
+        @testset "message" begin
+            test_decode_message([0x0a, 0x03, 0x31, 0x32, 0x33], DecodeTestStruct(PB.OneOf(:bytes, collect(b"123"))))
+            test_decode_message([0x10, 0x02], DecodeTestStruct(PB.OneOf(:enum, DecodeTestEnum.C)))
         end
     end
 
