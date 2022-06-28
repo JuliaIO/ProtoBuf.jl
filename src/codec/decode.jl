@@ -117,9 +117,9 @@ end
 
 function decode(d::AbstractProtoDecoder, ::Type{String})
     bytelen = vbyte_decode(d.io, UInt32)
-    bytes = Base.StringVector(bytelen)
-    read!(d.io, bytes)
-    return String(bytes)
+    str = Base._string_n(bytelen)
+    Base.unsafe_read(d.io, pointer(str), bytelen)
+    return str
 end
 function decode!(d::AbstractProtoDecoder, buffer::BufferedVector{String})
     buffer[] = decode(d, String)
@@ -303,6 +303,7 @@ end
         skip(d.io, bytelen)
     elseif wire_type == START_GROUP
         #TODO: this is not verified
+        # decode_tag(d)
         bytelen = vbyte_decode(d.io, UInt32)
         skip(d.io, bytelen)
     elseif wire_type == FIXED32
