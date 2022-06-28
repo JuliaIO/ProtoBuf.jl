@@ -299,11 +299,11 @@ end
     elseif wire_type == FIXED64
         skip(d.io, 8)
     elseif wire_type == LENGTH_DELIMITED
-        bytelen = vbyte_decode(d, UInt32)
+        bytelen = vbyte_decode(d.io, UInt32)
         skip(d.io, bytelen)
     elseif wire_type == START_GROUP
         #TODO: this is not verified
-        bytelen = vbyte_decode(d, UInt32)
+        bytelen = vbyte_decode(d.io, UInt32)
         skip(d.io, bytelen)
     elseif wire_type == FIXED32
         skip(d.io, 4)

@@ -15,7 +15,7 @@ end
 message_done(d::ProtoDecoder) = d.message_done(d.io)
 ProtoDecoder(io::IO) = ProtoDecoder(io, eof)
 function try_eat_end_group(d::AbstractProtoDecoder, wire_type::WireType)
-    wire_type == START_GROUP && read(d, UInt8) # read end group
+    wire_type == START_GROUP && read(d.io, UInt8) # read end group
     return nothing
 end
 
