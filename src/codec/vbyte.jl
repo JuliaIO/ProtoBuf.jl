@@ -25,6 +25,7 @@ end
 
     x |= (b & 0x7F) << 28
 
+    # TODO: we shouldn't get here... log? throw? don't eat other bytes >= 0x80?
     while Bool(read(io, UInt8) >> 7) end
 
     return x
@@ -69,8 +70,8 @@ end
     x |= (b & 0x7F) << 56
     b = T(read(io, UInt8))
     b < 0x80 && return (x | (b << 63))
-
-    return zero(T)
+    # TODO: we shouldn't get here... log? throw? eat other bytes >= 0x80?
+    return x
 end
 
 @inline function vbyte_encode(io::IO, x::UInt32)

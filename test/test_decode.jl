@@ -85,6 +85,7 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
             skip(e.io, 1)
             x = BufferedVector{eltype(expected)}()
             while !eof(e.io)
+                tag, num = PB.decode_tag(e)
                 decode!(e, x)
             end
             x = x[]
@@ -134,11 +135,11 @@ end
         end
 
         @testset "repeated bytes" begin
-            test_decode([0x02, 0x31, 0x32, 0x02, 0x33, 0x34], [[0x31, 0x32], [0x33, 0x34]])
+            test_decode([0x12, 0x02, 0x31, 0x32, 0x12, 0x02, 0x33, 0x34], [[0x31, 0x32], [0x33, 0x34]])
         end
 
         @testset "repeated string" begin
-            test_decode([0x02, 0x31, 0x32, 0x02, 0x33, 0x34], ["12", "34"])
+            test_decode([0x12, 0x02, 0x31, 0x32, 0x12, 0x02, 0x33, 0x34], ["12", "34"])
         end
 
         @testset "repeated uint32" begin
@@ -200,7 +201,7 @@ end
         end
 
         @testset "repeated message" begin
-            test_decode([0x02, 0x08, 0x03, 0x02, 0x08, 0x04], [TestInner(3), TestInner(4)])
+            test_decode([0x12, 0x02, 0x08, 0x03, 0x12, 0x02, 0x08, 0x04], [TestInner(3), TestInner(4)])
         end
 
         @testset "map" begin
