@@ -3,6 +3,15 @@ import EnumX
 import TranscodingStreams
 using TOML
 
+# TODO:
+# - configs for protojl:
+#    * If a proto file is not a package, allow the generated julia code to not be a module
+#    * Allow the user to use inline string for specific message string fields
+#    * Allow the user to mark dict values and non-optional messages as Union{nothing,T} to
+#      be more resilient to cases when the sender sends an incomplete message etc.
+# - Always put julia code in modules, regardless of whether package is set (but see above) +
+#   make the JULIA_RESERVED_KEYWORDS less strict
+
 const PACKAGE_VERSION = let
     project = TOML.parsefile(joinpath(pkgdir(@__MODULE__), "Project.toml"))
     VersionNumber(project["version"])
@@ -14,33 +23,8 @@ struct OneOf{T}
     value::T
 end
 
-# Since `oneof` fields contain different names per type in the type union
-# we can overload `Base.getproperty` to allow direcly reaching for the
-# value we actually got, e.g. for this ProtoBuf message:
-#   message MessageType {
-#       oneof one_of_field {
-#           string inner_field
-#           int another_thing
-#       }
-#   }
-# We can use one of the two:
-#    MessageType.one_of_field.inner_field
-#    MessageType.one_of_field.another_thing
-#
-# But I guess this will invalidate a lot of julia code?
-# function Base.getproperty(t::OneOf, s::Symbol)
-#     if s == Base.getfield(t, :name)
-#         Base.getfield(t, :value)
-#     else
-#         error(string(
-#             "This `OneOf` has no field `$(s)` (Did you mean `$(Base.getfield(t, :name))`? ",
-#             "Alternatvely, you can get the value by invoking getindex `[]`)"
-#         ))
-#     end
-# end
-Base.getindex(t::OneOf) = getfield(t, :value)
-Base.nameof(t::OneOf) = getfield(t, :name) # is this the right thing to overload?
-Base.Pair(t::OneOf) = nameof(t) => t[]
+Base.getindex(t::OneOf) = t.value
+Base.Pair(t::OneOf) = t.name => t.value
 
 
 include("topological_sort.jl")
