@@ -11,6 +11,10 @@ using TOML
 #      be more resilient to cases when the sender sends an incomplete message etc.
 # - Always put julia code in modules, regardless of whether package is set (but see above) +
 #   make the JULIA_RESERVED_KEYWORDS less strict
+# - Codegen methods returing proto metadata about each message (one of fields, default values, reserved field numbers, extensions?)
+# - Services & RPC
+# - Extensions
+
 
 const PACKAGE_VERSION = let
     project = TOML.parsefile(joinpath(pkgdir(@__MODULE__), "Project.toml"))
