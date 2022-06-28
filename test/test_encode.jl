@@ -12,19 +12,22 @@ end
 if !isdefined(@__MODULE__, :TestStruct)
     struct TestInner
         x::Int
+        r::Union{Nothing,TestInner}
     end
+    TestInner(x::Int) = TestInner(x, nothing)
     struct TestStruct{T<:Union{Vector{UInt8},TestEnum.T,TestInner}}
         oneof::Union{Nothing, PB.OneOf{T}}
     end
 end
 
-function PB.encode(e::PB.ProtoEncoder, x::TestInner)
+function PB.encode(e::PB.AbstractProtoEncoder, x::TestInner)
     initpos = position(e.io)
     x.x != 0 && PB.encode(e, 1, x.x)
+    !isnothing(x.r) && PB.encode(e, 2, x.r)
     return position(e.io) - initpos
 end
 
-function PB.encode(e::PB.ProtoEncoder, x::TestStruct)
+function PB.encode(e::PB.AbstractProtoEncoder, x::TestStruct)
     initpos = position(e.io)
     if isnothing(x.oneof);
     elseif x.oneof.name == :bytes
@@ -206,6 +209,7 @@ end
             test_encode_struct(TestStruct(PB.OneOf(:bytes, collect(b"123"))), 1, b"123")
             test_encode_struct(TestStruct(PB.OneOf(:enum, TestEnum.C)), 2, [0x02])
             test_encode_struct(TestStruct(PB.OneOf(:struct, TestInner(2))), 3, [0x08, 0x02])
+            test_encode_struct(TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))), 3, [0x08, 0x02, 0x12, 0x02, 0x08, 0x03])
         end
     end
 

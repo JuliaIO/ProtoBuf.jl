@@ -11,27 +11,32 @@ end
 if !isdefined(@__MODULE__, :TestStruct)
     struct TestInner
         x::Int
+        r::Union{Nothing,TestInner}
     end
+    TestInner(x::Int) = TestInner(x, nothing)
     struct TestStruct{T<:Union{Vector{UInt8},TestEnum.T,TestInner}}
         oneof::Union{Nothing, PB.OneOf{T}}
     end
 end
 
-function PB.decode(d::PB.ProtoDecoder, ::Type{TestInner})
+function PB.decode(d::PB.AbstractProtoDecoder, ::Type{TestInner})
     x = 0
+    r = Ref{Union{Nothing,TestInner}}(nothing)
     while !PB.message_done(d)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
             x = PB.decode(d, Int64)
+        elseif field_number == 2
+            PB.decode!(d, r)
         else
             PB.skip(d, wire_type)
         end
         PB.try_eat_end_group(d, wire_type)
     end
-    return TestInner(x)
+    return TestInner(x, r[])
 end
 
-function PB.decode(d::PB.ProtoDecoder, ::Type{<:TestStruct})
+function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:TestStruct})
     oneof = nothing
     while !PB.message_done(d)
         field_number, wire_type = PB.decode_tag(d)
@@ -229,6 +234,7 @@ end
             test_decode_message([0x0a, 0x03, 0x31, 0x32, 0x33], TestStruct(PB.OneOf(:bytes, collect(b"123"))))
             test_decode_message([0x10, 0x02], TestStruct(PB.OneOf(:enum, TestEnum.C)))
             test_decode_message([0x1a, 0x02, 0x08, 0x02], TestStruct(PB.OneOf(:struct, TestInner(2))))
+            test_decode_message([0x1a, 0x06, 0x08, 0x02, 0x12, 0x02, 0x08, 0x03], TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))))
         end
     end
 

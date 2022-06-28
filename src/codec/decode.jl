@@ -1,4 +1,4 @@
-function decode_tag(d::ProtoDecoder)
+function decode_tag(d::AbstractProtoDecoder)
     b = vbyte_decode(d.io, UInt32)
     field_number = b >> 3
     wire_type = WireType(b & 0x07)
@@ -6,24 +6,24 @@ function decode_tag(d::ProtoDecoder)
 end
 
 # uint32, uint64
-decode(d::ProtoDecoder, ::Type{T}) where {T <: Union{UInt32,UInt64}} = vbyte_decode(d.io, T)
+decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{UInt32,UInt64}} = vbyte_decode(d.io, T)
 # int32: Negative int32 are encoded in 10 bytes...
 # TODO: add check the int is negative if larger thatn typemax UInt32
-decode(d::ProtoDecoder, ::Type{Int32}) = reinterpret(Int32, UInt32(vbyte_decode(d.io, UInt64) % UInt32))
+decode(d::AbstractProtoDecoder, ::Type{Int32}) = reinterpret(Int32, UInt32(vbyte_decode(d.io, UInt64) % UInt32))
 # int64
-decode(d::ProtoDecoder, ::Type{Int64}) = reinterpret(Int64, vbyte_decode(d.io, UInt64))
+decode(d::AbstractProtoDecoder, ::Type{Int64}) = reinterpret(Int64, vbyte_decode(d.io, UInt64))
 # sfixed32, sfixed64, # fixed32, fixed64
-decode(d::ProtoDecoder, ::Type{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64,UInt32,UInt64}} = read(d.io, T)
+decode(d::AbstractProtoDecoder, ::Type{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64,UInt32,UInt64}} = read(d.io, T)
 # sint32, sint64
-function decode(d::ProtoDecoder, ::Type{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
+function decode(d::AbstractProtoDecoder, ::Type{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
     v = vbyte_decode(d.io, unsigned(T))
     z = zigzag_decode(v)
     return reinterpret(T, z)
 end
-decode(d::ProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
-decode(d::ProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}} = T(vbyte_decode(d.io, UInt32))
-decode(d::ProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
-function decode!(d::ProtoDecoder, buffer::Dict{K,V}) where {K,V}
+decode(d::AbstractProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
+decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}} = T(vbyte_decode(d.io, UInt32))
+decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
+function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V}
     len = vbyte_decode(d.io, UInt32)
     endpos = position(d.io) + len
     while position(d.io) < endpos
@@ -37,7 +37,7 @@ function decode!(d::ProtoDecoder, buffer::Dict{K,V}) where {K,V}
     nothing
 end
 
-function decode!(d::ProtoDecoder, buffer::Dict{K,Vector{V}}) where {K,V}
+function decode!(d::AbstractProtoDecoder, buffer::Dict{K,Vector{V}}) where {K,V}
     len = vbyte_decode(d.io, UInt32)
     endpos = position(d.io) + len
     vals_buffer = BufferedVector{V}()
@@ -54,7 +54,7 @@ function decode!(d::ProtoDecoder, buffer::Dict{K,Vector{V}}) where {K,V}
 end
 
 for T in (:(:fixed), :(:zigzag))
-    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
+    @eval function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
         len = vbyte_decode(d.io, UInt32)
         endpos = position(d.io) + len
         while position(d.io) < endpos
@@ -68,7 +68,7 @@ for T in (:(:fixed), :(:zigzag))
         nothing
     end
 
-    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,Vector{V}}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
+    @eval function decode!(d::AbstractProtoDecoder, buffer::Dict{K,Vector{V}}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
         len = vbyte_decode(d.io, UInt32)
         endpos = position(d.io) + len
         vals_buffer = BufferedVector{V}()
@@ -84,7 +84,7 @@ for T in (:(:fixed), :(:zigzag))
         nothing
     end
 
-    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
+    @eval function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
         len = vbyte_decode(d.io, UInt32)
         endpos = position(d.io) + len
         while position(d.io) < endpos
@@ -100,7 +100,7 @@ for T in (:(:fixed), :(:zigzag))
 end
 
 for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
-    @eval function decode!(d::ProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
+    @eval function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
         len = vbyte_decode(d.io, UInt32)
         endpos = position(d.io) + len
         while position(d.io) < endpos
@@ -115,31 +115,31 @@ for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
     end
 end
 
-function decode(d::ProtoDecoder, ::Type{String})
+function decode(d::AbstractProtoDecoder, ::Type{String})
     bytelen = vbyte_decode(d.io, UInt32)
     bytes = Base.StringVector(bytelen)
     read!(d.io, bytes)
     return String(bytes)
 end
-function decode!(d::ProtoDecoder, buffer::BufferedVector{String})
+function decode!(d::AbstractProtoDecoder, buffer::BufferedVector{String})
     buffer[] = decode(d, String)
     return nothing
 end
 
-function decode(d::ProtoDecoder, ::Type{Vector{UInt8}})
+function decode(d::AbstractProtoDecoder, ::Type{Vector{UInt8}})
     bytelen = vbyte_decode(d.io, UInt32)
     return read(d.io, bytelen)
 end
-function decode(d::ProtoDecoder, ::Type{Base.CodeUnits{UInt8, String}})
+function decode(d::AbstractProtoDecoder, ::Type{Base.CodeUnits{UInt8, String}})
     bytelen = vbyte_decode(d.io, UInt32)
     return read(d.io, bytelen)
 end
-function decode!(d::ProtoDecoder, buffer::BufferedVector{Vector{UInt8}})
+function decode!(d::AbstractProtoDecoder, buffer::BufferedVector{Vector{UInt8}})
     buffer[] = decode(d, Vector{UInt8})
     return nothing
 end
 
-function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Int32,Int64,UInt32,UInt64,Enum{Int32},Enum{UInt32}}}
+function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Int32,Int64,UInt32,UInt64,Enum{Int32},Enum{UInt32}}}
     if w == LENGTH_DELIMITED
         bytelen = vbyte_decode(d.io, UInt32)
         endpos = bytelen + position(d.io)
@@ -153,7 +153,7 @@ function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where 
     return nothing
 end
 
-function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
+function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
     if w == LENGTH_DELIMITED
         bytelen = vbyte_decode(d.io, UInt32)
         endpos = bytelen + position(d.io)
@@ -167,7 +167,7 @@ function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type
     return nothing
 end
 
-function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64,UInt32,UInt64}}
+function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:fixed}}) where {T <: Union{Int32,Int64,UInt32,UInt64}}
     if w == LENGTH_DELIMITED
         bytelen = vbyte_decode(d.io, UInt32)
         n_incoming = div(bytelen, sizeof(T))
@@ -185,7 +185,7 @@ function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type
     return nothing
 end
 
-function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Bool,Float32,Float64}}
+function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Bool,Float32,Float64}}
     if w == LENGTH_DELIMITED
         bytelen = vbyte_decode(d.io, UInt32)
         n_incoming = div(bytelen, sizeof(T))
@@ -203,11 +203,26 @@ function decode!(d::ProtoDecoder, w::WireType, buffer::BufferedVector{T}) where 
     return nothing
 end
 
-function decode!(d::ProtoDecoder, buffer::Base.RefValue{T}) where {T}
+# When the type signature on buffer was Base.RefValue{Union{T,Nothing}} where T,
+# Aqua was complaining about an unbound type parameter.
+function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{S}) where {S>:Nothing}
+    T = Core.Compiler.typesubtract(S, Nothing, 2)
+    bytelen = vbyte_decode(d.io, UInt32)
+    endpos = bytelen + position(d.io)
+    if !isnothing(buffer[])
+        buffer[] = _merge_structs(getindex(buffer)::T, decode(d, T))
+    else
+        buffer[] = decode(d, T)
+    end
+    @assert position(d.io) == endpos
+    return nothing
+end
+
+function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{T}) where {T}
     bytelen = vbyte_decode(d.io, UInt32)
     endpos = bytelen + position(d.io)
     if isassigned(buffer)
-        buffer[] =_merge_structs(buffer[], decode(d, T))
+        buffer[] = _merge_structs(buffer[], decode(d, T))
     else
         buffer[] = decode(d, T)
     end
@@ -218,17 +233,17 @@ end
 # This method handles messages decoded as OneOf. We expect `decode(d, T)`
 # to be generated / provided by the user. We do this so that we can conditionally
 # eat the length varint (which is not present when decoding a toplevel message).
-# We don't reuse the decode!(d::ProtoDecoder, buffer::Base.RefValue{T}) method above
+# We don't reuse the decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{T}) method above
 # as with OneOf fields, we can't be sure that the previous OneOf value was also T.
-function decode(d::ProtoDecoder, ::Type{Ref{T}}) where {T}
+function decode(d::AbstractProtoDecoder, ::Type{Ref{T}}) where {T}
     bytelen = vbyte_decode(d.io, UInt32)
     endpos = bytelen + position(d.io)
-    out = decode(d, T)
+    out = decode(LengthDelimitedProtoDecoder(d.io, endpos), T)
     @assert position(d.io) == endpos
     return out
 end
 
-function decode!(d::ProtoDecoder, buffer::Vector{T}) where {T}
+function decode!(d::AbstractProtoDecoder, buffer::Vector{T}) where {T}
     bytelen = vbyte_decode(d.io, UInt32)
     endpos = bytelen + position(d.io)
     if isbitstype(T)
@@ -287,7 +302,7 @@ end
 #     end
 # end
 
-@inline function Base.skip(d::ProtoDecoder, wire_type::WireType)
+@inline function Base.skip(d::AbstractProtoDecoder, wire_type::WireType)
     if wire_type == VARINT
         while read(d.io, UInt8) >= 0x80 end
     elseif wire_type == FIXED64

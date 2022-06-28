@@ -6,17 +6,26 @@ module Codecs
 
 @enum(WireType::UInt32, VARINT=0, FIXED64=1, LENGTH_DELIMITED=2, START_GROUP=3, END_GROUP=4, FIXED32=5)
 
-struct ProtoDecoder{I<:IO,F<:Function}
+abstract type AbstractProtoDecoder end
+abstract type AbstractProtoEncoder end
+struct ProtoDecoder{I<:IO,F<:Function} <: AbstractProtoDecoder
     io::I
     message_done::F
 end
 message_done(d::ProtoDecoder) = d.message_done(d.io)
 ProtoDecoder(io::IO) = ProtoDecoder(io, eof)
-function try_eat_end_group(d::ProtoDecoder, wire_type::WireType)
+function try_eat_end_group(d::AbstractProtoDecoder, wire_type::WireType)
     wire_type == START_GROUP && read(d, UInt8) # read end group
     return nothing
 end
-struct ProtoEncoder{I<:IO}
+
+struct LengthDelimitedProtoDecoder{I<:IO} <: AbstractProtoDecoder
+    io::I
+    endpos::Int
+end
+message_done(d::LengthDelimitedProtoDecoder) = d.endpos == position(d.io)
+
+struct ProtoEncoder{I<:IO} <: AbstractProtoEncoder
     io::I
 end
 

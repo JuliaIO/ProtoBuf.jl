@@ -56,7 +56,7 @@ import .Parsers
 import .CodeGenerators
 import .CodeGenerators: protojl
 import .Codecs
-import .Codecs: decode, decode!, encode, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, try_eat_end_group, decode_tag, skip
+import .Codecs: decode, decode!, encode, AbstractProtoDecoder, AbstractProtoEncoder, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, try_eat_end_group, decode_tag, skip
 
 export protojl, encode, ProtoEncoder, decode, decode!, ProtoDecoder
 

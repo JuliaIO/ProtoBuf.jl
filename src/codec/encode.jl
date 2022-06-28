@@ -95,7 +95,7 @@ for T in (:(:fixed), :(:zigzag))
 end
 
 for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
-    @eval function _encode(_e::ProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
+    @eval function _encode(_e::AbstractProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
         Base.ensureroom(_e.io, 2length(x))
         for (k, v) in x
             encode(_e, 1, k, Val{$(T)})
@@ -107,57 +107,57 @@ end
 
 
 
-function encode(e::ProtoEncoder, i::Int, x::T) where {T<:Union{Bool,Int32,Int64,UInt32,UInt64,Enum{Int32},Enum{UInt32}}}
+function encode(e::AbstractProtoEncoder, i::Int, x::T) where {T<:Union{Bool,Int32,Int64,UInt32,UInt64,Enum{Int32},Enum{UInt32}}}
     encode_tag(e, i, VARINT)
     _encode(e.io, x)
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::T, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
+function encode(e::AbstractProtoEncoder, i::Int, x::T, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
     encode_tag(e, i, VARINT)
     _encode(e.io, x, Val{:zigzag})
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int32,UInt32}}
+function encode(e::AbstractProtoEncoder, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int32,UInt32}}
     encode_tag(e, i, FIXED32)
     _encode(e.io, x, Val{:fixed})
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Float32)
+function encode(e::AbstractProtoEncoder, i::Int, x::Float32)
     encode_tag(e, i, FIXED32)
     _encode(e.io, x)
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int64,UInt64}}
+function encode(e::AbstractProtoEncoder, i::Int, x::T, ::Type{Val{:fixed}}) where {T<:Union{Int64,UInt64}}
     encode_tag(e, i, FIXED64)
     _encode(e.io, x, Val{:fixed})
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Float64)
+function encode(e::AbstractProtoEncoder, i::Int, x::Float64)
     encode_tag(e, i, FIXED64)
     _encode(e.io, x)
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{Bool,UInt8,Float32,Float64}}
+function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{Bool,UInt8,Float32,Float64}}
     encode_tag(e, i, LENGTH_DELIMITED)
     vbyte_encode(e.io, UInt32(sizeof(x)))
     _encode(e.io, x)
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Base.CodeUnits{UInt8, String})
+function encode(e::AbstractProtoEncoder, i::Int, x::Base.CodeUnits{UInt8, String})
     encode_tag(e, i, LENGTH_DELIMITED)
     vbyte_encode(e.io, UInt32(sizeof(x)))
     _encode(e.io, x)
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Vector{String})
+function encode(e::AbstractProtoEncoder, i::Int, x::Vector{String})
     Base.ensureroom(e.io, 9length(x))
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
@@ -167,7 +167,7 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{String})
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Vector{Vector{UInt8}})
+function encode(e::AbstractProtoEncoder, i::Int, x::Vector{Vector{UInt8}})
     Base.ensureroom(e.io, sizeof(x) + length(x))
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
@@ -177,21 +177,21 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{Vector{UInt8}})
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::String)
+function encode(e::AbstractProtoEncoder, i::Int, x::String)
     encode_tag(e, i, LENGTH_DELIMITED)
     vbyte_encode(e.io, UInt32(sizeof(x)))
     _encode(e.io, x)
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
+function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
     encode_tag(e, i, LENGTH_DELIMITED)
     vbyte_encode(e.io, UInt32(sizeof(x)))
     _encode(e.io, x, Val{:fixed})
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64,Enum{Int32},Enum{UInt32}}}
+function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64,Enum{Int32},Enum{UInt32}}}
     _io = IOBuffer(sizehint=length(x), maxsize=10length(x)) # TODO: is sizehint necessary when we ensureroom in _encode?
     encode_tag(e, i, LENGTH_DELIMITED)
     _encode(_io, x)
@@ -202,7 +202,7 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UI
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
+function encode(e::AbstractProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
     _e = ProtoEncoder(IOBuffer(sizehint=2length(x)))
     encode_tag(e, i, LENGTH_DELIMITED)
     _encode(_e, x)
@@ -213,7 +213,7 @@ function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}, ::Type{W}) where {K,V,W}
+function encode(e::AbstractProtoEncoder, i::Int, x::Dict{K,V}, ::Type{W}) where {K,V,W}
     _e = ProtoEncoder(IOBuffer(sizehint=2length(x)))
     encode_tag(e, i, LENGTH_DELIMITED)
     _encode(_e, x, W)
@@ -224,7 +224,7 @@ function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}, ::Type{W}) where {K,V,W}
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
+function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int32,Int64}}
     encode_tag(e, i, LENGTH_DELIMITED)
     _io = IOBuffer(sizehint=cld(sizeof(x), _max_varint_size(T)))
     _encode(_io, x, Val{:zigzag})
@@ -236,10 +236,10 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:zigzag}}) whe
 end
 
 # Overload this for new struct types
-function encode(e::ProtoEncoder, x::T) where {T} end
+function encode(e::AbstractProtoEncoder, x::T) where {T} end
 
 # T is a struct/message type
-function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T}
+function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T}
     _e = ProtoEncoder(IOBuffer(sizehint=sizeof(T)))
     Base.ensureroom(e.io, length(x) * sizeof(T))
     for el in x
@@ -254,7 +254,7 @@ function encode(e::ProtoEncoder, i::Int, x::Vector{T}) where {T}
     return nothing
 end
 
-function encode(e::ProtoEncoder, i::Int, x::T) where {T}
+function encode(e::AbstractProtoEncoder, i::Int, x::T) where {T}
     _e = ProtoEncoder(IOBuffer(sizehint=sizeof(T)))
     encode_tag(e, i, LENGTH_DELIMITED)
     encode(_e, x)

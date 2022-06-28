@@ -74,7 +74,7 @@ function print_field_encode_expr(io, fs::OneOfType, ctx)
 end
 
 function generate_encode_method(io, t::MessageType, ctx)
-    println(io, "function PB.encode(e::PB.ProtoEncoder, x::$(safename(t)))")
+    println(io, "function PB.encode(e::PB.AbstractProtoEncoder, x::$(safename(t)))")
     println(io, "    initpos = position(e.io)")
     for field in t.fields
         print_field_encode_expr(io, field, ctx)
