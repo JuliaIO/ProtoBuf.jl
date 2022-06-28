@@ -250,7 +250,7 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T}
         write(e.io, _e.io)
         seekstart(_e.io)
     end
-    close(_io)
+    close(_e.io)
     return nothing
 end
 
