@@ -230,7 +230,7 @@ function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{T}) where {T}
     return nothing
 end
 
-# This method handles messages decoded as OneOf. We expect `decode(d, T)`
+# This method handles messages decoded as OneOf / repeated. We expect `decode(d, T)`
 # to be generated / provided by the user. We do this so that we can conditionally
 # eat the length varint (which is not present when decoding a toplevel message).
 # We don't reuse the decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{T}) method above
@@ -243,17 +243,8 @@ function decode(d::AbstractProtoDecoder, ::Type{Ref{T}}) where {T}
     return out
 end
 
-function decode!(d::AbstractProtoDecoder, buffer::Vector{T}) where {T}
-    bytelen = vbyte_decode(d.io, UInt32)
-    endpos = bytelen + position(d.io)
-    if isbitstype(T)
-        # sizeof isbitstypes is the upper bound, it includes padding
-        sizehint!(buffer, length(buffer) + div(bytelen, sizeof(T)))
-    end
-    while position(d.io) < endpos
-        push!(buffer, decode(d, T))
-    end
-    @assert position(d.io) == endpos
+function decode!(d::AbstractProtoDecoder, buffer::BufferedVector{T}) where {T}
+    buffer[] = decode(d, Ref{T})
     return nothing
 end
 

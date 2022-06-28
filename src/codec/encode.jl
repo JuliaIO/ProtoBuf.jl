@@ -158,7 +158,7 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Base.CodeUnits{UInt8, String
 end
 
 function encode(e::AbstractProtoEncoder, i::Int, x::Vector{String})
-    Base.ensureroom(e.io, 9length(x))
+    Base.ensureroom(e.io, length(x) * (sizeof(first(x)) + 1))
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
         vbyte_encode(e.io, UInt32(sizeof(el)))
@@ -168,7 +168,7 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Vector{String})
 end
 
 function encode(e::AbstractProtoEncoder, i::Int, x::Vector{Vector{UInt8}})
-    Base.ensureroom(e.io, sizeof(x) + length(x))
+    Base.ensureroom(e.io, length(x) * (sizeof(first(x)) + 1))
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
         vbyte_encode(e.io, UInt32(sizeof(el)))

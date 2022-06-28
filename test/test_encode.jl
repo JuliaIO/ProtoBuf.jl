@@ -73,22 +73,47 @@ function test_encode(input, i, w::WireType, expected, V::Type=Nothing)
         encode(d, i, input, V)
     end
     bytes = take!(d.io)
+    if isa(input, AbstractVector) && eltype(input) <: Union{Vector{UInt8}, String, TestInner}
+        j = 1
+        while !isempty(bytes)
+            tag = bytes[1]
+            len = bytes[2]
+            elbytes = bytes[3:len+2]
+            bytes = bytes[3+len:end]
 
-    tag = first(bytes)
-    bytes = bytes[2:end]
-    if w == Codecs.LENGTH_DELIMITED
-        len = first(bytes)
-        bytes = bytes[2:end]
-        @testset "length" begin
-            @test len == length(expected)
+            extag = expected[1]
+            exlen = expected[2]
+            elexpected = expected[3:len+2]
+            expected = expected[3+len:end]
+            @testset "length $j" begin
+                @test len == exlen
+            end
+            @testset "tag $j" begin
+                @test ((tag >> 3) == (extag >> 3)) & ((tag >> 3) == i)
+                @test ((tag & 0x07) == (extag & 0x07)) & ((tag & 0x07) == Int(w))
+            end
+            @testset "encoded payload $j" begin
+                @test elbytes == elexpected
+            end
+            j += 1
         end
-    end
-    @testset "tag" begin
-        @test tag >> 3 == i
-        @test tag & 0x07 == Int(w)
-    end
-    @testset "encoded payload" begin
-        @test bytes == expected
+    else
+        tag = first(bytes)
+        bytes = bytes[2:end]
+        if w == Codecs.LENGTH_DELIMITED
+            len = first(bytes)
+            bytes = bytes[2:end]
+            @testset "length" begin
+                @test len == length(expected)
+            end
+        end
+        @testset "tag" begin
+            @test tag >> 3 == i
+            @test tag & 0x07 == Int(w)
+        end
+        @testset "encoded payload" begin
+            @test bytes == expected
+        end
     end
 end
 
@@ -102,6 +127,14 @@ end
         @testset "string" begin
             test_encode("123456789", 2, Codecs.LENGTH_DELIMITED, b"123456789")
             test_encode("", 2, Codecs.LENGTH_DELIMITED, b"")
+        end
+
+        @testset "repeated bytes" begin
+            test_encode([[0x31, 0x32], [0x33, 0x34]], 2, Codecs.LENGTH_DELIMITED, [0x12, 0x02, 0x31, 0x32, 0x12, 0x02, 0x33, 0x34])
+        end
+
+        @testset "repeated string" begin
+            test_encode(["12", "34"], 2, Codecs.LENGTH_DELIMITED, [0x12, 0x02, 0x31, 0x32, 0x12, 0x02, 0x33, 0x34])
         end
 
         @testset "repeated uint32" begin
@@ -160,6 +193,10 @@ end
 
         @testset "repeated sint64" begin
             test_encode(Int64[1, 2, -1, -2], 2, Codecs.LENGTH_DELIMITED, [0x02, 0x04, 0x01, 0x03], Val{:zigzag})
+        end
+
+        @testset "repeated message" begin
+            test_encode([TestInner(3), TestInner(4)], 2, Codecs.LENGTH_DELIMITED, [0x12, 0x02, 0x08, 0x03, 0x12, 0x02, 0x08, 0x04])
         end
 
         @testset "map" begin

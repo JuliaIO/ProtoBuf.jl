@@ -79,9 +79,16 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
         input_bytes = vcat(UInt8(length(input_bytes)), input_bytes)
     end
 
-    e = ProtoDecoder(PipeBuffer(input_bytes))
+    e = ProtoDecoder(IOBuffer(input_bytes))
     if V === Nothing
-        if isa(expected, Vector)
+        if eltype(expected) <: Union{String,Vector{UInt8},TestInner}
+            skip(e.io, 1)
+            x = BufferedVector{eltype(expected)}()
+            while !eof(e.io)
+                decode!(e, x)
+            end
+            x = x[]
+        elseif isa(expected, Vector)
             x = BufferedVector{eltype(expected)}()
             decode!(e, w, x)
             x = x[]
@@ -123,7 +130,15 @@ end
         end
 
         @testset "string" begin
-            test_decode(b"123456789", b"123456789")
+            test_decode(b"123456789", "123456789")
+        end
+
+        @testset "repeated bytes" begin
+            test_decode([0x02, 0x31, 0x32, 0x02, 0x33, 0x34], [[0x31, 0x32], [0x33, 0x34]])
+        end
+
+        @testset "repeated string" begin
+            test_decode([0x02, 0x31, 0x32, 0x02, 0x33, 0x34], ["12", "34"])
         end
 
         @testset "repeated uint32" begin
@@ -182,6 +197,10 @@ end
 
         @testset "repeated sint64" begin
             test_decode([0x02, 0x04, 0x01, 0x03], Int64[1, 2, -1, -2], Val{:zigzag})
+        end
+
+        @testset "repeated message" begin
+            test_decode([0x02, 0x08, 0x03, 0x02, 0x08, 0x04], [TestInner(3), TestInner(4)])
         end
 
         @testset "map" begin
