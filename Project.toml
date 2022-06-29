@@ -11,6 +11,7 @@ TranscodingStreams = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 
 [compat]
 EnumX = "1"
+TranscodingStreams = "0.9"
 julia = "1.7"
 
 [extras]
