@@ -245,9 +245,9 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T}
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
         encode(_e, el)
-        vbyte_encode(e.io, UInt32(position(_e.io)))
-        seekstart(_e.io)
-        write(e.io, _e.io)
+        bytelen = UInt32(position(_e.io))
+        vbyte_encode(e.io, bytelen)
+        unsafe_write(e.io, pointer(_e.io.data), UInt(bytelen))
         seekstart(_e.io)
     end
     close(_e.io)

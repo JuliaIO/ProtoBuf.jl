@@ -203,33 +203,6 @@ function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}
     return nothing
 end
 
-# When the type signature on buffer was Base.RefValue{Union{T,Nothing}} where T,
-# Aqua was complaining about an unbound type parameter.
-function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{S}) where {S>:Nothing}
-    T = Core.Compiler.typesubtract(S, Nothing, 2)
-    bytelen = vbyte_decode(d.io, UInt32)
-    endpos = bytelen + position(d.io)
-    if !isnothing(buffer[])
-        buffer[] = _merge_structs(getindex(buffer)::T, decode(d, T))
-    else
-        buffer[] = decode(d, T)
-    end
-    @assert position(d.io) == endpos
-    return nothing
-end
-
-function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{T}) where {T}
-    bytelen = vbyte_decode(d.io, UInt32)
-    endpos = bytelen + position(d.io)
-    if isassigned(buffer)
-        buffer[] = _merge_structs(buffer[], decode(d, T))
-    else
-        buffer[] = decode(d, T)
-    end
-    @assert position(d.io) == endpos
-    return nothing
-end
-
 # This method handles messages decoded as OneOf / repeated. We expect `decode(d, T)`
 # to be generated / provided by the user. We do this so that we can conditionally
 # eat the length varint (which is not present when decoding a toplevel message).
@@ -245,6 +218,27 @@ end
 
 function decode!(d::AbstractProtoDecoder, buffer::BufferedVector{T}) where {T}
     buffer[] = decode(d, Ref{T})
+    return nothing
+end
+
+# When the type signature on buffer was Base.RefValue{Union{T,Nothing}} where T,
+# Aqua was complaining about an unbound type parameter.
+function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{S}) where {S>:Nothing}
+    T = Core.Compiler.typesubtract(S, Nothing, 2)
+    if !isnothing(buffer[])
+        buffer[] = _merge_structs(getindex(buffer)::T, decode(_d, Ref{T}))
+    else
+        buffer[] = decode(d, Ref{T})
+    end
+    return nothing
+end
+
+function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{T}) where {T}
+    if isassigned(buffer)
+        buffer[] = _merge_structs(buffer[], decode(d, Ref{T}))
+    else
+        buffer[] = decode(d, Ref{T})
+    end
     return nothing
 end
 
