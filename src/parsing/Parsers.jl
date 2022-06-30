@@ -42,7 +42,6 @@ function ParserState(input::Union{IO,String})
     )
     readtoken(ps)
     readtoken(ps)
-    readtoken(ps)
     return ps
 end
 
@@ -226,11 +225,14 @@ include("utils.jl")
 
 parse_proto_file(path::String) = parse_proto_file(ParserState(path))
 function parse_proto_file(ps::ParserState)
-    expect(ps, Tokens.SYNTAX)
-    expectnext(ps, Tokens.EQ)
-    proto_version_string = val(expectnext(ps, Tokens.STRING_LIT))[2:end-1] # drop quotes
-    @assert (proto_version_string in ("proto3", "proto2"))
-    expectnext(ps, Tokens.SEMICOLON)
+    if accept(ps, Tokens.SYNTAX)
+        expectnext(ps, Tokens.EQ)
+        proto_version_string = val(expectnext(ps, Tokens.STRING_LIT))[2:end-1] # drop quotes
+        @assert (proto_version_string in ("proto3", "proto2"))
+        expectnext(ps, Tokens.SEMICOLON)
+    else
+        proto_version_string = "proto2"
+    end
 
     definitions = Dict{String,AbstractProtoType}()
     extends = ExtendType[]
