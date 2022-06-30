@@ -23,6 +23,7 @@ include("types.jl")
 include("defaults.jl")
 include("decode_methods.jl")
 include("encode_methods.jl")
+include("metadata_methods.jl")
 include("toplevel_definitions.jl")
 
 export protojl
