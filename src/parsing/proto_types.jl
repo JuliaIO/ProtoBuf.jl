@@ -306,8 +306,11 @@ function parse_enum_type(ps::ParserState, name_prefix="")
     end
     accept(ps, Tokens.SEMICOLON)
     elements = NamedTuple{Tuple(map(Symbol, element_names))}(element_values)
+    if !parse(Bool, get(options, "allow_alias", "false"))
+        !allunique(element_values) && error("Duplicates in enumeration $name. You can allow multiple keys mapping to the same number with `option allow_alias = true;`")
+    end
     # TODO: validate field_numbers and reserved ranges
-    return EnumType(_dot_join(name_prefix, name) , elements, options, field_options, reserved_nums, reserved_names, extensions)
+    return EnumType(_dot_join(name_prefix, name), elements, options, field_options, reserved_nums, reserved_names, extensions)
 end
 
 # We consumed EXTEND

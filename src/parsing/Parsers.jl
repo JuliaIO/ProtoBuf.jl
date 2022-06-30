@@ -129,7 +129,8 @@ function parse_integer_value(ps)
         readtoken(ps)
         parse(Int, val(readtoken(ps)))
     elseif nk == Tokens.MINUS && nnk == Tokens.DEC_INT_LIT
-        parse(Int, string(val(readtoken(ps)), val(readtoken(ps))))
+        readtoken(ps)
+        parse(Int, string("-", val(readtoken(ps))))
     else
         error("Encountered invalid token sequence while parsing integer value: $(dpeektoken(ps))")
     end
