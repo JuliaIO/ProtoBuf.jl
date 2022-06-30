@@ -226,7 +226,7 @@ end
 function decode!(d::AbstractProtoDecoder, buffer::Base.RefValue{S}) where {S>:Nothing}
     T = Core.Compiler.typesubtract(S, Nothing, 2)
     if !isnothing(buffer[])
-        buffer[] = _merge_structs(getindex(buffer)::T, decode(_d, Ref{T}))
+        buffer[] = _merge_structs(getindex(buffer)::T, decode(d, Ref{T}))
     else
         buffer[] = decode(d, Ref{T})
     end
@@ -251,15 +251,14 @@ end
 # produces exactly the same result as if you had parsed the two messages separately
 # and merged the resulting objects
 @generated function _merge_structs(s1::Union{Nothing,T}, s2::T) where {T}
-    isnothing(s1) && return s2
-    isnothing(s2) && return s2
+    isbitstype(s1) && return :(return s2)
     # TODO: Error gracefully on unsuported types like Missing, Matrices...
     #       Would be easier if we have a HolyTrait for user defined structs
     merged_values = Tuple(
         (
-            type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8}} ? :(s2.$name) :
-            type <: AbstractVector ? :(vcat(s1.$name, s2.$name)) :
-            :(_merge_structs(s1.$name, s2.$name))
+            type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8}} ? :(s2.$(name)) :
+            type <: AbstractVector ? :(vcat(s1.$(name), s2.$(name))) :
+            :(_merge_structs(s1.$(name), s2.$(name)))
         )
         for (name, type)
         in zip(fieldnames(T), fieldtypes(T))
@@ -267,25 +266,22 @@ end
     return quote T($(merged_values...)) end
 end
 
-# @generated function _merge_structs!(s1::Union{Nothing,T}, s2::T) where {T}
-#     isnothing(s1) && return s2
-#     isnothing(s2) && return s2
-#     # TODO: Error gracefully on unsuported types like Missing, Matrices...
-#     #       Would be easier if we have a HolyTrait for user defined structs
-#     merged_values = Tuple(
-#         (
-#             type <: AbstractVector ? :(append!(s2.$name, s1.$name)) :
-#             :(_merge_structs!(s1.$name, s2.$name))
-#         )
-#         for (name, type)
-#         in zip(fieldnames(T), fieldtypes(T))
-#         if !(type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8})
-#     )
-#     return quote
-#         T($(merged_values...))
-#         return s2
-#     end
-# end
+@generated function _merge_structs!(s1::Union{Nothing,T}, s2::T) where {T}
+    isbitstype(s1) && :(return nothing)
+    exprs = Expr[]
+    for (name, type) in zip(fieldnames(T), fieldtypes(T))
+        (type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8}}) && continue
+        if (type <: AbstractVector)
+            push!(exprs, :(prepend!(s2.$(name), s1.$(name));))
+        else
+            push!(exprs, :(_merge_structs!(s1.$(name), s2.$(name));))
+        end
+    end
+    return quote
+        $(exprs...)
+        return nothing
+    end
+end
 
 @inline function Base.skip(d::AbstractProtoDecoder, wire_type::WireType)
     if wire_type == VARINT
