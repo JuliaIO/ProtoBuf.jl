@@ -47,12 +47,11 @@ function jl_type_default(f::FieldType{BytesType}, ctx)
 end
 function jl_type_default(f::FieldType{ReferencedType}, ctx)
     if _is_enum(f.type, ctx)
-        default = get(f.options, "default", "0")
-        if default == "0"
-            return "$(jl_typename(f.type, ctx))(0)"
-        else
-            return "$(jl_typename(f.type, ctx)[1:end-2]).$(default)"
+        default = get(f.options, "default") do
+            definition = _get_referenced_type(f.type, ctx)::EnumType
+            string(first(keys(definition.elements)))
         end
+        return "$(jl_typename(f.type, ctx)[1:end-2]).$(default)"
     else # message, AFAIK services shouldn't be referenced
         if f.type.name in ctx.proto_file.cyclic_definitions || f.label == Parsers.OPTIONAL
             return "Ref{Union{Nothing,$(jl_typename(f.type, ctx))}}(nothing)"

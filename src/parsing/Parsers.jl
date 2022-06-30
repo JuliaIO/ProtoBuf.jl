@@ -270,7 +270,7 @@ function parse_proto_file(ps::ParserState)
         options,
         imported_packages,
     )
-    external_references = find_external_references(definitions)
+    external_references = find_external_references_and_check_enums(definitions, preamble)
     topologically_sorted, cyclic_definitions = _topological_sort(definitions, external_references)
     return ProtoFile(
         filepath(ps.l),

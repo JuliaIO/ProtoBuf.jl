@@ -66,10 +66,17 @@ function _search_imports(proto_file::ProtoFile, file_map, t::ReferencedType, dep
     end
 end
 
+# TODO: we need this to find the first value of enums...
+# should we store the definition within the referenced type itself?
+function _get_referenced_type(t::ReferencedType, ctx)
+    def = _search_imports(ctx.proto_file, ctx.file_map, t)
+    isnothing(def) && error("Referenced type `$(t)` not found in any imported package ('$(join(union(ctx.imports, [namespace(ctx.proto_file)]), "', '"))').")
+    return def
+end
+
 function _get_referenced_type_type!(t::ReferencedType, ctx)
     if isempty(t.type_name)
-        def = _search_imports(ctx.proto_file, ctx.file_map, t)
-        isnothing(def) && error("Referenced type `$(t)` not found in any imported package ('$(join(union(ctx.imports, [namespace(ctx.proto_file)]), "', '"))').")
+        def = _get_referenced_type(t, ctx)
         if isa(def, MessageType)
             t.type_name = "message"
         elseif isa(def, EnumType)
