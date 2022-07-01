@@ -489,3 +489,12 @@ function parse_type(ps::ParserState, definitions::Dict{String,AbstractProtoType}
         return parse_type(ps)
     end
 end
+
+_get_leaf_fields(t::AbstractProtoType) = [t]
+_get_leaf_fields(::EnumType) = []
+_get_leaf_fields(t::GroupType) = _get_leaf_fields(t.type)
+_get_leaf_fields(t::ServiceType) = t.rpcs
+_get_leaf_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_leaf_fields, t.fields))
+
+_get_types(t::AbstractProtoFieldType) = (t.type,)
+_get_types(t::RPCType) = (t.request_type, t.response_type)

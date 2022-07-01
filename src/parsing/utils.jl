@@ -1,14 +1,3 @@
-# All definitions should've been pushed to the top-level messages' definitions
-# I.e. we shouldn't have to recurse here.
-_get_fields(t::AbstractProtoType) = [t]
-_get_fields(::EnumType) = []
-_get_fields(t::GroupType) = _get_fields(t.type)
-_get_fields(t::ServiceType) = t.rpcs
-_get_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_fields, t.fields))
-
-_get_types(t::AbstractProtoFieldType) = (t.type,)
-_get_types(t::RPCType) = (t.request_type, t.response_type)
-
 function find_external_references_and_check_enums(definitions::Dict{String, AbstractProtoType}, preamble::ProtoFilePreamble)
     # Traverse all definition and see which of those referenced are not defined
     # in this module. Create a list of these imported definitions so that we can ignore
@@ -16,8 +5,8 @@ function find_external_references_and_check_enums(definitions::Dict{String, Abst
     referenced = Set{String}()
     invalid_enums = Set{String}()
     for definition in values(definitions)
-        for field in _get_fields(definition)
-            for type in _get_types(field)
+        for field in Parsers._get_leaf_fields(definition)
+            for type in Parsers._get_types(field)
                 if isa(type, ReferencedType)
                     push!(referenced, type.name)
                     if type.namespace in keys(definitions)
