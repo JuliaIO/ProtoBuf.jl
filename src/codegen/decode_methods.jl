@@ -25,10 +25,10 @@ function jl_type_decode_repeated_expr(f::FieldType{T}, ctx) where {T<:AbstractPr
     return "PB.decode!(d, wire_type, $(jl_fieldname(f)))"
 end
 function jl_type_decode_repeated_expr(f::FieldType{T}, ctx) where {T<:AbstractProtoFixedType}
-    return "PB.decode!(d, wire_type, $(jl_fieldname(f)), Var{:fixed})"
+    return "PB.decode!(d, wire_type, $(jl_fieldname(f)), Val{:fixed})"
 end
 function jl_type_decode_repeated_expr(f::FieldType{T}, ctx) where {T<:Union{SInt32Type,SInt64Type}}
-    return "PB.decode!(d, wire_type, $(jl_fieldname(f)), Var{:zigzag})"
+    return "PB.decode!(d, wire_type, $(jl_fieldname(f)), Val{:zigzag})"
 end
 function jl_type_decode_repeated_expr(f::FieldType{ReferencedType}, ctx)
     _is_message(f.type, ctx) && return "PB.decode!(d, $(jl_fieldname(f)))"
@@ -87,7 +87,7 @@ end
 
 function generate_decode_method(io, t::MessageType, ctx)
     println(io, "function PB.decode(d::PB.AbstractProtoDecoder, ::Type{$(safename(t))})")
-    # defaults
+    has_fields = !isempty(t.fields)
     for field in t.fields
         println(io, "    ", jl_fieldname(field), " = ", jl_default_value(field, ctx))
     end
@@ -96,9 +96,9 @@ function generate_decode_method(io, t::MessageType, ctx)
     for (i, field) in enumerate(t.fields)
         field_decode_expr(io, field, i, ctx)
     end
-    println(io, "        else")
-    println(io, "            PB.skip(d, wire_type)")
-    println(io, "        end")
+    has_fields && println(io, "        else")
+    println(io, "    " ^ (3 - !has_fields), "PB.skip(d, wire_type)")
+    has_fields && println(io, "        end")
     println(io, "        PB.try_eat_end_group(d, wire_type)")
     println(io, "    end")
     print(io, "    return ", jl_typename(t, ctx), "(")

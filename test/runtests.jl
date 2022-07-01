@@ -7,6 +7,7 @@ import ProtocolBuffers
     include("test_vbyte.jl")
     include("test_encode.jl")
     include("test_decode.jl")
+    include("test_protojl.jl")
 
     @testset "Aqua" begin
         Aqua.test_all(ProtocolBuffers)

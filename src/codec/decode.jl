@@ -5,10 +5,13 @@ function decode_tag(d::AbstractProtoDecoder)
     return field_number, wire_type
 end
 
+const _ScalarTypes = Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8}}
+const _ScalarTypesEnum = Union{_ScalarTypes,Enum}
+
 # uint32, uint64
 decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{UInt32,UInt64}} = vbyte_decode(d.io, T)
 # int32: Negative int32 are encoded in 10 bytes...
-# TODO: add check the int is negative if larger thatn typemax UInt32
+# TODO: add check the int is negative if larger than typemax UInt32
 decode(d::AbstractProtoDecoder, ::Type{Int32}) = reinterpret(Int32, UInt32(vbyte_decode(d.io, UInt64) % UInt32))
 # int64
 decode(d::AbstractProtoDecoder, ::Type{Int64}) = reinterpret(Int64, vbyte_decode(d.io, UInt64))
@@ -23,7 +26,7 @@ end
 decode(d::AbstractProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
 decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}} = T(vbyte_decode(d.io, UInt32))
 decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
-function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V}
+function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V<:_ScalarTypesEnum}
     len = vbyte_decode(d.io, UInt32)
     endpos = position(d.io) + len
     while position(d.io) < endpos
@@ -37,7 +40,21 @@ function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V}
     nothing
 end
 
-function decode!(d::AbstractProtoDecoder, buffer::Dict{K,Vector{V}}) where {K,V}
+function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V}
+    len = vbyte_decode(d.io, UInt32)
+    endpos = position(d.io) + len
+    while position(d.io) < endpos
+        field_number, wire_type = decode_tag(d)
+        key = decode(d, K)
+        field_number, wire_type = decode_tag(d)
+        val = decode(d, Ref{V})
+        buffer[key] = val
+    end
+    @assert position(d.io) == endpos
+    nothing
+end
+
+function decode!(d::AbstractProtoDecoder, buffer::Dict{K,Vector{V}}) where {K,V<:_ScalarTypes}
     len = vbyte_decode(d.io, UInt32)
     endpos = position(d.io) + len
     vals_buffer = BufferedVector{V}()
@@ -256,7 +273,7 @@ end
     #       Would be easier if we have a HolyTrait for user defined structs
     merged_values = Tuple(
         (
-            type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8}} ? :(s2.$(name)) :
+            type <: _ScalarTypesEnum ? :(s2.$(name)) :
             type <: AbstractVector ? :(vcat(s1.$(name), s2.$(name))) :
             :(_merge_structs(s1.$(name), s2.$(name)))
         )
@@ -270,7 +287,7 @@ end
     isbitstype(s1) && :(return nothing)
     exprs = Expr[]
     for (name, type) in zip(fieldnames(T), fieldtypes(T))
-        (type <: Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,String,Vector{UInt8}}) && continue
+        (type <: _ScalarTypesEnum) && continue
         if (type <: AbstractVector)
             push!(exprs, :(prepend!(s2.$(name), s1.$(name));))
         else

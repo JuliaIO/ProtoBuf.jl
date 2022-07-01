@@ -26,7 +26,7 @@ field_encode_expr(f::GroupType, ctx) = "PB.encode(e, $(f.number), x.$(jl_fieldna
 function field_encode_expr(f::FieldType, ctx)
     if _is_repeated_field(f)
         encoding_val_type = _decoding_val_type(f.type)
-        !isempty(encoding_val_type) && (encoding_val_type = ", $encoding_val_type")
+        !isempty(encoding_val_type) && (encoding_val_type = ", Val{$encoding_val_type}")
         # TODO: do we want to allow unpacked representation? Docs say that parsers must always handle both cases
         # and since packed is strictly more efficient, currently we don't allow that.
         # is_packed = parse(Bool, get(f.options, "packed", "false"))
@@ -50,10 +50,10 @@ _field_encode_expr(f::FieldType{<:Union{SInt32Type,SInt64Type}}, ctx) = "PB.enco
 function _field_encode_expr(f::FieldType{<:MapType}, ctx)
     K = _decoding_val_type(f.type.keytype)
     V = _decoding_val_type(f.type.valuetype)
-    isempty(V) && isempty(K) && return "PB.encode(e, $(f.number), $(jl_fieldname(f)))"
-    !isempty(V) && isempty(K) && return "PB.encode(e, $(f.number), $(jl_fieldname(f)), Val{Tuple{Nothing,$(V)}})"
-    isempty(V) && !isempty(K) && return "PB.encode(e, $(f.number), $(jl_fieldname(f)), Val{Tuple{$(K),Nothing}})"
-    return "PB.encode(e, $(f.number), $(jl_fieldname(f)), Val{Tuple{$(K),$(V)}})"
+    isempty(V) && isempty(K) && return "PB.encode(e, $(f.number), x.$(jl_fieldname(f)))"
+    !isempty(V) && isempty(K) && return "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{Tuple{Nothing,$(V)}})"
+    isempty(V) && !isempty(K) && return "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{Tuple{$(K),Nothing}})"
+    return "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{Tuple{$(K),$(V)}})"
 end
 
 function print_field_encode_expr(io, f::FieldType, ctx)

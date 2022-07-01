@@ -1,3 +1,4 @@
+#TODO: Cleanup!
 struct ParamMetadata
     param::String
     bound::String
@@ -38,7 +39,8 @@ function jl_typename(t::ReferencedType, ctx)
     # or with the module it was defined in. Here we determine whether the namespace is
     # actually a package and if it is, we prefix the safename of the type with it.
     if !(isempty(t.namespace) || !isnothing(t.enclosing_type) || t.namespace_is_type || t.namespace == namespace(ctx.proto_file))
-        name = string(proto_module_name(t.namespace), '.', name)
+        import_chain = mapreduce(proto_module_name, (x, y)->join((x, y), '.'), split(t.namespace, '.'))
+        name = string(import_chain, '.', name)
     end
     # This is where EnumX.jl bites us -- we need to search through all defitnition (including imported)
     # to make sure a ReferencedType is an Enum, in which case we need to add a `.T` suffix.
@@ -48,10 +50,10 @@ end
 # NOTE: If there is a self-reference to the parent type, we might get
 #       a Union{..., Union{Nothing,parentType}, ...}. This is probably ok?
 function jl_typename(t::OneOfType, ctx)
-    return string("OneOf{", _jl_inner_typename(t, ctx), "}")
+    return string("OneOf{", _jl_oneof_inner_typename(t, ctx), "}")
 end
 
-function _jl_inner_typename(t::OneOfType, ctx)
+function _jl_oneof_inner_typename(t::OneOfType, ctx)
     union_types = unique!([jl_typename(f.type, ctx) for f in t.fields])
     return length(union_types) == 1 ? only(union_types) : string("Union{", join(union_types, ','), '}')
 end
@@ -99,10 +101,28 @@ _needs_type_params(f::FieldType{ReferencedType}, ctx) = f.type.name in ctx._curr
 _needs_type_params(f::FieldType, ctx) = false
 _needs_type_params(f::OneOfType, ctx) = true
 _needs_type_params(f::GroupType, ctx) = f.name in ctx._curr_cyclic_defs
+function _needs_type_params(f::FieldType{MapType}, ctx)
+    if isa(f.type.valuetype, ReferencedType)
+        return f.type.valuetype.name in ctx._curr_cyclic_defs
+    end
+    return false
+end
 
 _get_type_bound(f::FieldType{ReferencedType}, ctx) = abstract_type_name(f.type.name)
-_get_type_bound(f::OneOfType, ctx) = _jl_inner_typename(f, ctx) # TODO: handle mutually recursive types in OneOf!
 _get_type_bound(f::GroupType, ctx) = abstract_type_name(f.name)
+_get_type_bound(f::FieldType{MapType}, ctx) = abstract_type_name(f.type.valuetype.name)
+function _get_type_bound(f::OneOfType, ctx)
+    seen = Dict{String,Nothing}()
+    union_types = String[]
+    for o in f.fields
+        name = jl_typename(o.type, ctx)
+        get!(seen, name) do
+            push!(union_types, name in ctx._curr_cyclic_defs ? abstract_type_name(name) : name)
+            nothing
+        end
+    end
+    return length(union_types) == 1 ? only(union_types) : string("Union{", join(union_types, ','), '}')
+end
 
 function _maybe_subtype(name)
     isempty(name) && return ""

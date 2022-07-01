@@ -10,6 +10,11 @@ proto_module_name(path::AbstractString) = string(replace(titlecase(basename(path
 proto_module_path(path::AbstractString) = joinpath(dirname(path), proto_module_name(path))
 proto_script_name(path::AbstractString) = string(replace(basename(path), ".proto" => ""), "_pb.jl")
 proto_script_path(path::AbstractString) = joinpath(dirname(path), proto_script_name(path))
+function namespaced_top_import(p::AbstractString)
+    top = first(split(p, "."))
+    return string('.', proto_module_name(top))
+end
+
 
 has_dependencies(p::ProtoFile) = !isempty(p.preamble.imports)
 is_namespaced(p::ProtoFile) = !isempty(p.preamble.namespace)
@@ -24,13 +29,10 @@ proto_script_name(p::ProtoFile) = proto_script_name(p.filepath)
 proto_script_path(p::ProtoFile) = proto_script_path(p.filepath)
 import_paths(p::ProtoFile) = (i.path for i in p.preamble.imports)
 function namespaced_top_include(p::ProtoFile)
-    top = first(split(namespace(p), "/"))
+    top = first(split(namespace(p), "."))
     return joinpath(top, proto_module_file_name(top))
 end
-function namespaced_top_import(p::ProtoFile)
-    top = first(split(namespace(p), "/"))
-    return string('.', proto_module_name(top))
-end
+namespaced_top_import(p::ProtoFile) = namespaced_top_import(namespace(p))
 
 has_dependencies(p::ResolvedProtoFile) = has_dependencies(p.proto_file)
 is_namespaced(p::ResolvedProtoFile) = is_namespaced(p.proto_file)
@@ -103,11 +105,15 @@ function create_namespaced_packages(ns::NamespaceTrie, output_directory::Abstrac
             # load in imported proto files that live outside of this package
             external_dependencies = Set{String}(Iterators.flatten(Iterators.map(import_paths, ns.proto_files)))
             setdiff!(external_dependencies, map(x->x.import_path, ns.proto_files))
+            seen_imports = Dict{String,Nothing}()
             for external_dependency in external_dependencies
                 file = parsed_files[external_dependency]
                 if is_namespaced(file)
-                    println(io, "include(", repr(relpath(namespaced_top_include(file), current_module_path)), ")")
-                    println(io, "import $(namespaced_top_import(file))")
+                    import_pkg_name = namespaced_top_import(file)
+                    get!(seen_imports, import_pkg_name) do
+                        println(io, "include(", repr(relpath(namespaced_top_include(file), current_module_path)), ")")
+                        println(io, "import $(import_pkg_name)")
+                    end
                 else
                     # TODO: when we are importing files that do not live in a namespace, we
                     # have to put them in a fake module and manually import them in the files

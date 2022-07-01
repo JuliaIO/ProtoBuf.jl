@@ -42,7 +42,21 @@ function generate_struct_field(io, field::FieldType{ReferencedType}, struct_name
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::OneOfType, _, ctx, type_params)
+function generate_struct_field(io, field::FieldType{MapType}, struct_name, ctx, type_params)
+    field_name = jl_fieldname(field)
+    type_name = jl_typename(field, ctx)
+
+    if field.type.valuetype isa ReferencedType
+        valuetype_name = field.type.valuetype.name
+        type_param = get(type_params, field.name, nothing)
+        if !isnothing(type_param) && valuetype_name != struct_name
+            type_name = string("Dict{", jl_typename(field.type.keytype, ctx), ',', type_param.param, '}')
+        end
+    end
+    println(io, "    ", field_name, "::", type_name)
+end
+
+function generate_struct_field(io, field::OneOfType, struct_name, ctx, type_params)
     field_name = jl_fieldname(field)
     type_param = get(type_params, field.name, nothing)
     if !isnothing(type_param)
@@ -72,15 +86,13 @@ function codegen(io, t::MessageType, ctx::Context)
     maybe_generate_deprecation(io, t)
     generate_reserved_fields_method(io, t )
     generate_extendable_field_numbers_method(io, t)
-    generate_oneof_fields_metadata_method(io, t, ctx)
+    generate_oneof_field_types_method(io, t, ctx)
     generate_default_values_method(io, t, ctx)
     generate_field_numbers_method(io, t)
-    if !isempty(t.fields)
-        println(io)
-        generate_decode_method(io, t, ctx)
-        println(io)
-        generate_encode_method(io, t, ctx)
-    end
+    println(io)
+    generate_decode_method(io, t, ctx)
+    println(io)
+    generate_encode_method(io, t, ctx)
 end
 
 codegen(io, t::GroupType, ctx::Context) = codegen(io, t.type, ctx)

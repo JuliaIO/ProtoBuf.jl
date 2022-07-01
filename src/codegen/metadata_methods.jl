@@ -14,10 +14,9 @@ function generate_extendable_field_numbers_method(io, t::Union{MessageType})
 end
 
 _get_fields(t::AbstractProtoType) = [t]
-_get_fields(::EnumType) = []
 _get_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_fields, t.fields))
 
-function generate_oneof_fields_metadata_method(io, t::MessageType, ctx)
+function generate_oneof_field_types_method(io, t::MessageType, ctx)
     types = join(
         (
             (string(jl_fieldname(f), " = NamedTuple{(:", join((jl_fieldname(o) for o in f.fields), ",:"), "), Tuple{", join((jl_typename(o, ctx) for o in f.fields), ","),"}}"))
@@ -32,7 +31,7 @@ function generate_oneof_fields_metadata_method(io, t::MessageType, ctx)
     else
         types = "(;\n    $(types)\n)"
     end
-    println(io, "PB.oneof_fields_metadata(::Type{", safename(t), "}) = $(types)")
+    println(io, "PB.oneof_field_types(::Type{", safename(t), "}) = $(types)")
 end
 
 function generate_field_numbers_method(io, t::Union{MessageType})

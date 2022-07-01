@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+enum TestEnum {
+    DEFAULT = 0;
+    OTHER = 1;
+}
+
+message EmptyMessage {}
+message NonEmptyMessage { uint32 x = 1; NonEmptyMessage self_referential_field = 2; }
+
+message OmniMessage {
+    bytes bytes_field = 1;
+    string string_field = 2;
+    uint32 uint32_field = 3;
+    uint64 uint64_field = 4;
+    int32 int32_field = 5;
+    int64 int64_field = 6;
+    bool bool_field = 7;
+    sint32 sint32_field = 8;
+    sint64 sint64_field = 9;
+    TestEnum enum_field = 10;
+    sfixed32 sfixed32_field = 11;
+    sfixed64 sfixed64_field = 12;
+    fixed32 fixed32_field = 13;
+    fixed64 fixed64_field = 14;
+    EmptyMessage empty_message_field = 15;
+    NonEmptyMessage non_empty_message_field = 16;
+
+    oneof oneof_field {
+        bytes oneof_bytes_field = 17;
+        string oneof_string_field = 18;
+        uint32 oneof_uint32_field = 19;
+        uint64 oneof_uint64_field = 20;
+        int32 oneof_int32_field = 21;
+        int64 oneof_int64_field = 22;
+        bool oneof_bool_field = 23;
+        sint32 oneof_sint32_field = 24;
+        sint64 oneof_sint64_field = 25;
+        TestEnum oneof_enum_field = 26;
+        sfixed32 oneof_sfixed32_field = 27;
+        sfixed64 oneof_sfixed64_field = 28;
+        fixed32 oneof_fixed32_field = 29;
+        fixed64 oneof_fixed64_field = 30;
+        EmptyMessage oneof_empty_message_field = 31;
+        NonEmptyMessage oneof_non_empty_message_field = 32;
+    }
+
+    repeated bytes repeated_bytes_field = 33;
+    repeated string repeated_string_field = 34;
+    repeated uint32 repeated_uint32_field = 35;
+    repeated uint64 repeated_uint64_field = 36;
+    repeated int32 repeated_int32_field = 37;
+    repeated int64 repeated_int64_field = 38;
+    repeated bool repeated_bool_field = 39;
+    repeated sint32 repeated_sint32_field = 40;
+    repeated sint64 repeated_sint64_field = 41;
+    repeated TestEnum repeated_enum_field = 42;
+    repeated sfixed32 repeated_sfixed32_field = 43;
+    repeated sfixed64 repeated_sfixed64_field = 44;
+    repeated fixed32 repeated_fixed32_field = 45;
+    repeated fixed64 repeated_fixed64_field = 46;
+    repeated EmptyMessage repeated_empty_message_field = 47;
+    repeated NonEmptyMessage repeated_non_empty_message_field = 48;
+
+    map<string, bytes> map_string_bytes_field = 49;
+    map<string, string> map_string_string_field = 50;
+    map<string, uint32> map_string_uint32_field = 51;
+    map<string, uint64> map_string_uint64_field = 52;
+    map<string, int32> map_string_int32_field = 53;
+    map<string, int64> map_string_int64_field = 54;
+    map<string, bool> map_string_bool_field = 55;
+    map<string, sint32> map_string_sint32_field = 56;
+    map<string, sint64> map_string_sint64_field = 57;
+    map<string, TestEnum> map_string_enum_field = 58;
+    map<string, sfixed32> map_string_sfixed32_field = 59;
+    map<string, sfixed64> map_string_sfixed64_field = 60;
+    map<string, fixed32> map_string_fixed32_field = 61;
+    map<string, fixed64> map_string_fixed64_field = 62;
+    map<string, EmptyMessage> map_string_empty_message_field = 63;
+    map<string, NonEmptyMessage> map_string_non_empty_message_field = 64;
+
+    map<uint32, string> map_uint32_string_field = 65;
+    map<uint64, string> map_uint64_string_field = 66;
+    map<int32, string> map_int32_string_field = 67;
+    map<int64, string> map_int64_string_field = 68;
+    map<bool, string> map_bool_string_field = 69;
+    map<sint32, string> map_sint32_string_field = 70;
+    map<sint64, string> map_sint64_string_field = 71;
+    map<sfixed32, string> map_sfixed32_string_field = 72;
+    map<sfixed64, string> map_sfixed64_string_field = 73;
+    map<fixed32, string> map_fixed32_string_field = 74;
+    map<fixed64, string> map_fixed64_string_field = 75;
+
+    float float_field = 76;
+    double double_field = 77;
+    repeated float repeated_float_field = 78;
+    repeated double repeated_double_field = 79;
+    map<string, float> map_string_float_field = 80;
+    map<string, double> map_string_double_field = 81;
+}
