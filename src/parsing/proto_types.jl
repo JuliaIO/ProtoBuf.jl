@@ -136,9 +136,6 @@ struct EnumType <: AbstractProtoType
     elements::NamedTuple
     options::Dict{String,Union{String,Dict{String,String}}}
     field_options::Dict{String,Dict{String,String}}
-    reserved_nums::Vector{Union{Int,UnitRange{Int}}}
-    reserved_names::Vector{String}
-    extensions::Vector{Union{Int,UnitRange{Int}}}
 end
 
 # Called in parse_oneof_type, parse_message_type and parse_extend_type
@@ -277,19 +274,12 @@ function parse_enum_type(ps::ParserState, name_prefix="")
     field_options = Dict{String,Union{String,Dict{String,String}}}()
     element_names = String[]
     element_values = Int[]
-    reserved_nums = Vector{Union{Int,UnitRange{Int}}}()
-    reserved_names = Vector{String}()
-    extensions = Vector{Union{Int,UnitRange{Int}}}()
 
     expectnext(ps, Tokens.LBRACE)
     while true
         if accept(ps, Tokens.OPTION)
             _parse_option!(ps, options)
             expectnext(ps, Tokens.SEMICOLON)
-        elseif accept(ps, Tokens.RESERVED)
-            _parse_reserved_statement!(ps, reserved_nums, reserved_names)
-        elseif accept(ps, Tokens.EXTENSIONS)
-            _parse_extensions_statement!(ps, extensions)
         elseif accept(ps, Tokens.IDENTIFIER)
             element_name = val(token(ps))
             push!(element_names, val(token(ps)))
@@ -309,8 +299,8 @@ function parse_enum_type(ps::ParserState, name_prefix="")
     if !parse(Bool, get(options, "allow_alias", "false"))
         !allunique(element_values) && error("Duplicates in enumeration $name. You can allow multiple keys mapping to the same number with `option allow_alias = true;`")
     end
-    # TODO: validate field_numbers and reserved ranges
-    return EnumType(_dot_join(name_prefix, name), elements, options, field_options, reserved_nums, reserved_names, extensions)
+    # TODO: validate field_numbers
+    return EnumType(_dot_join(name_prefix, name), elements, options, field_options)
 end
 
 # We consumed EXTEND

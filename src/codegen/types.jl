@@ -26,7 +26,7 @@ jl_typename(::SFixed64Type, ctx) = "Int64"
 jl_typename(::BoolType, ctx)     = "Bool"
 jl_typename(::StringType, ctx)   = "String"
 jl_typename(::BytesType, ctx)    = "Vector{UInt8}"
-jl_typename(t::MessageType, ctx) = safename(t) #TODO: the method with ctx is probably useless
+jl_typename(t::MessageType, ctx) = safename(t)
 function jl_typename(t::MapType, ctx)
     key_type = jl_typename(t.keytype, ctx)
     val_type = jl_typename(t.valuetype, ctx)

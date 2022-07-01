@@ -87,8 +87,6 @@ function codegen(io, t::EnumType, ::Context)
     name = safename(t)
     println(io, "@enumx ", name, join(" $k=$n" for (k, n) in zip(keys(t.elements), t.elements)))
     maybe_generate_deprecation(io, t)
-    generate_reserved_fields_method(io, t )
-    generate_extendable_field_numbers_method(io, t)
 end
 
 function codegen(io, t::ServiceType, ::Context)
