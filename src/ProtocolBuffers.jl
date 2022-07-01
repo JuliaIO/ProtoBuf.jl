@@ -46,6 +46,11 @@ import .CodeGenerators: protojl
 import .Codecs
 import .Codecs: decode, decode!, encode, AbstractProtoDecoder, AbstractProtoEncoder, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, try_eat_end_group, decode_tag, skip
 
+# For codegen/metadata_methods.jl
+function reserved_fields end
+function extendable_field_numbers end
+function oneof_fields_metadata end
+
 export protojl, encode, ProtoEncoder, decode, decode!, ProtoDecoder
 
 end # module
