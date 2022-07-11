@@ -24,10 +24,7 @@ end
     b < 0x80 && return (x | (b << 28))
 
     x |= (b & 0x7F) << 28
-
     # TODO: we shouldn't get here... log? throw? don't eat other bytes >= 0x80?
-    while Bool(read(io, UInt8) >> 7) end
-
     return x
 end
 

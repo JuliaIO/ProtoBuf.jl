@@ -76,7 +76,7 @@ end
 
 @testset "Translate and roundtrip a complex message" begin
     mktempdir() do tmpdir
-        protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir);
+        protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false);
         include(joinpath(tmpdir, "complex_message_pb.jl"))
     end
     msg = OmniMessage(

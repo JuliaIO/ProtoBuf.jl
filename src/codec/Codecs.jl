@@ -1,8 +1,4 @@
 module Codecs
-# TODO: Messages should be initialized as Ref{Union{MessageType,Nothing}}(nothing)
-# since, according to the docs, a message could be missing from a payload and the
-# decoder should handle it. This means all struct fields need to be Union{Nothing,T}
-# at least if not REQUIRED. Bummer.
 
 @enum(WireType::UInt32, VARINT=0, FIXED64=1, LENGTH_DELIMITED=2, START_GROUP=3, END_GROUP=4, FIXED32=5)
 

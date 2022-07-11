@@ -1,11 +1,10 @@
 const JULIA_RESERVED_KEYWORDS = Set{String}([
-    "baremodule", "begin", "break", "catch", "const", "continue", "do", "else", "elseif", "end",
-    "export", "false", "finally", "for", "function", "global", "if", "import", "let", "local",
-    "macro", "module", "quote", "return", "struct", "true", "try", "using", "while",
-    "abstract", "ccall", "typealias", "type", "bitstype", "importall", "immutable", "Type", "Enum",
-    "Any", "DataType", "Base", "Core", "InteractiveUtils", "Set", "Method", "include", "eval", "ans",
-    # TODO: add all subtypes(Any) from a fresh julia session?
-    "PB", "OneOf", "Nothing", "Vector", "zero", "isempty", "isnothing", "Ref",
+    "if", "else", "elseif", "while", "for", "begin", "end", "quote",
+    "try", "catch", "return", "local", "abstract", "function", "macro",
+    "ccall", "finally", "typealias", "break", "continue", "type",
+    "global", "module", "using", "import", "export", "const", "let",
+    "bitstype", "do", "baremodule", "importall", "immutable",
+    "Type", "Enum", "Any", "DataType", "Base", "Set", "Method"
 ])
 
 _get_name(t::AbstractProtoType) = t.name

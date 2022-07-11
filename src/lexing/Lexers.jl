@@ -299,7 +299,6 @@ end
 # `c` is a consumed '\'' or '"'
 function lex_quote(l::Lexer, c)
     enclosing_quote = c
-    other_quote = ifelse(c=='"', '\'', '"')
     while true
         pc, ppc = dpeekchar(l)
         if iseof(pc)

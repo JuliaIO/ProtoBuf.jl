@@ -31,9 +31,9 @@ function readtoken(ps::ParserState)
     return ps.t
 end
 
-function ParserState(input::Union{IO,String})
+function ParserState(l::Lexer)
     ps = ParserState(
-        Lexer(input),
+        l,
         false,
         Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
         Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
@@ -44,6 +44,7 @@ function ParserState(input::Union{IO,String})
     readtoken(ps)
     return ps
 end
+ParserState(input::Union{IO,String}) = ParserState(Lexer(input))
 
 Tokens.kind(ps::ParserState) = kind(ps.t)
 token(ps::ParserState) = ps.t
@@ -136,7 +137,7 @@ function parse_integer_value(ps)
     end
 end
 
-# WE consumed OPTION
+# We consumed OPTION
 # NOTE: does not eat SEMICOLON
 function _parse_option!(ps::ParserState, options::Dict{String,<:Union{String,Dict{String,String}}})
     option_name = ""
@@ -217,9 +218,8 @@ struct ProtoFile
     preamble::ProtoFilePreamble
     definitions::Dict{String,AbstractProtoType}
     sorted_definitions::Vector{String}
-    cyclic_definitions::Set{String} # TODO: handle cyclic_definitions in codegen
+    cyclic_definitions::Set{String}
     extends::Vector{ExtendType}
-    external_refereces::Vector{String}
 end
 
 include("utils.jl")
@@ -282,7 +282,6 @@ function parse_proto_file(ps::ParserState)
         topologically_sorted,
         cyclic_definitions,
         extends,
-        collect(external_references),
     )
 end
 
