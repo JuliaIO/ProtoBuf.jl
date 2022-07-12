@@ -1,5 +1,6 @@
 using ProtocolBuffers
-using ProtocolBuffers.CodeGenerators: Options, ResolvedProtoFile, translate
+using ProtocolBuffers.CodeGenerators: Options, ResolvedProtoFile, translate, namespace
+using ProtocolBuffers.CodeGenerators: import_paths, Context
 using ProtocolBuffers.Parsers: parse_proto_file, ParserState, Parsers
 using ProtocolBuffers.Lexers: Lexer
 using Test
@@ -9,10 +10,13 @@ function translate_simple_proto(str::String, options=Options())
     l = Lexer(IOBuffer(str), "main")
     p = parse_proto_file(ParserState(l))
     r = ResolvedProtoFile("main", p)
-    translate(buf, r, Dict{String, ResolvedProtoFile}(), options)
+    d = Dict{String, ResolvedProtoFile}("main" => r)
+    translate(buf, r, d, options)
     s = String(take!(buf))
     s = join(filter!(!startswith(r"#|$^"), split(s, '\n')), '\n')
-    s, p
+    imports = Set{String}(Iterators.map(i->namespace(d[i]), import_paths(p)))
+    ctx = Context(p, r.import_path, imports, d, copy(p.cyclic_definitions), options)
+    s, p, ctx
 end
 
 function translate_simple_proto(str::String, deps::Dict{String,String}, options=Options())
@@ -20,7 +24,7 @@ function translate_simple_proto(str::String, deps::Dict{String,String}, options=
     l = Lexer(IOBuffer(str), "main")
     p = parse_proto_file(ParserState(l))
     r = ResolvedProtoFile("main", p)
-    d = Dict{String, ResolvedProtoFile}()
+    d = Dict{String, ResolvedProtoFile}("main" => r)
     for (k, v) in deps
         get!(d, k) do
             l = Lexer(IOBuffer(v), k)
@@ -31,19 +35,21 @@ function translate_simple_proto(str::String, deps::Dict{String,String}, options=
     translate(buf, r, d, options)
     s = String(take!(buf))
     s = join(filter!(!startswith(r"#|$^"), split(s, '\n')), '\n')
-    s, d
+    imports = Set{String}(Iterators.map(i->namespace(d[i]), import_paths(p)))
+    ctx = Context(p, r.import_path, imports, d, copy(p.cyclic_definitions), options)
+    s, d, ctx
 end
 
 @testset "Parsers" begin
     @testset "Single empty message proto file" begin
-        s, p = translate_simple_proto("message A {}")
+        s, p, ctx = translate_simple_proto("message A {}")
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.MessageType
     end
 
     @testset "Single enum proto file" begin
-        s, p = translate_simple_proto("enum A { a = 0; }")
+        s, p, ctx = translate_simple_proto("enum A { a = 0; }")
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.EnumType
@@ -51,7 +57,7 @@ end
     end
 
     @testset "Single enum with `allow_alias = true` proto file" begin
-        s, p = translate_simple_proto("enum A { option allow_alias = true; a = 0; b = 0; }")
+        s, p, ctx = translate_simple_proto("enum A { option allow_alias = true; a = 0; b = 0; }")
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.EnumType
@@ -59,7 +65,7 @@ end
     end
 
     @testset "Single nested empty message proto file" begin
-        s, p = translate_simple_proto("message A { message B {} }")
+        s, p, ctx = translate_simple_proto("message A { message B {} }")
 
         @test haskey(p.definitions, "A")
         @test haskey(p.definitions, "A.B")
@@ -68,7 +74,7 @@ end
     end
 
     @testset "Single nested non-empty message proto file with field" begin
-        s, p = translate_simple_proto("message A { message B {}\n B b = 1; }")
+        s, p, ctx = translate_simple_proto("message A { message B {}\n B b = 1; }")
 
         @test haskey(p.definitions, "A")
         @test haskey(p.definitions, "A.B")
@@ -82,7 +88,7 @@ end
     end
 
     @testset "Single nested non-empty message proto file with namespaced field" begin
-        s, p = translate_simple_proto("message A { message B {}\n A.B b = 1; }")
+        s, p, ctx = translate_simple_proto("message A { message B {}\n A.B b = 1; }")
 
         @test haskey(p.definitions, "A")
         @test haskey(p.definitions, "A.B")
@@ -96,7 +102,7 @@ end
     end
 
     @testset "Single self-referential message proto file" begin
-        s, p = translate_simple_proto("message A { A a = 1; }")
+        s, p, ctx = translate_simple_proto("message A { A a = 1; }")
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.MessageType
@@ -115,7 +121,7 @@ end
             )
 
             @testset "Single message with $label_name $type_name field" begin
-                s, p = translate_simple_proto("message A { $label_name $type_name a = 1; }")
+                s, p, ctx = translate_simple_proto("message A { $label_name $type_name a = 1; }")
 
                 @test haskey(p.definitions, "A")
                 @test p.definitions["A"] isa Parsers.MessageType
@@ -128,7 +134,7 @@ end
     end
 
     @testset "Single message with file-imported field type" begin
-        s, d = translate_simple_proto("""
+        s, d, ctx = translate_simple_proto("""
             import "path/to/a";
             message A { B b = 1; }
             """,
@@ -146,7 +152,7 @@ end
     end
 
     @testset "Single message with package-imported field type" begin
-        s, d = translate_simple_proto("""
+        s, d, ctx = translate_simple_proto("""
             import "path/to/a";
             message A { B b = 1; }
             """,
@@ -166,7 +172,7 @@ end
     end
 
     @testset "Single message with package-imported namespaced field type" begin
-        s, d = translate_simple_proto("""
+        s, d, ctx = translate_simple_proto("""
             import "path/to/a";
             message A { P.B b = 1; }
             """,
@@ -184,7 +190,7 @@ end
     end
 
     @testset "Message with a field that has to be namespaced to avoid name collision" begin
-        s, d = translate_simple_proto("""
+        s, d, ctx = translate_simple_proto("""
             import "path/to/a";
             message B {}
             message A { P.B b_imported = 1; B b_local = 2; }
@@ -208,62 +214,5 @@ end
         @test p.definitions["A"].fields[2].type.name == "B"
         @test p.definitions["A"].fields[2].type.type_name == "message"
         @test p.definitions["A"].fields[2].type.namespace == ""
-    end
-end
-
-@testset "translate" begin
-    @testset "Minimal proto file" begin
-        s, p = translate_simple_proto("", Options(always_use_modules=false))
-        @test s == """
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
-        using EnumX: @enumx"""
-
-        s, p = translate_simple_proto("", Options(always_use_modules=true))
-        @test s == """
-        module main_pb
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
-        using EnumX: @enumx
-        end # module"""
-    end
-
-    @testset "Minimal proto file with file imports" begin
-        s, p = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => ""), Options(always_use_modules=false))
-        @test s == """
-        include("a_pb.jl")
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
-        using EnumX: @enumx"""
-
-        s, p = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => ""), Options(always_use_modules=true))
-        @test s == """
-        module main_pb
-        include("a_pb.jl")
-        import a_pb
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
-        using EnumX: @enumx
-        end # module"""
-    end
-
-    @testset "Minimal proto file with package imports" begin
-        s, p = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=false))
-        @test s == """
-        include($(repr(joinpath("p", "P_PB.jl"))))
-        import .P_PB
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
-        using EnumX: @enumx"""
-
-        s, p = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=true))
-        @test s == """
-        module main_pb
-        include($(repr(joinpath("p", "P_PB.jl"))))
-        import .P_PB
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
-        using EnumX: @enumx
-        end # module"""
     end
 end

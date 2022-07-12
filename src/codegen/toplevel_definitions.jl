@@ -1,11 +1,17 @@
 struct Context
     proto_file::ProtoFile
+    proto_file_path::String
     imports::Set{String}
     file_map::Dict{String,ResolvedProtoFile}
     _curr_cyclic_defs::Set{String}
     options::Options
 end
 
+function _should_force_required(qualified_name, ctx)
+    isnothing(ctx.options.force_required) && return false
+    force_required = get(ctx.options.force_required, ctx.proto_file_path, Set{String}())
+    return qualified_name in force_required
+end
 
 function generate_struct_field(io, field, struct_name, ctx, type_params)
     field_name = jl_fieldname(field)
@@ -37,8 +43,11 @@ function generate_struct_field(io, field::FieldType{ReferencedType}, struct_name
         type_name = string("Union{Nothing,", type_name,"}")
     elseif !isnothing(type_param)
         type_name = string("Union{Nothing,", type_param.param,"}")
-    elseif field.label == Parsers.OPTIONAL && _is_message(field.type, ctx)
-        type_name = string("Union{Nothing,", type_name,"}")
+    elseif field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT
+        should_force_required = _should_force_required(string(struct_name, ".", field.name), ctx)
+        if !should_force_required && _is_message(field.type, ctx)
+            type_name = string("Union{Nothing,", type_name,"}")
+        end
     end
     println(io, "    ", field_name, "::", type_name)
 end
@@ -68,9 +77,7 @@ function generate_struct_field(io, field::OneOfType, struct_name, ctx, type_para
     println(io, "    ", field_name, "::", type_name)
 end
 
-codegen(t::AbstractProtoType, ctx::Context) = codegen(stdin, t, ctx::Context)
-
-function codegen(io, t::MessageType, ctx::Context)
+function generate_struct(io, t::MessageType, ctx::Context)
     struct_name = safename(t)
     # After we're done with this struct, all the subsequent definitions can use it
     # so we pop it from the list of cyclic definitions.
@@ -84,6 +91,12 @@ function codegen(io, t::MessageType, ctx::Context)
         generate_struct_field(io, field, struct_name, ctx, type_params)
     end
     println(io, "end")
+end
+
+codegen(t::AbstractProtoType, ctx::Context) = codegen(stdout, t, ctx::Context)
+
+function codegen(io, t::MessageType, ctx::Context)
+    generate_struct(io, t, ctx)
     maybe_generate_deprecation(io, t)
     generate_reserved_fields_method(io, t )
     generate_extendable_field_numbers_method(io, t)
@@ -115,7 +128,7 @@ function translate(path::String, rp::ResolvedProtoFile, file_map::Dict{String,Re
     end
 end
 
-translate(rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile}, options) = translate(stdin, rp, file_map, options)
+translate(rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile}, options) = translate(stdout, rp, file_map, options)
 function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile}, options)
     p = rp.proto_file
     imports = Set{String}(Iterators.map(i->namespace(file_map[i]), import_paths(p)))
@@ -123,7 +136,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "# original file: ", p.filepath," (proto", p.preamble.isproto3 ? '3' : '2', " syntax)")
     println(io)
 
-    ctx = Context(p, imports, file_map, copy(p.cyclic_definitions), options)
+    ctx = Context(p, rp.import_path, imports, file_map, copy(p.cyclic_definitions), options)
     if !is_namespaced(p)
         options.always_use_modules && println(io, "module $(replace(proto_script_name(p), ".jl" => ""))")
         options.always_use_modules && println(io)

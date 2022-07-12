@@ -97,13 +97,13 @@ end
 _is_message(t::ReferencedType, ctx) = _get_referenced_type_type!(t, ctx) == "message"
 _is_enum(t::ReferencedType, ctx)    = _get_referenced_type_type!(t, ctx) == "enum"
 
-_needs_type_params(f::FieldType{ReferencedType}, ctx) = f.type.name in ctx._curr_cyclic_defs
-_needs_type_params(f::FieldType, ctx) = false
-_needs_type_params(f::OneOfType, ctx) = true
-_needs_type_params(f::GroupType, ctx) = f.name in ctx._curr_cyclic_defs
-function _needs_type_params(f::FieldType{MapType}, ctx)
+_needs_type_params(struct_name::String, f::FieldType{ReferencedType}, ctx) = f.type.name in ctx._curr_cyclic_defs && f.type.name != struct_name
+_needs_type_params(::String, f::FieldType, ctx) = false
+_needs_type_params(::String, f::OneOfType, ctx) = true
+_needs_type_params(::String, f::GroupType, ctx) = f.name in ctx._curr_cyclic_defs
+function _needs_type_params(struct_name::String, f::FieldType{MapType}, ctx)
     if isa(f.type.valuetype, ReferencedType)
-        return f.type.valuetype.name in ctx._curr_cyclic_defs
+        return f.type.valuetype.name in ctx._curr_cyclic_defs && f.type.valuetype.name != struct_name
     end
     return false
 end
@@ -130,7 +130,7 @@ function _maybe_subtype(name)
 end
 
 function get_type_params(t::MessageType, ctx)
-    out = [field.name => _get_type_bound(field, ctx) for field in t.fields if _needs_type_params(field, ctx)]
+    out = [field.name => _get_type_bound(field, ctx) for field in t.fields if _needs_type_params(t.name, field, ctx)]
     type_params = Dict(k => ParamMetadata(string("T", i), v) for (i, (k, v)) in enumerate(out))
     return type_params
 end

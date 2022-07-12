@@ -6,6 +6,7 @@ end
 
 Base.@kwdef struct Options
     always_use_modules::Bool = true
+    force_required::Union{Nothing,Dict{String,Set{String}}} = nothing
 end
 
 proto_module_file_name(path::AbstractString) = string(proto_module_name(path), ".jl")
@@ -214,9 +215,10 @@ end
 function protojl(
     relative_paths::Union{<:AbstractString,<:AbstractVector{<:AbstractString}},
     search_directories::Union{<:AbstractString,<:AbstractVector{<:AbstractString},Nothing}=nothing,
-    output_directory::Union{AbstractString,Nothing}=nothing;
+    output_directory::Union{<:AbstractString,Nothing}=nothing;
     include_vendored_wellknown_types::Bool=true,
     always_use_modules::Bool=true,
+    force_required::Union{Nothing,Dict{<:AbstractString,Set{<:AbstractString}}}=nothing,
 )
     if isnothing(search_directories)
         search_directories = ["."]
@@ -248,7 +250,7 @@ function protojl(
     end
 
     ns = NamespaceTrie(values(parsed_files))
-    options = Options(always_use_modules)
+    options = Options(always_use_modules, force_required)
     create_namespaced_packages(ns, output_directory, parsed_files, options)
     return nothing
 end
