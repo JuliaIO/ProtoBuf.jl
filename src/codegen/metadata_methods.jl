@@ -5,21 +5,23 @@ function maybe_generate_deprecation(io, t::Union{MessageType,EnumType})
     end
 end
 
-function generate_reserved_fields_method(io, t::Union{MessageType})
+function maybe_generate_reserved_fields_method(io, t::MessageType)
+    isempty(t.reserved_names) && isempty(t.reserved_nums) && return
     println(io, "PB.reserved_fields(::Type{", safename(t), "}) = ", (names=t.reserved_names, numbers=t.reserved_nums))
 end
 
-function generate_extendable_field_numbers_method(io, t::Union{MessageType})
+function maybe_generate_extendable_field_numbers_method(io, t::MessageType)
+    isempty(t.extensions) && return
     println(io, "PB.extendable_field_numbers(::Type{", safename(t), "}) = ", t.extensions)
 end
 
 _get_fields(t::AbstractProtoType) = [t]
 _get_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_fields, t.fields))
 
-function generate_oneof_field_types_method(io, t::MessageType, ctx)
+function maybe_generate_oneof_field_types_method(io, t::MessageType, ctx)
     types = join(
         (
-            (string(jl_fieldname(f), " = NamedTuple{(:", join((jl_fieldname(o) for o in f.fields), ",:"), "), Tuple{", join((jl_typename(o, ctx) for o in f.fields), ","),"}}"))
+            string(jl_fieldname(f), " = (;", join((string(jl_fieldname(o), "=", jl_typename(o, ctx)) for o in f.fields), ", "), ")")
             for f
             in t.fields
             if isa(f, OneOfType)
@@ -27,19 +29,21 @@ function generate_oneof_field_types_method(io, t::MessageType, ctx)
         ",\n    "
     )
     if isempty(types)
-        types = "(;)"
+        return
     else
         types = "(;\n    $(types)\n)"
     end
     println(io, "PB.oneof_field_types(::Type{", safename(t), "}) = $(types)")
 end
 
-function generate_field_numbers_method(io, t::Union{MessageType})
+function maybe_generate_field_numbers_method(io, t::MessageType)
+    isempty(t.fields) && return
     field_numbers = join((string(jl_fieldname(f), " = ",  f.number) for f in _get_fields(t)), ", ")
     println(io, "PB.field_numbers(::Type{", safename(t), "}) = (;$(field_numbers))", )
 end
 
-function generate_default_values_method(io, t::Union{MessageType}, ctx)
+function maybe_generate_default_values_method(io, t::MessageType, ctx)
+    isempty(t.fields) && return
     default_values = join((string(jl_fieldname(f), " = ",  jl_default_value(f, ctx)) for f in _get_fields(t)), ", ")
     println(io, "PB.default_values(::Type{", safename(t), "}) = (;$(default_values))", )
 end
