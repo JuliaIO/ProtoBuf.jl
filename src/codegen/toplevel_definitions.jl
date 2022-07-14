@@ -4,6 +4,7 @@ struct Context
     imports::Set{String}
     file_map::Dict{String,ResolvedProtoFile}
     _curr_cyclic_defs::Set{String}
+    _toplevel_name::Ref{String}
     options::Options
 end
 
@@ -13,9 +14,10 @@ function _should_force_required(qualified_name, ctx)
     return qualified_name in force_required
 end
 
-function generate_struct_field(io, field, struct_name, ctx, type_params)
+function generate_struct_field(io, field, ctx, type_params)
     field_name = jl_fieldname(field)
     type_name = jl_typename(field, ctx)
+    struct_name = ctx._toplevel_name[]
     # When a field type is self-referential, we'll use Nothing to signal
     # the bottom of the recursion. Note that we don't have to do this
     # for repeated (`Vector{...}`) types; at this point `type_name`
@@ -31,9 +33,10 @@ function generate_struct_field(io, field, struct_name, ctx, type_params)
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::FieldType{ReferencedType}, struct_name, ctx, type_params)
+function generate_struct_field(io, field::FieldType{ReferencedType}, ctx, type_params)
     field_name = jl_fieldname(field)
     type_name = jl_typename(field, ctx)
+    struct_name = ctx._toplevel_name[]
     # When a field type is self-referential, we'll use Nothing to signal
     # the bottom of the recursion. Note that we don't have to do this
     # for repeated (`Vector{...}`) types; at this point `type_name`
@@ -52,9 +55,10 @@ function generate_struct_field(io, field::FieldType{ReferencedType}, struct_name
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::FieldType{MapType}, struct_name, ctx, type_params)
+function generate_struct_field(io, field::FieldType{MapType}, ctx, type_params)
     field_name = jl_fieldname(field)
     type_name = jl_typename(field, ctx)
+    struct_name = ctx._toplevel_name[]
 
     if field.type.valuetype isa ReferencedType
         valuetype_name = field.type.valuetype.name
@@ -66,7 +70,7 @@ function generate_struct_field(io, field::FieldType{MapType}, struct_name, ctx, 
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::OneOfType, struct_name, ctx, type_params)
+function generate_struct_field(io, field::OneOfType, ctx, type_params)
     field_name = jl_fieldname(field)
     type_param = get(type_params, field.name, nothing)
     if !isnothing(type_param)
@@ -88,7 +92,7 @@ function generate_struct(io, t::MessageType, ctx::Context)
     print(io, "struct ", struct_name, length(t.fields) > 0 ? params_string : ' ', _maybe_subtype(abstract_base_name))
     length(t.fields) > 0 && println(io)
     for field in t.fields
-        generate_struct_field(io, field, struct_name, ctx, type_params)
+        generate_struct_field(io, field, ctx, type_params)
     end
     println(io, "end")
 end
@@ -97,6 +101,7 @@ codegen(t::AbstractProtoType, ctx::Context) = codegen(stdout, t, ctx::Context)
 
 function codegen(io, t::MessageType, ctx::Context)
     generate_struct(io, t, ctx)
+    maybe_generate_kwarg_constructor_method(io, t, ctx)
     maybe_generate_deprecation(io, t)
     maybe_generate_reserved_fields_method(io, t )
     maybe_generate_extendable_field_numbers_method(io, t)
@@ -136,7 +141,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "# original file: ", p.filepath," (proto", p.preamble.isproto3 ? '3' : '2', " syntax)")
     println(io)
 
-    ctx = Context(p, rp.import_path, imports, file_map, copy(p.cyclic_definitions), options)
+    ctx = Context(p, rp.import_path, imports, file_map, copy(p.cyclic_definitions), Ref{String}(), options)
     if !is_namespaced(p)
         options.always_use_modules && println(io, "module $(replace(proto_script_name(p), ".jl" => ""))")
         options.always_use_modules && println(io)
@@ -170,6 +175,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io)
     for def_name in p.sorted_definitions
         println(io)
+        ctx._toplevel_name[] = def_name
         codegen(io, p.definitions[def_name], ctx)
     end
     options.always_use_modules && !is_namespaced(p) && println(io, "end # module")

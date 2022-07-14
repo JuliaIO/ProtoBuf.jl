@@ -44,6 +44,23 @@ end
 
 function maybe_generate_default_values_method(io, t::MessageType, ctx)
     isempty(t.fields) && return
-    default_values = join((string(jl_fieldname(f), " = ",  jl_default_value(f, ctx)) for f in _get_fields(t)), ", ")
+    default_values = join((string(jl_fieldname(f), " = ",  @something(jl_default_value(f, ctx), f)) for f in _get_fields(t)), ", ")
     println(io, "PB.default_values(::Type{", safename(t), "}) = (;$(default_values))", )
+end
+
+function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx)
+    (!ctx.options.add_kwarg_constructors || isempty(t.fields)) && return
+    type_name = safename(t)
+    default_values = join(
+        Iterators.map(t.fields) do f
+            default_value = jl_default_value(f, ctx)
+            if isnothing(default_value)
+                jl_fieldname(f)
+            else
+                string(jl_fieldname(f), " = ", jl_default_value(f, ctx))
+            end
+        end,
+        ", "
+    )
+    println(io, "$(type_name)(;$(default_values)) = $(type_name)($(join(Iterators.map(jl_fieldname, t.fields), ", ")))")
 end

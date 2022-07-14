@@ -89,7 +89,7 @@ function generate_decode_method(io, t::MessageType, ctx)
     println(io, "function PB.decode(d::PB.AbstractProtoDecoder, ::Type{$(safename(t))})")
     has_fields = !isempty(t.fields)
     for field in t.fields
-        println(io, "    ", jl_fieldname(field), " = ", jl_default_value(field, ctx))
+        println(io, "    ", jl_fieldname(field), " = ", jl_init_value(field, ctx))
     end
     println(io, "    while !PB.message_done(d)")
     println(io, "        field_number, wire_type = PB.decode_tag(d)")

@@ -15,8 +15,13 @@ function translate_simple_proto(str::String, options=Options())
     s = String(take!(buf))
     s = join(filter!(!startswith(r"#|$^"), split(s, '\n')), '\n')
     imports = Set{String}(Iterators.map(i->namespace(d[i]), import_paths(p)))
-    ctx = Context(p, r.import_path, imports, d, copy(p.cyclic_definitions), options)
-    s, p, ctx
+    ctx = Context(
+        p, r.import_path, imports, d,
+        copy(p.cyclic_definitions),
+        Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
+        options
+    )
+    return s, p, ctx
 end
 
 function translate_simple_proto(str::String, deps::Dict{String,String}, options=Options())
@@ -36,8 +41,13 @@ function translate_simple_proto(str::String, deps::Dict{String,String}, options=
     s = String(take!(buf))
     s = join(filter!(!startswith(r"#|$^"), split(s, '\n')), '\n')
     imports = Set{String}(Iterators.map(i->namespace(d[i]), import_paths(p)))
-    ctx = Context(p, r.import_path, imports, d, copy(p.cyclic_definitions), options)
-    s, d, ctx
+    ctx = Context(
+        p, r.import_path, imports, d,
+        copy(p.cyclic_definitions),
+        Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
+        options
+    )
+    return s, d, ctx
 end
 
 @testset "Parsers" begin

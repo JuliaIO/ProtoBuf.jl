@@ -5,20 +5,20 @@ function encode_condition(f::FieldType, ctx)
         return _encode_condition(f, ctx)
     end
 end
-_encode_condition(f::FieldType, ctx) = "x.$(jl_fieldname(f)) != $(jl_default_value(f, ctx))"
+_encode_condition(f::FieldType, ctx) = "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
 function _encode_condition(f::FieldType{T}, ctx) where {T<:Union{StringType,BytesType}}
     default = get(f.options, "default", nothing)
     if default === nothing
         return "!isempty(x.$(jl_fieldname(f)))"
     end
-    return "x.$(jl_fieldname(f)) != $(jl_default_value(f, ctx))"
+    return "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
 end
 _encode_condition(f::OneOfType, ctx) = "!isnothing(x.$(jl_fieldname(f)))"
 function _encode_condition(f::FieldType{ReferencedType}, ctx)
     if _is_message(f.type, ctx)
         return "!isnothing(x.$(jl_fieldname(f)))"
     else
-        return "x.$(jl_fieldname(f)) != $(jl_default_value(f, ctx))"
+        return "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
     end
 end
 

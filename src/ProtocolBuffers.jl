@@ -4,10 +4,13 @@ import TranscodingStreams
 using TOML
 
 # TODO:
+# - Docs!
+# - Optimization pass (esp allocations in encode methods)
+# - Snoopi/Compilation latency pass
 # - configs for protojl:
 #    * Allow the user to use inline string for specific message string fields
-#    * Allow the user to mark dict values and non-optional messages as Union{nothing,T} to
-#      be more resilient to cases when the sender sends an incomplete message etc.
+#    * Make Dicts robust to missing values where possible
+# - Groups
 # - Services & RPC
 # - Extensions
 
@@ -85,9 +88,7 @@ end
 Return a named tuple of fields names to their respective default values from the original proto message type.
 Fields of `OneOf` types are expanded as they don't map to any single default value.
 
-`BufferedVector` and `Ref` types must be dereferenced (`x[]`) to get the true default value. These containers are used
-for performance and dispatch reasons during the decoding stage. Note that dereferencing an unassigned `Ref` type (`Ref{T}()`)
-will throw an error -- they are used for non-optional message fields which don't have a default value.
+`required` message-fields do not have a default value and are represented as `Ref{MyFieldMessageType}()`.
 """
 function default_values(::Type{T}) where T
     return (;)
