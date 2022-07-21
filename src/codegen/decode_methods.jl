@@ -51,7 +51,7 @@ function field_decode_expr(io, f::FieldType, i, ctx)
 end
 
 jl_type_oneof_decode_expr(f::FieldType, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
-jl_type_oneof_decode_expr(f::GroupType, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
+jl_type_oneof_decode_expr(f::GroupType, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Ref{$(jl_typename(f.type, ctx))}, Val{:group}))"
 jl_type_oneof_decode_expr(f::FieldType{SFixed32Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int32, Val{:fixed}))"
 jl_type_oneof_decode_expr(f::FieldType{SFixed64Type}, ctx) = "OneOf(:$(jl_fieldname(f)), PB.decode(d, Int64, Val{:fixed}))"
 jl_type_oneof_decode_expr(f::FieldType{Fixed32Type}, ctx)  = "OneOf(:$(jl_fieldname(f)), PB.decode(d, UInt32, Val{:fixed}))"
@@ -75,7 +75,7 @@ end
 function field_decode_expr(io, field::GroupType, i, ctx)
     field_name = jl_fieldname(field)
     println(io, "    " ^ 2, i == 1 ? "if " : "elseif ", "field_number == ", field.number)
-    println(io, "    " ^ 3, field_name, " = PB.decode(d, ", field_name, ")")
+    println(io, "    " ^ 3, "PB.decode!(d, ", field_name, ", Val{:group})")
     return nothing
 end
 
@@ -84,9 +84,11 @@ function jl_fieldname_deref(f::FieldType{ReferencedType}, ctx)
     should_deref = _is_repeated_field(f) | _is_message(f.type, ctx)
     return should_deref ? "$(jl_fieldname(f))[]" : jl_fieldname(f)
 end
+jl_fieldname_deref(f::GroupType, ctx) = "$(jl_fieldname(f))[]"
+
 
 function generate_decode_method(io, t::MessageType, ctx)
-    println(io, "function PB.decode(d::PB.AbstractProtoDecoder, ::Type{$(safename(t))})")
+    println(io, "function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:$(safename(t))})")
     has_fields = !isempty(t.fields)
     for field in t.fields
         println(io, "    ", jl_fieldname(field), " = ", jl_init_value(field, ctx))
@@ -99,7 +101,6 @@ function generate_decode_method(io, t::MessageType, ctx)
     has_fields && println(io, "        else")
     println(io, "    " ^ (3 - !has_fields), "PB.skip(d, wire_type)")
     has_fields && println(io, "        end")
-    println(io, "        PB.try_eat_end_group(d, wire_type)")
     println(io, "    end")
     print(io, "    return ", jl_typename(t, ctx), "(")
     print(io, join(map(f->jl_fieldname_deref(f, ctx), t.fields), ", "))

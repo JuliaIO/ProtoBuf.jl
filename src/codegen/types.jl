@@ -108,9 +108,9 @@ function _needs_type_params(f::FieldType{MapType}, ctx)
     return false
 end
 
-_get_type_bound(f::FieldType{ReferencedType}, ctx) = abstract_type_name(f.type.name)
-_get_type_bound(f::GroupType, ctx) = abstract_type_name(f.name)
-_get_type_bound(f::FieldType{MapType}, ctx) = abstract_type_name(f.type.valuetype.name)
+_get_type_bound(f::FieldType{ReferencedType}, ctx) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
+_get_type_bound(f::GroupType, ctx) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
+_get_type_bound(f::FieldType{MapType}, ctx) = string("Union{Nothing,", abstract_type_name(f.type.valuetype.name), '}')
 function _get_type_bound(f::OneOfType, ctx)
     seen = Dict{String,Nothing}()
     union_types = String[]
@@ -121,7 +121,11 @@ function _get_type_bound(f::OneOfType, ctx)
             nothing
         end
     end
-    return length(union_types) == 1 ? only(union_types) : string("Union{", join(union_types, ','), '}')
+    if length(union_types) == 1
+        return string("Union{Nothing,OneOf{", only(union_types), "}}")
+    else
+        return string("Union{Nothing,OneOf{<:Union{", join(union_types, ','), "}}}")
+    end
 end
 
 function _maybe_subtype(name)

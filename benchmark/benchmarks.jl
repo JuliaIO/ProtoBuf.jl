@@ -47,25 +47,25 @@ for (field_type, jl_type) in (
         ("float", Float32), ("double", Float64), ("enum", TestEnum.T),
     )
     SUITE["encode"]["repeated"][field_type] = BenchmarkGroup()
-    SUITE["encode"]["scalar"][field_type] = @benchmarkable encode(e, 1, x) evals=1 samples=10000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type))
+    SUITE["encode"]["scalar"][field_type] = @benchmarkable encode(e, 1, x) evals=1 samples=50000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type))
     for n in N
-        SUITE["encode"]["repeated"][field_type][n] = @benchmarkable encode(e, 1, x) evals=1 samples=10000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type, $n))
+        SUITE["encode"]["repeated"][field_type][n] = @benchmarkable encode(e, 1, x) evals=1 samples=50000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type, $n))
     end
 end
 
 for (field_type, jl_type) in (("sint32", Int32), ("sint64", Int64),)
     SUITE["encode"]["repeated"][field_type] = BenchmarkGroup()
-    SUITE["encode"]["scalar"][field_type] = @benchmarkable encode(e, 1, x, $(Val{:zigzag})) evals=1 samples=10000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type))
+    SUITE["encode"]["scalar"][field_type] = @benchmarkable encode(e, 1, x, $(Val{:zigzag})) evals=1 samples=50000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type))
     for n in N
-        SUITE["encode"]["repeated"][field_type][n] = @benchmarkable encode(e, 1, x, $(Val{:zigzag})) evals=1 samples=10000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type, $n))
+        SUITE["encode"]["repeated"][field_type][n] = @benchmarkable encode(e, 1, x, $(Val{:zigzag})) evals=1 samples=50000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type, $n))
     end
 end
 
 for (field_type, jl_type) in (("sfixed32", Int32), ("sfixed64", Int64), ("fixed32", UInt32), ("fixed64", UInt64))
     SUITE["encode"]["repeated"][field_type] = BenchmarkGroup()
-    SUITE["encode"]["scalar"][field_type] = @benchmarkable encode(e, 1, x, $(Val{:fixed})) evals=1 samples=10000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type))
+    SUITE["encode"]["scalar"][field_type] = @benchmarkable encode(e, 1, x, $(Val{:fixed})) evals=1 samples=50000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type))
     for n in N
-        SUITE["encode"]["repeated"][field_type][n] = @benchmarkable encode(e, 1, x, $(Val{:fixed})) evals=1 samples=10000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type, $n))
+        SUITE["encode"]["repeated"][field_type][n] = @benchmarkable encode(e, 1, x, $(Val{:fixed})) evals=1 samples=50000 setup=(e=ProtoEncoder(IOBuffer()); x = rand($jl_type, $n))
     end
 end
 
@@ -75,28 +75,28 @@ for (field_type, jl_type) in (
     ("float", Float32), ("double", Float64), ("enum", TestEnum.T),
 )
     SUITE["decode"]["repeated"][field_type] = BenchmarkGroup()
-    SUITE["decode"]["scalar"][field_type] = @benchmarkable decode(d, $(jl_type)) evals=1 samples=10000 setup=(d=setup_decoder(rand($jl_type)))
+    SUITE["decode"]["scalar"][field_type] = @benchmarkable decode(d, $(jl_type)) evals=1 samples=50000 setup=(d=setup_decoder(rand($jl_type)))
     for n in N
-        SUITE["decode"]["repeated"][field_type][n] = @benchmarkable decode!(d, W, b) evals=1 samples=10000 setup=(d=setup_decoder(rand($jl_type, $n)); b = $(BufferedVector{jl_type}()))
+        SUITE["decode"]["repeated"][field_type][n] = @benchmarkable decode!(d, W, b) evals=1 samples=50000 setup=(d=setup_decoder(rand($jl_type, $n)); b = $(BufferedVector{jl_type}()))
     end
 end
 
 for (field_type, jl_type) in (("sint32", Int32), ("sint64", Int64),)
     SUITE["decode"]["repeated"][field_type] = BenchmarkGroup()
-    SUITE["decode"]["scalar"][field_type] = @benchmarkable decode(d, $(jl_type), $(Val{:zigzag})) evals=1 samples=10000 setup=(d=setup_decoder(rand($jl_type), Val{:zigzag}))
+    SUITE["decode"]["scalar"][field_type] = @benchmarkable decode(d, $(jl_type), $(Val{:zigzag})) evals=1 samples=50000 setup=(d=setup_decoder(rand($jl_type), Val{:zigzag}))
     for n in N
-        SUITE["decode"]["repeated"][field_type][n] = @benchmarkable decode!(d, W, b, $(Val{:zigzag})) evals=1 samples=10000 setup=(d=setup_decoder(rand($jl_type, $n), Val{:zigzag}); b = $(BufferedVector{jl_type}()))
+        SUITE["decode"]["repeated"][field_type][n] = @benchmarkable decode!(d, W, b, $(Val{:zigzag})) evals=1 samples=50000 setup=(d=setup_decoder(rand($jl_type, $n), Val{:zigzag}); b = $(BufferedVector{jl_type}()))
     end
 end
 
 for (field_type, jl_type) in (("sfixed32", Int32), ("sfixed64", Int64), ("fixed32", UInt32), ("fixed64", UInt64))
     SUITE["decode"]["repeated"][field_type] = BenchmarkGroup()
-    SUITE["decode"]["scalar"][field_type] = @benchmarkable decode(d, $(jl_type), $(Val{:fixed})) evals=1 samples=10000 setup=(d=setup_decoder(rand($jl_type), Val{:fixed}))
+    SUITE["decode"]["scalar"][field_type] = @benchmarkable decode(d, $(jl_type), $(Val{:fixed})) evals=1 samples=50000 setup=(d=setup_decoder(rand($jl_type), Val{:fixed}))
     for n in N
-        SUITE["decode"]["repeated"][field_type][n] = @benchmarkable decode!(d, W, b, $(Val{:fixed})) evals=1 samples=10000 setup=(d=setup_decoder(rand($jl_type, $n), Val{:fixed}); b = $(BufferedVector{jl_type}()))
+        SUITE["decode"]["repeated"][field_type][n] = @benchmarkable decode!(d, W, b, $(Val{:fixed})) evals=1 samples=50000 setup=(d=setup_decoder(rand($jl_type, $n), Val{:fixed}); b = $(BufferedVector{jl_type}()))
     end
 end
 
 
-# results = run(SUITE, verbose=true, seconds=30);
-# BenchmarkTools.save("tune.json", params(SUITE));
+# results = run(SUITE, verbose=true, seconds=60);
+# BenchmarkTools.save(joinpath(@__DIR__, "tune.json"), params(SUITE));

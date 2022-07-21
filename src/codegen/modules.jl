@@ -119,7 +119,7 @@ function create_namespaced_packages(ns::NamespaceTrie, output_directory::Abstrac
                     end
                 else
                     println(io, "include(", repr(namespaced_top_include(file)), ")")
-                    options.always_use_modules && println(io, "module $(replace(proto_script_name(p), ".jl" => ""))")
+                    options.always_use_modules && println(io, "module $(replace(proto_script_name(file), ".jl" => ""))")
                 end
             end
             !isempty(external_dependencies) && println(io)

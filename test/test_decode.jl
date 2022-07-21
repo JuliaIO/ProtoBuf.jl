@@ -1,25 +1,21 @@
+module TestDecode
 using ProtocolBuffers: Codecs
 import ProtocolBuffers as PB
 using .Codecs: decode, decode!, ProtoDecoder, BufferedVector
 using Test
 using EnumX: @enumx
 
-# Without this, we'll get an invalid redefinition when re-running this file
-if !isdefined(@__MODULE__, :TestEnum)
-    @enumx TestEnum A B C
+@enumx TestEnum A B C
+struct TestInner
+    x::Int
+    r::Union{Nothing,TestInner}
 end
-if !isdefined(@__MODULE__, :TestStruct)
-    struct TestInner
-        x::Int
-        r::Union{Nothing,TestInner}
-    end
-    TestInner(x::Int) = TestInner(x, nothing)
-    struct TestStruct{T<:Union{Vector{UInt8},TestEnum.T,TestInner}}
-        oneof::Union{Nothing, PB.OneOf{T}}
-    end
+TestInner(x::Int) = TestInner(x, nothing)
+struct TestStruct{T1<:Union{Nothing,PB.OneOf{<:Union{Vector{UInt8},TestEnum.T,TestInner}}}}
+    oneof::T1
 end
 
-function PB.decode(d::PB.AbstractProtoDecoder, ::Type{TestInner})
+function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:TestInner})
     x = 0
     r = Ref{Union{Nothing,TestInner}}(nothing)
     while !PB.message_done(d)
@@ -31,7 +27,6 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{TestInner})
         else
             PB.skip(d, wire_type)
         end
-        PB.try_eat_end_group(d, wire_type)
     end
     return TestInner(x, r[])
 end
@@ -49,7 +44,6 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:TestStruct})
         else
             PB.skip(d, wire_type)
         end
-        PB.try_eat_end_group(d, wire_type)
     end
     return TestStruct(oneof)
 end
@@ -85,7 +79,7 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
             skip(e.io, 1)
             x = BufferedVector{eltype(expected)}()
             while !eof(e.io)
-                tag, num = PB.decode_tag(e)
+                num, tag = PB.decode_tag(e)
                 decode!(e, x)
             end
             x = x[]
@@ -115,10 +109,16 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
     @test x == expected
 end
 
-function test_decode_message(input_bytes, expected::TestStruct)
+function test_decode_message(input_bytes, expected::TestStruct, V=nothing)
     input_bytes = collect(input_bytes)
     e = ProtoDecoder(PipeBuffer(input_bytes))
-    x = decode(e, typeof(expected))
+    if isnothing(V)
+        x = decode(e, typeof(expected))
+    else
+        _, tag = PB.decode_tag(e)
+        @assert tag == Codecs.START_GROUP
+        x = decode(e, Ref{typeof(expected)}, V)
+    end
     @test x.oneof[] == expected.oneof[]
     @test typeof(x) === typeof(expected)
     @test typeof(x.oneof) === typeof(expected.oneof)
@@ -235,19 +235,14 @@ end
             @testset "string,sint32" begin test_decode([0x0a, 0x01, 0x61, 0x10, 0x02], Dict{String,Int32}("a" => 1), Val{Tuple{Nothing,:zigzag}}) end
             @testset "string,sint64" begin test_decode([0x0a, 0x01, 0x61, 0x10, 0x02], Dict{String,Int64}("a" => 1), Val{Tuple{Nothing,:zigzag}}) end
 
-            @testset "string,repeated int32" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x01], Dict{String,Vector{Int32}}("a" => [1])) end
-            @testset "string,repeated int64" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x01], Dict{String,Vector{Int64}}("a" => [1])) end
-            @testset "string,repeated uint32" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x01], Dict{String,Vector{UInt32}}("a" => [1])) end
-            @testset "string,repeated uint64" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x01], Dict{String,Vector{UInt64}}("a" => [1])) end
-            @testset "string,repeated bool" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x01], Dict{String,Vector{Bool}}("a" => [true])) end
 
-            @testset "string,repeated sfixed32" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x04, 0x01, 0x00, 0x00, 0x00], Dict{String,Vector{Int32}}("a" => [1]), Val{Tuple{Nothing,:fixed}}) end
-            @testset "string,repeated sfixed64" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Dict{String,Vector{Int64}}("a" => [1]), Val{Tuple{Nothing,:fixed}}) end
-            @testset "string,repeated fixed32" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x04, 0x01, 0x00, 0x00, 0x00], Dict{String,Vector{UInt32}}("a" => [1]), Val{Tuple{Nothing,:fixed}}) end
-            @testset "string,repeated fixed64" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Dict{String,Vector{UInt64}}("a" => [1]), Val{Tuple{Nothing,:fixed}}) end
+            @testset "sfixed32,sfixed32" begin test_decode([0x0d, 0x01, 0x00, 0x00, 0x00, 0x15, 0x01, 0x00, 0x00, 0x00], Dict{Int32,Int32}(1 => 1), Val{Tuple{:fixed,:fixed}}) end
+            @testset "sfixed64,sfixed64" begin test_decode([0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Dict{Int64,Int64}(1 => 1), Val{Tuple{:fixed,:fixed}}) end
+            @testset "fixed32,fixed32" begin test_decode([0x0d, 0x01, 0x00, 0x00, 0x00, 0x15, 0x01, 0x00, 0x00, 0x00], Dict{UInt32,UInt32}(1 => 1), Val{Tuple{:fixed,:fixed}}) end
+            @testset "fixed64,fixed64" begin test_decode([0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Dict{UInt64,UInt64}(1 => 1), Val{Tuple{:fixed,:fixed}}) end
 
-            @testset "string,repeated sint32" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Dict{String,Vector{Int32}}("a" => [1]), Val{Tuple{Nothing,:zigzag}}) end
-            @testset "string,repeated sint64" begin test_decode([0x0a, 0x01, 0x61, 0x12, 0x01, 0x02], Dict{String,Vector{Int64}}("a" => [1]), Val{Tuple{Nothing,:zigzag}}) end
+            @testset "sint32,sint32" begin test_decode([0x08, 0x02, 0x10, 0x02], Dict{Int32,Int32}(1 => 1), Val{Tuple{:zigzag,:zigzag}}) end
+            @testset "sint64,sint64" begin test_decode([0x08, 0x02, 0x10, 0x02], Dict{Int64,Int64}(1 => 1), Val{Tuple{:zigzag,:zigzag}}) end
         end
 
         @testset "message" begin
@@ -255,6 +250,13 @@ end
             test_decode_message([0x10, 0x02], TestStruct(PB.OneOf(:enum, TestEnum.C)))
             test_decode_message([0x1a, 0x02, 0x08, 0x02], TestStruct(PB.OneOf(:struct, TestInner(2))))
             test_decode_message([0x1a, 0x06, 0x08, 0x02, 0x12, 0x02, 0x08, 0x03], TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))))
+        end
+
+        @testset "group message" begin
+            test_decode_message([0x03, 0x0a, 0x03, 0x31, 0x32, 0x33, 0x04], TestStruct(PB.OneOf(:bytes, collect(b"123"))), Val{:group})
+            test_decode_message([0x03, 0x10, 0x02, 0x04], TestStruct(PB.OneOf(:enum, TestEnum.C)), Val{:group})
+            test_decode_message([0x03, 0x1a, 0x02, 0x08, 0x02, 0x04], TestStruct(PB.OneOf(:struct, TestInner(2))), Val{:group})
+            test_decode_message([0x03, 0x1a, 0x06, 0x08, 0x02, 0x12, 0x02, 0x08, 0x03, 0x04], TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))), Val{:group})
         end
     end
 
@@ -283,10 +285,14 @@ end
 
         @testset "sint32" begin
             test_decode([0x04], Int32(2), Val{:zigzag})
+            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF], typemin(Int32), Val{:zigzag})
+            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0xFF], typemax(Int32), Val{:zigzag})
         end
 
         @testset "sint64" begin
             test_decode([0x04], Int64(2), Val{:zigzag})
+            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01], typemin(Int64), Val{:zigzag})
+            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01], typemax(Int64), Val{:zigzag})
         end
 
         @testset "enum" begin
@@ -311,4 +317,32 @@ end
             test_decode(reinterpret(UInt8, [UInt64(2)]), UInt64(2), Val{:fixed})
         end
     end
+
+    @testset "skipping" begin
+        io = IOBuffer()
+        d = PB.ProtoDecoder(io)
+        e = PB.ProtoEncoder(io)
+        PB.encode(e, 3, UInt32(42)) # VARINT
+        PB.encode(e, 4, [UInt32(42)]) # LENGTH_DELIMITED
+        PB.encode(e, 5, Float64(42)) # FIXED64
+        PB.encode(e, 6, Float32(42)) # FIXED32
+        write(io, 0x03) # START_GROUP
+            PB.encode(e, 1, UInt32(42)) # VARINT
+            PB.encode(e, 2, [UInt32(42)]) # LENGTH_DELIMITED
+            PB.encode(e, 3, Float64(42)) # FIXED64
+            PB.encode(e, 4, Float32(42)) # FIXED32
+        write(io, 0x04) # END_GROUP
+        write(io, 0x03) # START_GROUP
+            write(io, 0x03) # START_GROUP
+                PB.encode(e, 1, UInt32(42)) # VARINT
+                PB.encode(e, 2, [UInt32(42)]) # LENGTH_DELIMITED
+                PB.encode(e, 3, Float64(42)) # FIXED64
+                PB.encode(e, 4, Float32(42)) # FIXED32
+            write(io, 0x04) # END_GROUP
+        write(io, 0x04) # END_GROUP
+        seekstart(io)
+
+        @test decode(d, TestInner) == TestInner(0)
+    end
 end
+end # module

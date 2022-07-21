@@ -55,22 +55,42 @@ end
 module TestComplexMessage
 using Test
 using ProtocolBuffers
+using TranscodingStreams
+using BufferedStreams
 
-function roundtrip(input)
+function roundtrip_iobuffer(input, f_in=identity, f_out=identity)
     io = IOBuffer()
-    e = ProtoEncoder(io)
-    d = ProtoDecoder(io)
+    e = ProtoEncoder(f_in(io))
     encode(e, input)
     seekstart(io)
-    roundtripped = decode(d, OmniMessage)
-    return roundtripped
+    d = ProtoDecoder(f_out(io))
+    return decode(d, OmniMessage)
 end
 
-function test_by_field(actual::T, expected::T) where {T}
-    for field in fieldnames(T)
-        @testset "$T.$field" begin
-            @test getfield(actual, field) == getfield(expected, field)
-        end
+function roundtrip_iostream(input, f_in=identity, f_out=identity)
+    (path, io) = mktemp()
+    e = ProtoEncoder(f_in(io))
+    encode(e, input)
+    close(io)
+    io = f_out(open(path, "r"))
+    d = ProtoDecoder(io)
+    out = decode(d, OmniMessage)
+    close(io)
+    return out
+end
+
+function test_by_field(a, b)
+    @testset "$(typeof(a))" begin
+        _test_by_field(a, b)
+    end
+end
+
+function _test_by_field(a, b, name=string(typeof(a)))
+    N = fieldcount(typeof(a))
+    (N == 0 || a isa AbstractDict) && return (@testset "$name" begin @test a == b end)
+    for (i, n) in zip(1:N, fieldnames(typeof(a)))
+        absname = string(name, ".", String(n))
+        _test_by_field(getfield(a, i), getfield(b, i), absname)
     end
 end
 
@@ -150,12 +170,26 @@ end
         [typemax(Float64)],
         Dict("K" => typemax(Float32)),
         Dict("K" => typemax(Float64)),
+
+        var"OmniMessage.Group"(Int32(42)),
+        [var"OmniMessage.Repeated_group"(Int32(43))],
     )
-    @testset "roundtrip" begin
-        test_by_field(roundtrip(msg), msg)
+
+    @testset "IOBuffer" begin
+        test_by_field(roundtrip_iobuffer(msg), msg)
     end
-    @testset "roundtrip roundtrip" begin
-        test_by_field(roundtrip(roundtrip(msg)), msg)
+    @testset "IOStream" begin
+        test_by_field(roundtrip_iostream(msg), msg)
+    end
+
+    @testset "Duplicated messages" begin
+        io = IOBuffer()
+        e = ProtoEncoder(io)
+        encode(e, 1, DuplicatedInnerMessage(UInt32(42), UInt32[1, 2], DuplicatedMessage(DuplicatedInnerMessage(UInt32(42), UInt32[1, 2], nothing))))
+        encode(e, 1, DuplicatedInnerMessage(UInt32(43), UInt32[3, 4], DuplicatedMessage(DuplicatedInnerMessage(UInt32(43), UInt32[5, 6], nothing))))
+        seekstart(io)
+        x = decode(ProtoDecoder(io), DuplicatedMessage)
+        test_by_field(x, DuplicatedMessage(DuplicatedInnerMessage(UInt32(43), UInt32[1, 2, 3, 4], DuplicatedMessage(DuplicatedInnerMessage(UInt32(43), UInt32[1, 2, 5, 6], nothing)))))
     end
 end
 end

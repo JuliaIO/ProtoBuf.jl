@@ -97,4 +97,14 @@ message OmniMessage {
     repeated double repeated_double_field = 79;
     map<string, float> map_string_float_field = 80;
     map<string, double> map_string_double_field = 81;
+
+    group Group = 82 {
+        int32 a = 1;
+    }
+    repeated group Repeated_group = 83 {
+        int32 a = 1;
+    }
 }
+
+message DuplicatedInnerMessage { uint32 x = 1; repeated uint32 y = 2; DuplicatedMessage r = 3; }
+message DuplicatedMessage { DuplicatedInnerMessage i = 1; }

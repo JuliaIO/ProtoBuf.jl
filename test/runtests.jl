@@ -1,17 +1,23 @@
-using Test
 using Aqua
-import ProtocolBuffers
+using JET
+using ProtocolBuffers
+using Test
 
-@testset "ProtocolBuffers" begin
-    include("test_lexers.jl")
-    include("test_vbyte.jl")
-    include("test_encode.jl")
-    include("test_decode.jl")
-    include("test_parser.jl")
-    include("test_codegen.jl")
-    include("test_protojl.jl")
+function is_ci()
+    get(ENV, "TRAVIS", "") == "true" ||
+    get(ENV, "APPVEYOR", "") in ("true", "True") ||
+    get(ENV, "CI", "") in ("true", "True")
+end
 
-    @testset "Aqua" begin
-        Aqua.test_all(ProtocolBuffers)
-    end
+include("unittests.jl")
+
+@testset "JET" begin
+    include("jet_test_utils.jl")
+    is_ci() || jet_test_package(ProtocolBuffers)
+    # jet_test_file("unittests.jl", ignored_modules=(JET.AnyFrameModule(Test),))
+    include("test_perf.jl")
+end
+
+@testset "Aqua" begin
+    Aqua.test_all(ProtocolBuffers)
 end

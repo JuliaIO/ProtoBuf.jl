@@ -1,6 +1,9 @@
 # https://discourse.julialang.org/t/allocation-due-to-noinline-for-unsafe-read-and-unsafe-write-in-io-jl/69421
-@inline function _unsafe_write(io::IO, ref::Ref{T}, nb::Integer) where T
+@inline function _unsafe_write(io::S, ref::Ref{T}, nb::Integer) where {T,S<:Union{IOBuffer,TranscodingStream,BufferedOutputStream, BufferedInputStream}}
     GC.@preserve ref unsafe_write(io, Base.unsafe_convert(Ref{T}, ref)::Ptr, nb)
+end
+@inline function _unsafe_write(io::IO, ref::Ref{T}, nb::Integer) where T
+    unsafe_write(io, ref, nb)
 end
 
 @inline function vbyte_decode(io, ::Type{T}) where {T<:Union{UInt32,Int32}}

@@ -1,22 +1,30 @@
 module ProtocolBuffers
 import EnumX
 import TranscodingStreams
+import BufferedStreams
 using TOML
+
+#TODO: This has to be removed, but is needed until
+#      https://github.com/JuliaIO/BufferedStreams.jl/pull/67
+#       is merged.
+Base.position(x::BufferedStreams.BufferedOutputStream) = max(0, position(x.sink) + x.position - 1)
 
 # TODO:
 # - Docs!
 # - Optimization pass (esp allocations in encode methods)
 # - Snoopi/Compilation latency pass
 # - configs for protojl:
+#    * Don't parametrize on OneOfs by default (hide behind a flag)
 #    * Allow the user to use inline string for specific message string fields
 #    * Make Dicts robust to missing values where possible
-# - Groups
+# - Vendor proto definitions of common Julia types and dedicated methods for encode/decode
+#    * Int8, UInt8, Int16, UInt16, Int128, UInt128, Float16, UUID, Date, DateTime
 # - Services & RPC
 # - Extensions
 
 
 const PACKAGE_VERSION = let
-    project = TOML.parsefile(joinpath(pkgdir(@__MODULE__), "Project.toml"))
+    project = TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))
     VersionNumber(project["version"])
 end
 
@@ -43,7 +51,7 @@ import .Parsers
 import .CodeGenerators
 import .CodeGenerators: protojl
 import .Codecs
-import .Codecs: decode, decode!, encode, AbstractProtoDecoder, AbstractProtoEncoder, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, try_eat_end_group, decode_tag, skip
+import .Codecs: decode, decode!, encode, AbstractProtoDecoder, AbstractProtoEncoder, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, decode_tag, skip, _encoded_size
 
 # For codegen/metadata_methods.jl
 """

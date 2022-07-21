@@ -207,8 +207,8 @@ end
         s, p, ctx = translate_simple_proto("message A { B b = 1; } message B { A a = 1; }")
         ctx._toplevel_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
-        struct B{T1<:var"##AbstractA"} <: var"##AbstractB"
-            a::Union{Nothing,T1}
+        struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
+            a::T1
         end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
@@ -226,8 +226,8 @@ end
         s, p, ctx = translate_simple_proto("message A { B b = 1; } message B { A a = 1; }", Options(force_required=Dict("main" => Set(["B.a"]))))
         ctx._toplevel_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
-        struct B{T1<:var"##AbstractA"} <: var"##AbstractB"
-            a::Union{Nothing,T1}
+        struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
+            a::T1
         end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
@@ -244,8 +244,8 @@ end
         s, p, ctx = translate_simple_proto("message A { B b = 1; } message B { required A a = 1; }")
         ctx._toplevel_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
-        struct B{T1<:var"##AbstractA"} <: var"##AbstractB"
-            a::Union{Nothing,T1}
+        struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
+            a::T1
         end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
@@ -262,8 +262,8 @@ end
         s, p, ctx = translate_simple_proto("message A { B b = 1; } message B { optional A a = 1; }")
         ctx._toplevel_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
-        struct B{T1<:var"##AbstractA"} <: var"##AbstractB"
-            a::Union{Nothing,T1}
+        struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
+            a::T1
         end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
@@ -281,15 +281,15 @@ end
     @testset "OneOf field codegen" begin
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }")
         @test occursin("""
-        struct A{T1<:Union{Int32,UInt32,var"##AbstractA"}} <: var"##AbstractA"
-            a::Union{Nothing,OneOf{T1}}
+        struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32,var"##AbstractA"}}}} <: var"##AbstractA"
+            a::T1
         end""", s)
 
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; } }")
         ctx._toplevel_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
-        struct A{T1<:Union{Int32,UInt32}}
-            a::Union{Nothing,OneOf{T1}}
+        struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32}}}}
+            a::T1
         end
         """
     end
@@ -472,6 +472,9 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
         s, p, ctx = translate_simple_proto("message A { repeated A a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{A}()"
+        s, p, ctx = translate_simple_proto("message A { group Aa = 1 { int32 b = 1; } }")
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+
     end
 
     @testset "Initial values" begin
@@ -574,6 +577,8 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Dict{String,Int32}()"
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; } }")
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        s, p, ctx = translate_simple_proto("message A { group Aa = 1 { int32 b = 1; } }")
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,var\"A.Aa\"}}(nothing)"
     end
 
     @testset "Metadata methods" begin
