@@ -11,10 +11,9 @@ Base.position(x::BufferedStreams.BufferedOutputStream) = max(0, position(x.sink)
 
 # TODO:
 # - Docs!
-# - Optimization pass (esp allocations in encode methods)
-# - Snoopi/Compilation latency pass
+# - Get rid of quadratic behavior in _try_namespace_referenced_types
+# - Test against test_messages_proto2.proto and test_messages_proto3.proto
 # - configs for protojl:
-#    * Don't parametrize on OneOfs by default (hide behind a flag)
 #    * Allow the user to use inline string for specific message string fields
 #    * Make Dicts robust to missing values where possible
 # - Vendor proto definitions of common Julia types and dedicated methods for encode/decode
@@ -47,6 +46,7 @@ include("parsing/Parsers.jl")
 include("codegen/CodeGenerators.jl")
 include("codec/Codecs.jl")
 
+import .Lexers
 import .Parsers
 import .CodeGenerators
 import .CodeGenerators: protojl
@@ -104,5 +104,11 @@ end
 
 export protojl, encode, ProtoEncoder, decode, decode!, ProtoDecoder
 export reserved_fields, extendable_field_numbers, oneof_field_types, field_numbers, default_values
+
+if Base.VERSION >= v"1.4.2"
+    include("precompile.jl")
+    _precompile_()
+end
+
 
 end # module

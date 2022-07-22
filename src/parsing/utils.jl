@@ -1,25 +1,65 @@
-function find_external_references_and_check_enums(definitions::Dict{String, AbstractProtoType}, preamble::ProtoFilePreamble)
-    # Traverse all definition and see which of those referenced are not defined
+function _postprocess_reference!(referenced, type::ReferencedType, definitions, namespace)
+    # if isempty(type.namespace)
+    #     namespaced_name = string(namespace, '.', type.name)
+    #     if namespaced_name in keys(definitions)
+    #         @warn type.name namespace type
+    #         type.name = namespaced_name
+    #         type.enclosing_type = namespace
+    #     end
+    # end
+    push!(referenced, type.name)
+    if type.namespace in keys(definitions)
+        type.namespace_is_type = true
+        # The prefix is referring to another type in which the referenced type is defined
+        # we need to change the name to reflect that to prevent name collisions.
+        type.name = string(type.namespace, '.', type.name)
+    end
+end
+
+function _postprocess_field!(referenced, invalid_enums, f::FieldType{ReferencedType}, definitions, preamble, namespace)
+    _postprocess_reference!(referenced, f.type, definitions, namespace)
+end
+_postprocess_field!(referenced, invalid_enums, f::FieldType, definitions, preamble, namespace) = nothing
+function _postprocess_field!(referenced, invalid_enums, f::OneOfType, definitions, preamble, namespace)
+    for field in f.fields
+        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, namespace)
+    end
+    return nothing
+end
+function _postprocess_field!(referenced, invalid_enums, f::GroupType, definitions, preamble, namespace)
+    for field in f.type.fields
+        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, namespace)
+        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, f.type.name)
+    end
+    return nothing
+end
+
+function _postprocess_type!(referenced, invalid_enums, t::EnumType, definitions, preamble)
+    preamble.isproto3 && first(t.element_values) != 0 && push!(invalid_enums, t.name)
+    return nothing
+end
+function _postprocess_type!(referenced, invalid_enums, t::ServiceType, definitions, preamble)
+    for rpc in t.rpcs
+        _postprocess_reference!(referenced, rpc.request_type, definitions, t.name)
+        _postprocess_reference!(referenced, rpc.response_type, definitions, t.name)
+    end
+    return nothing
+end
+function _postprocess_type!(referenced, invalid_enums, t::MessageType, definitions, preamble)
+    for field in t.fields
+        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, t.name)
+    end
+    return nothing
+end
+
+function postprocess_types!(definitions::Dict{String, Union{MessageType, EnumType, ServiceType}}, preamble::ProtoFilePreamble)
+    # Traverse all definitions and see which of those referenced are not defined
     # in this module. Create a list of these imported definitions so that we can ignore
     # them when doing the topological sort.
     referenced = Set{String}()
     invalid_enums = Set{String}()
     for definition in values(definitions)
-        for field in Parsers._get_leaf_fields(definition)
-            for type in Parsers._get_types(field)
-                if isa(type, ReferencedType)
-                    push!(referenced, type.name)
-                    if type.namespace in keys(definitions)
-                        type.namespace_is_type = true
-                        # The prefix is referring to another type in which the referenced type is defined
-                        # we need to change the name to reflect that to prevent name collisions.
-                        type.name = string(type.namespace, '.', type.name)
-                    end
-                elseif preamble.isproto3 && isa(type, EnumType)
-                    first(values(type.elements)) != 0 && push!(invalid_enums, type.name)
-                end
-            end
-        end
+        _postprocess_type!(referenced, invalid_enums, definition, definitions, preamble)
     end
     !isempty(invalid_enums) && error("In proto3, enums' first element must map to zero, following enums violate that: $invalid_enums")
     return setdiff(referenced, keys(definitions))

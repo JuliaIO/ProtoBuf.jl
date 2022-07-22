@@ -59,7 +59,7 @@ function lowercase_first(s)
     for c in i
         print(b, c)
     end
-    String(take!(b))
+    return String(take!(b))
 end
 
 function _try_namespace_referenced_types!(fields, definitions, namespace)
@@ -133,7 +133,8 @@ end
 
 struct EnumType <: AbstractProtoType
     name::String
-    elements::NamedTuple
+    element_names::Vector{Symbol}
+    element_values::Vector{Int}
     options::Dict{String,Union{String,Dict{String,String}}}
     field_options::Dict{String,Dict{String,String}}
 end
@@ -170,7 +171,7 @@ function parse_field(ps::ParserState)
 end
 
 # Can appear in parse_message_type, parse_oneof_type and parse_extend_type
-function parse_group(ps, definitions=Dict{String,AbstractProtoType}(), name_prefix="")
+function parse_group(ps, definitions=Dict{String,Union{MessageType, EnumType, ServiceType}}(), name_prefix="")
     label = accept(ps, Tokens.REPEATED) ? REPEATED :
             accept(ps, Tokens.OPTIONAL) ? OPTIONAL :
             accept(ps, Tokens.REQUIRED) ? REQUIRED :
@@ -258,7 +259,7 @@ function parse_oneof_type(ps::ParserState, definitions, name_prefix="")
         elseif nk == Tokens.GROUP || nnk == Tokens.GROUP
             group = parse_group(ps, definitions, _dot_join(name_prefix, name))
             push!(fields, group)
-            definitions[group.type.name] = group
+            definitions[group.type.name] = group.type
         else
             push!(fields, parse_field(ps))
         end
@@ -272,7 +273,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
 
     options = Dict{String,Union{String,Dict{String,String}}}()
     field_options = Dict{String,Union{String,Dict{String,String}}}()
-    element_names = String[]
+    element_names = Symbol[]
     element_values = Int[]
 
     expectnext(ps, Tokens.LBRACE)
@@ -282,7 +283,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
             expectnext(ps, Tokens.SEMICOLON)
         elseif accept(ps, Tokens.IDENTIFIER)
             element_name = val(token(ps))
-            push!(element_names, val(token(ps)))
+            push!(element_names, Symbol(element_name))
             expectnext(ps, Tokens.EQ)
             push!(element_values, parse_integer_value(ps))
             if accept(ps, Tokens.LBRACKET)
@@ -295,12 +296,11 @@ function parse_enum_type(ps::ParserState, name_prefix="")
         end
     end
     accept(ps, Tokens.SEMICOLON)
-    elements = NamedTuple{Tuple(map(Symbol, element_names))}(element_values)
     if !parse(Bool, get(options, "allow_alias", "false"))
         !allunique(element_values) && error("Duplicates in enumeration $name. You can allow multiple keys mapping to the same number with `option allow_alias = true;`")
     end
     # TODO: validate field_numbers
-    return EnumType(_dot_join(name_prefix, name), elements, options, field_options)
+    return EnumType(_dot_join(name_prefix, name), element_names, element_values, options, field_options)
 end
 
 # We consumed EXTEND
@@ -313,7 +313,7 @@ function parse_extend_type(ps::ParserState, definitions, name_prefix="")
         nk, nnk = dpeekkind(ps)
         if nk == Tokens.GROUP || nnk == Tokens.GROUP
             group = parse_group(ps, definitions, name_prefix)
-            definitions[group.name] = group
+            definitions[group.name] = group.type
         else
             push!(field_extensions, parse_field(ps))
         end
@@ -322,7 +322,7 @@ function parse_extend_type(ps::ParserState, definitions, name_prefix="")
 end
 
 # We consumed MESSAGE
-function parse_message_type(ps::ParserState, definitions=Dict{String,AbstractProtoType}(), name_prefix="")
+function parse_message_type(ps::ParserState, definitions=Dict{String,Union{MessageType, EnumType, ServiceType}}(), name_prefix="")
     name = val(expectnext(ps, Tokens.IDENTIFIER))
     return _parse_message_body(ps, name, definitions, name_prefix)
 end
@@ -367,7 +367,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
         elseif nk == Tokens.GROUP || nnk == Tokens.GROUP
             group = parse_group(ps, definitions, name)
             push!(fields, group)
-            definitions[group.type.name] = group
+            definitions[group.type.name] = group.type
         elseif accept(ps, Tokens.RBRACE)
             break
         else
@@ -474,7 +474,7 @@ function parse_type(ps::ParserState)
     end
 end
 
-function parse_type(ps::ParserState, definitions::Dict{String,AbstractProtoType})
+function parse_type(ps::ParserState, definitions::Dict{String,Union{MessageType, EnumType, ServiceType}})
     nk = peekkind(ps)
     if nk == Tokens.MESSAGE
         readtoken(ps)
@@ -490,11 +490,3 @@ function parse_type(ps::ParserState, definitions::Dict{String,AbstractProtoType}
     end
 end
 
-_get_leaf_fields(t::AbstractProtoType) = [t]
-_get_leaf_fields(::EnumType) = []
-_get_leaf_fields(t::GroupType) = _get_leaf_fields(t.type)
-_get_leaf_fields(t::ServiceType) = t.rpcs
-_get_leaf_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_leaf_fields, t.fields))
-
-_get_types(t::AbstractProtoFieldType) = (t.type,)
-_get_types(t::RPCType) = (t.request_type, t.response_type)

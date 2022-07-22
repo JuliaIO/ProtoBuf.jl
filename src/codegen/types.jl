@@ -12,28 +12,28 @@ function jl_typename(f::AbstractProtoFieldType, ctx)
     return type_name
 end
 
-jl_typename(::DoubleType, ctx)   = "Float64"
-jl_typename(::FloatType, ctx)    = "Float32"
-jl_typename(::Int32Type, ctx)    = "Int32"
-jl_typename(::Int64Type, ctx)    = "Int64"
-jl_typename(::UInt32Type, ctx)   = "UInt32"
-jl_typename(::UInt64Type, ctx)   = "UInt64"
-jl_typename(::SInt32Type, ctx)   = "Int32"
-jl_typename(::SInt64Type, ctx)   = "Int64"
-jl_typename(::Fixed32Type, ctx)  = "UInt32"
-jl_typename(::Fixed64Type, ctx)  = "UInt64"
-jl_typename(::SFixed32Type, ctx) = "Int32"
-jl_typename(::SFixed64Type, ctx) = "Int64"
-jl_typename(::BoolType, ctx)     = "Bool"
-jl_typename(::StringType, ctx)   = "String"
-jl_typename(::BytesType, ctx)    = "Vector{UInt8}"
-jl_typename(t::MessageType, ctx) = safename(t)
-function jl_typename(t::MapType, ctx)
+jl_typename(::DoubleType, ::Context)   = "Float64"
+jl_typename(::FloatType, ::Context)    = "Float32"
+jl_typename(::Int32Type, ::Context)    = "Int32"
+jl_typename(::Int64Type, ::Context)    = "Int64"
+jl_typename(::UInt32Type, ::Context)   = "UInt32"
+jl_typename(::UInt64Type, ::Context)   = "UInt64"
+jl_typename(::SInt32Type, ::Context)   = "Int32"
+jl_typename(::SInt64Type, ::Context)   = "Int64"
+jl_typename(::Fixed32Type, ::Context)  = "UInt32"
+jl_typename(::Fixed64Type, ::Context)  = "UInt64"
+jl_typename(::SFixed32Type, ::Context) = "Int32"
+jl_typename(::SFixed64Type, ::Context) = "Int64"
+jl_typename(::BoolType, ::Context)     = "Bool"
+jl_typename(::StringType, ::Context)   = "String"
+jl_typename(::BytesType, ::Context)    = "Vector{UInt8}"
+jl_typename(t::MessageType, ::Context) = safename(t)
+function jl_typename(t::MapType, ctx::Context)
     key_type = jl_typename(t.keytype, ctx)
     val_type = jl_typename(t.valuetype, ctx)
     return string("Dict{", key_type, ',', val_type,"}")
 end
-function jl_typename(t::ReferencedType, ctx)
+function jl_typename(t::ReferencedType, ctx::Context)
     name = safename(t)
     # The identifier might have been prefixed with either the name of the enclosing type
     # or with the module it was defined in. Here we determine whether the namespace is
@@ -49,11 +49,11 @@ function jl_typename(t::ReferencedType, ctx)
 end
 # NOTE: If there is a self-reference to the parent type, we might get
 #       a Union{..., Union{Nothing,parentType}, ...}. This is probably ok?
-function jl_typename(t::OneOfType, ctx)
+function jl_typename(t::OneOfType, ctx::Context)
     return string("OneOf{", _jl_oneof_inner_typename(t, ctx), "}")
 end
 
-function _jl_oneof_inner_typename(t::OneOfType, ctx)
+function _jl_oneof_inner_typename(t::OneOfType, ctx::Context)
     union_types = unique!([jl_typename(f.type, ctx) for f in t.fields])
     return length(union_types) == 1 ? only(union_types) : string("Union{", join(union_types, ','), '}')
 end
@@ -70,13 +70,13 @@ end
 
 # TODO: should we store the definition within the referenced type itself?
 # we need this to find the first value of enums...
-function _get_referenced_type(t::ReferencedType, ctx)
+function _get_referenced_type(t::ReferencedType, ctx::Context)
     def = _search_imports(ctx.proto_file, ctx.file_map, t)
     isnothing(def) && error("Referenced type `$(t)` not found in any imported package ('$(join(union(ctx.imports, [namespace(ctx.proto_file)]), "', '"))').")
     return def
 end
 
-function _get_referenced_type_type!(t::ReferencedType, ctx)
+function _get_referenced_type_type!(t::ReferencedType, ctx::Context)
     if isempty(t.type_name)
         def = _get_referenced_type(t, ctx)
         if isa(def, MessageType)
@@ -94,24 +94,24 @@ function _get_referenced_type_type!(t::ReferencedType, ctx)
     return t.type_name
 end
 
-_is_message(t::ReferencedType, ctx) = _get_referenced_type_type!(t, ctx) == "message"
-_is_enum(t::ReferencedType, ctx)    = _get_referenced_type_type!(t, ctx) == "enum"
+_is_message(t::ReferencedType, ctx::Context) = _get_referenced_type_type!(t, ctx) == "message"
+_is_enum(t::ReferencedType, ctx::Context)    = _get_referenced_type_type!(t, ctx) == "enum"
 
-_needs_type_params(f::FieldType{ReferencedType}, ctx) = f.type.name in ctx._curr_cyclic_defs && f.type.name != ctx._toplevel_name[]
-_needs_type_params(::FieldType, ctx) = false
-_needs_type_params(::OneOfType, ctx) = ctx.options.parametrize_oneofs
-_needs_type_params(f::GroupType, ctx) = f.name in ctx._curr_cyclic_defs
-function _needs_type_params(f::FieldType{MapType}, ctx)
+_needs_type_params(f::FieldType{ReferencedType}, ctx::Context) = f.type.name in ctx._curr_cyclic_defs && f.type.name != ctx._toplevel_name[]
+_needs_type_params(::FieldType, ctx::Context) = false
+_needs_type_params(::OneOfType, ctx::Context) = ctx.options.parametrize_oneofs
+_needs_type_params(f::GroupType, ctx::Context) = f.name in ctx._curr_cyclic_defs
+function _needs_type_params(f::FieldType{MapType}, ctx::Context)
     if isa(f.type.valuetype, ReferencedType)
         return f.type.valuetype.name in ctx._curr_cyclic_defs && f.type.valuetype.name != ctx._toplevel_name[]
     end
     return false
 end
 
-_get_type_bound(f::FieldType{ReferencedType}, ctx) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
-_get_type_bound(f::GroupType, ctx) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
-_get_type_bound(f::FieldType{MapType}, ctx) = string("Union{Nothing,", abstract_type_name(f.type.valuetype.name), '}')
-function _get_type_bound(f::OneOfType, ctx)
+_get_type_bound(f::FieldType{ReferencedType}, ::Context) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
+_get_type_bound(f::GroupType, ::Context) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
+_get_type_bound(f::FieldType{MapType}, ::Context) = string("Union{Nothing,", abstract_type_name(f.type.valuetype.name), '}')
+function _get_type_bound(f::OneOfType, ctx::Context)
     seen = Dict{String,Nothing}()
     union_types = String[]
     for o in f.fields
@@ -133,9 +133,12 @@ function _maybe_subtype(name)
     return string(" <: ", abstract_type_name(name))
 end
 
-function get_type_params(t::MessageType, ctx)
-    out = [field.name => _get_type_bound(field, ctx) for field in t.fields if _needs_type_params(field, ctx)]
-    type_params = Dict(k => ParamMetadata(string("T", i), v) for (i, (k, v)) in enumerate(out))
+function get_type_params(t::MessageType, ctx::Context)
+    out = (field.name => _get_type_bound(field, ctx) for field in t.fields if _needs_type_params(field, ctx))
+    type_params = Dict{String,ParamMetadata}()
+    for (i, (k, v)) in enumerate(out)
+        type_params[k] = ParamMetadata(string("T", i), v)
+    end
     return type_params
 end
 

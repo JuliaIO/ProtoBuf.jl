@@ -24,5 +24,5 @@ end
 
 abstract_type_name(name::AbstractString) = string("var\"##Abstract", name, '"')
 
-jl_fieldname(f::AbstractProtoFieldType) = _safename(f.name)
+jl_fieldname(@nospecialize(f::AbstractProtoFieldType)) = _safename(f.name)
 jl_fieldname(f::GroupType) = _safename(f.field_name)

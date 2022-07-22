@@ -139,6 +139,15 @@ function accept_batch(l::Lexer, f)
     return ok
 end
 
+function accept_batch(l::Lexer, f::Function)
+    ok = false
+    while f(peekchar(l))::Bool
+        readchar(l)
+        ok = true
+    end
+    return ok
+end
+
 function emit(l::Lexer{IO_t}, kind::Tokens.Kind, err::Tokens.TokenError=Tokens.NO_ERROR) where IO_t
     if (kind == Tokens.WHITESPACE ||
         kind == Tokens.COMMENT ||
@@ -440,8 +449,9 @@ function next_token(l::Lexer)
         readon(l)
         return lex_type_or_keyword_or_identifier(l, c)
     else
-        emit_error(l)
+        return emit_error(l)
     end
+    @assert false "unreachable"
 end
 
 Base.IteratorSize(::Type{Lexer{IO_t}}) where {IO_t} = Base.SizeUnknown()

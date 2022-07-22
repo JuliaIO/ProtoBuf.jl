@@ -1,12 +1,12 @@
-function jl_init_value(field::FieldType, ctx)
+function jl_init_value(@nospecialize(field::FieldType), ctx::Context)
     if _is_repeated_field(field)
         return "PB.BufferedVector{$(jl_typename(field.type, ctx))}()"
     else
-        return jl_type_init_value(field, ctx)
+        return jl_type_init_value(field, ctx::Context)
     end
 end
 
-function jl_default_value(field::FieldType, ctx)
+function jl_default_value(@nospecialize(field::FieldType), ctx::Context)
     if _is_repeated_field(field)
         return "Vector{$(jl_typename(field.type, ctx))}()"
     else
@@ -14,7 +14,7 @@ function jl_default_value(field::FieldType, ctx)
     end
 end
 
-function _is_optional_referenced_message(field::Union{FieldType{ReferencedType},GroupType}, ctx)
+function _is_optional_referenced_message(field::Union{FieldType{ReferencedType},GroupType}, ctx::Context)
     struct_name = ctx._toplevel_name[]
     (field.type.name == struct_name || field.type.name in ctx._curr_cyclic_defs) && return true
     if field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT
@@ -24,9 +24,9 @@ function _is_optional_referenced_message(field::Union{FieldType{ReferencedType},
 end
 
 
-jl_type_default_value(f::FieldType{StringType}, ctx) = get(f.options, "default", "\"\"")
-jl_type_default_value(f::FieldType{BoolType}, ctx)   = get(f.options, "default", "false")
-function jl_type_default_value(f::FieldType{<:AbstractProtoFloatType}, ctx)
+jl_type_default_value(f::FieldType{StringType}, ::Context) = get(f.options, "default", "\"\"")
+jl_type_default_value(f::FieldType{BoolType}, ::Context)   = get(f.options, "default", "false")
+function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoFloatType}), ctx::Context)
     type_name = jl_typename(f, ctx)
     default = get(f.options, "default", nothing)
     if default === nothing
@@ -52,7 +52,7 @@ _jl_parse_default_int(::Union{Int32Type,SInt32Type,SFixed32Type}, s::String) = p
 _jl_parse_default_int(::Union{Int64Type,SInt64Type,SFixed64Type}, s::String) = parse(Int64, s)
 _jl_parse_default_int(::Union{UInt32Type,Fixed32Type}, s::String) = parse(UInt32, s)
 _jl_parse_default_int(::Union{UInt64Type,Fixed64Type}, s::String) = parse(UInt64, s)
-function jl_type_default_value(f::FieldType{<:AbstractProtoNumericType}, ctx)
+function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoNumericType}), ctx::Context)
     type_name = jl_typename(f, ctx)
     default = get(f.options, "default", nothing)
     if default === nothing
@@ -60,19 +60,19 @@ function jl_type_default_value(f::FieldType{<:AbstractProtoNumericType}, ctx)
     end
     return string(type_name, '(', repr(_jl_parse_default_int(f.type, default)), ')')
 end
-function jl_type_default_value(f::FieldType{BytesType}, ctx)
+function jl_type_default_value(f::FieldType{BytesType}, ::Context)
     out = get(f.options, "default", nothing)
     return isnothing(out) ? "UInt8[]" : "b$(out)"
 end
-function jl_type_default_value(f::FieldType{MapType}, ctx)
+function jl_type_default_value(f::FieldType{MapType}, ctx::Context)
     return "Dict{$(jl_typename(f.type.keytype, ctx)),$(jl_typename(f.type.valuetype, ctx))}()"
 end
 
-function jl_type_init_value(f::FieldType{ReferencedType}, ctx)
+function jl_type_init_value(f::FieldType{ReferencedType}, ctx::Context)
     if _is_enum(f.type, ctx)
         default = get(f.options, "default") do
             definition = _get_referenced_type(f.type, ctx)::EnumType
-            string(first(keys(definition.elements)))
+            string(first(definition.element_names))
         end
         return "$(jl_typename(f.type, ctx)[1:end-2]).$(default)"
     else # message
@@ -83,10 +83,10 @@ function jl_type_init_value(f::FieldType{ReferencedType}, ctx)
     end
 end
 
-jl_init_value(::OneOfType, ctx) = "nothing"
-jl_default_value(::OneOfType, ctx) = "nothing"
+jl_init_value(::OneOfType, ctx::Context) = "nothing"
+jl_default_value(::OneOfType, ctx::Context) = "nothing"
 
-function jl_init_value(f::GroupType, ctx)
+function jl_init_value(f::GroupType, ctx::Context)
     if _is_repeated_field(f)
         return "PB.BufferedVector{$(jl_typename(f.type, ctx))}()"
     else
@@ -97,13 +97,13 @@ function jl_init_value(f::GroupType, ctx)
     end
 end
 
-jl_type_init_value(field, ctx) = jl_type_default_value(field, ctx)
+jl_type_init_value(@nospecialize(field), ctx::Context) = jl_type_default_value(field, ctx)
 
-function jl_type_default_value(f::FieldType{ReferencedType}, ctx)
+function jl_type_default_value(f::FieldType{ReferencedType}, ctx::Context)
     if _is_enum(f.type, ctx)
         default = get(f.options, "default") do
             definition = _get_referenced_type(f.type, ctx)::EnumType
-            string(first(keys(definition.elements)))
+            string(first(definition.element_names))
         end
         return "$(jl_typename(f.type, ctx)[1:end-2]).$(default)"
     else # message
@@ -114,7 +114,7 @@ function jl_type_default_value(f::FieldType{ReferencedType}, ctx)
     end
 end
 
-function jl_default_value(f::GroupType, ctx)
+function jl_default_value(f::GroupType, ctx::Context)
     if _is_repeated_field(f)
         return "Vector{$(jl_typename(f.type, ctx))}()"
     else

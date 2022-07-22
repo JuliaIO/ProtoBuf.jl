@@ -216,7 +216,7 @@ end
 struct ProtoFile
     filepath::String
     preamble::ProtoFilePreamble
-    definitions::Dict{String,AbstractProtoType}
+    definitions::Dict{String,Union{MessageType, EnumType, ServiceType}}
     sorted_definitions::Vector{String}
     cyclic_definitions::Set{String}
     extends::Vector{ExtendType}
@@ -235,7 +235,7 @@ function parse_proto_file(ps::ParserState)
         proto_version_string = "proto2"
     end
 
-    definitions = Dict{String,AbstractProtoType}()
+    definitions = Dict{String,Union{MessageType, EnumType, ServiceType}}()
     extends = ExtendType[]
     options = Dict{String,Union{String,Dict{String,String}}}()
     imported_packages = ProtoImportedPackage[]
@@ -273,7 +273,7 @@ function parse_proto_file(ps::ParserState)
         options,
         imported_packages,
     )
-    external_references = find_external_references_and_check_enums(definitions, preamble)
+    external_references = postprocess_types!(definitions, preamble)
     topologically_sorted, cyclic_definitions = _topological_sort(definitions, external_references)
     return ProtoFile(
         filepath(ps.l),

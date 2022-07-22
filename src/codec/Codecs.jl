@@ -36,7 +36,6 @@ end
 zigzag_encode(x::T) where {T <: Integer} = xor(x << 1, x >> (8 * sizeof(T) - 1))
 zigzag_decode(x::T) where {T <: Integer} = xor(x >> 1, -(x & T(1)))
 
-
 mutable struct BufferedVector{T}
     elements::Vector{T}
     occupied::Int

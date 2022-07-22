@@ -1,21 +1,21 @@
-function encode_condition(f::FieldType, ctx)
+function encode_condition(f::FieldType, ctx::Context)
     if _is_repeated_field(f)
         return "!isempty(x.$(jl_fieldname(f)))"
     else
         return _encode_condition(f, ctx)
     end
 end
-_encode_condition(f::FieldType, ctx) = "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
-_encode_condition(f::FieldType{<:MapType}, ctx) = "!isempty(x.$(jl_fieldname(f)))"
-function _encode_condition(f::FieldType{T}, ctx) where {T<:Union{StringType,BytesType}}
+_encode_condition(@nospecialize(f::FieldType), ctx::Context) = "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
+_encode_condition(f::FieldType{<:MapType}, ::Context) = "!isempty(x.$(jl_fieldname(f)))"
+function _encode_condition(f::FieldType{T}, ctx::Context) where {T<:Union{StringType,BytesType}}
     default = get(f.options, "default", nothing)
     if default === nothing
         return "!isempty(x.$(jl_fieldname(f)))"
     end
     return "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
 end
-_encode_condition(f::OneOfType, ctx) = "!isnothing(x.$(jl_fieldname(f)))"
-function _encode_condition(f::FieldType{ReferencedType}, ctx)
+_encode_condition(f::OneOfType, ::Context) = "!isnothing(x.$(jl_fieldname(f)))"
+function _encode_condition(f::FieldType{ReferencedType}, ctx::Context)
     if _is_message(f.type, ctx)
         return "!isnothing(x.$(jl_fieldname(f)))"
     else
@@ -23,8 +23,8 @@ function _encode_condition(f::FieldType{ReferencedType}, ctx)
     end
 end
 
-field_encode_expr(f::GroupType, ctx) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{:group})"
-function field_encode_expr(f::FieldType, ctx)
+field_encode_expr(f::GroupType, ::Context) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{:group})"
+function field_encode_expr(@nospecialize(f::FieldType), ctx::Context)
     if _is_repeated_field(f)
         encoding_val_type = _decoding_val_type(f.type)
         !isempty(encoding_val_type) && (encoding_val_type = ", Val{$encoding_val_type}")
@@ -44,11 +44,11 @@ function field_encode_expr(f::FieldType, ctx)
     end
 end
 
-_field_encode_expr(f::FieldType, ctx) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)))"
-_field_encode_expr(f::GroupType, ctx) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)))"
-_field_encode_expr(f::FieldType{<:AbstractProtoFixedType}, ctx) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{:fixed})"
-_field_encode_expr(f::FieldType{<:Union{SInt32Type,SInt64Type}}, ctx) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{:zigzag})"
-function _field_encode_expr(f::FieldType{<:MapType}, ctx)
+_field_encode_expr(f::FieldType, ::Context) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)))"
+_field_encode_expr(f::GroupType, ::Context) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)))"
+_field_encode_expr(f::FieldType{<:AbstractProtoFixedType}, ::Context) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{:fixed})"
+_field_encode_expr(f::FieldType{<:Union{SInt32Type,SInt64Type}}, ::Context) = "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{:zigzag})"
+function _field_encode_expr(f::FieldType{<:MapType}, ::Context)
     K = _decoding_val_type(f.type.keytype)
     V = _decoding_val_type(f.type.valuetype)
     isempty(V) && isempty(K) && return "PB.encode(e, $(f.number), x.$(jl_fieldname(f)))"
@@ -57,15 +57,15 @@ function _field_encode_expr(f::FieldType{<:MapType}, ctx)
     return "PB.encode(e, $(f.number), x.$(jl_fieldname(f)), Val{Tuple{$(K),$(V)}})"
 end
 
-function print_field_encode_expr(io, f::FieldType, ctx)
+function print_field_encode_expr(io, f::FieldType, ctx::Context)
     println(io, "    ", encode_condition(f, ctx), " && ", field_encode_expr(f, ctx))
 end
 
-function print_field_encode_expr(io, f::GroupType, ctx)
+function print_field_encode_expr(io, f::GroupType, ctx::Context)
     println(io, "    !isnothing(x.$(jl_fieldname(f))) && ", field_encode_expr(f, ctx))
 end
 
-function print_field_encode_expr(io, fs::OneOfType, ctx)
+function print_field_encode_expr(io, fs::OneOfType, ::Context)
     println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
         V = _decoding_val_type(f.type)
@@ -76,7 +76,7 @@ function print_field_encode_expr(io, fs::OneOfType, ctx)
     println(io, "    end")
 end
 
-function generate_encode_method(io, t::MessageType, ctx)
+function generate_encode_method(io, t::MessageType, ctx::Context)
     println(io, "function PB.encode(e::PB.AbstractProtoEncoder, x::$(safename(t)))")
     println(io, "    initpos = position(e.io)")
     for field in t.fields
@@ -86,20 +86,16 @@ function generate_encode_method(io, t::MessageType, ctx)
     println(io, "end")
 end
 
-function generate_encode_method(io, t::GroupType, ctx)
-    generate_encode_method(io, t.type, ctx)
-end
 
-
-function print_field_encoded_size_expr(io, f::FieldType, ctx)
+function print_field_encoded_size_expr(io, @nospecialize(f::FieldType), ctx::Context)
     println(io, "    ", encode_condition(f, ctx), " && (encoded_size += ", field_encoded_size_expr(f), ')')
 end
 
-function print_field_encoded_size_expr(io, f::GroupType, ctx)
+function print_field_encoded_size_expr(io, f::GroupType, ::Context)
     println(io, "    !isnothing(x.$(jl_fieldname(f))) && (encoded_size += ", field_encoded_size_expr(f), ')')
 end
 
-function print_field_encoded_size_expr(io, fs::OneOfType, ctx)
+function print_field_encoded_size_expr(io, fs::OneOfType, ::Context)
     println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
         V = _decoding_val_type(f.type)
@@ -123,7 +119,7 @@ function field_encoded_size_expr(f::FieldType{<:MapType})
     return "PB._encoded_size(x.$(jl_fieldname(f)), $(f.number), Val{Tuple{$(K),$(V)}})"
 end
 
-function generate__encoded_size_method(io, t::MessageType, ctx)
+function generate__encoded_size_method(io, t::MessageType, ctx::Context)
     println(io, "function PB._encoded_size(x::$(safename(t)))")
     println(io, "    encoded_size = 0")
     for field in t.fields
@@ -131,8 +127,4 @@ function generate__encoded_size_method(io, t::MessageType, ctx)
     end
     println(io, "    return encoded_size")
     println(io, "end")
-end
-
-function generate__encoded_size_method(io, t::GroupType, ctx)
-    generate__encoded_size_method(io, t.type, ctx)
 end

@@ -63,7 +63,8 @@ end
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.EnumType
-        @test p.definitions["A"].elements == (;a = 0)
+        @test p.definitions["A"].element_names == [:a]
+        @test p.definitions["A"].element_values == [0]
     end
 
     @testset "Single enum with `allow_alias = true` proto file" begin
@@ -71,7 +72,8 @@ end
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.EnumType
-        @test p.definitions["A"].elements == (;a = 0, b = 0)
+        @test p.definitions["A"].element_names == [:a, :b]
+        @test p.definitions["A"].element_values == [0, 0]
     end
 
     @testset "Single nested empty message proto file" begin

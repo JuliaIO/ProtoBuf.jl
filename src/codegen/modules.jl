@@ -1,16 +1,4 @@
 # https://github.com/golang/protobuf/issues/992#issuecomment-558718772
-struct ResolvedProtoFile
-    import_path::String
-    proto_file::ProtoFile
-end
-
-Base.@kwdef struct Options
-    always_use_modules::Bool = true
-    force_required::Union{Nothing,Dict{String,Set{String}}} = nothing
-    add_kwarg_constructors::Bool = false
-    parametrize_oneofs::Bool = false
-end
-
 proto_module_file_name(path::AbstractString) = string(proto_module_name(path), ".jl")
 proto_module_file_path(path::AbstractString) = joinpath(dirname(path), proto_module_file_name(path))
 proto_module_name(path::AbstractString) = string(replace(titlecase(basename(path)), r"[-_]" => "", ".Proto" => ""), "_PB")
@@ -211,49 +199,5 @@ function resolve_imports!(imported_paths::Set{String}, parsed_files, search_dire
         !found && push!(missing_imports, path)
     end
     !isempty(missing_imports) && error("Could not find following imports: $missing_imports within $search_directories")
-    return nothing
-end
-
-function protojl(
-    relative_paths::Union{<:AbstractString,<:AbstractVector{<:AbstractString}},
-    search_directories::Union{<:AbstractString,<:AbstractVector{<:AbstractString},Nothing}=nothing,
-    output_directory::Union{<:AbstractString,Nothing}=nothing;
-    include_vendored_wellknown_types::Bool=true,
-    always_use_modules::Bool=true,
-    force_required::Union{Nothing,<:Dict{<:AbstractString,<:Set{<:AbstractString}}}=nothing,
-    add_kwarg_constructors::Bool=false,
-    parametrize_oneofs::Bool=false,
-)
-    if isnothing(search_directories)
-        search_directories = ["."]
-    elseif isa(search_directories, AbstractString)
-        search_directories = [search_directories]
-    end
-    validate_search_directories!(search_directories, include_vendored_wellknown_types)
-
-    if isa(relative_paths, AbstractString)
-        relative_paths = [relative_paths]
-    end
-    absolute_paths = validate_proto_file_paths!(relative_paths, search_directories)
-
-    parsed_files = Dict{String,ResolvedProtoFile}()
-    _import_paths = Set{String}()
-    for (rel_path, abs_path) in zip(relative_paths, absolute_paths)
-        p = Parsers.parse_proto_file(abs_path)
-        parsed_files[rel_path] = ResolvedProtoFile(rel_path, p)
-        union!(_import_paths, import_paths(p))
-    end
-    resolve_imports!(_import_paths, parsed_files, search_directories)
-
-    if isnothing(output_directory)
-        output_directory = mktempdir(tempdir(); prefix="jl_proto_", cleanup=false)
-        @info output_directory
-    else
-        isdir(output_directory) || error("`output_directory` \"$output_directory\" doesn't exist")
-        output_directory = abspath(output_directory)
-    end
-    ns = NamespaceTrie(values(parsed_files))
-    options = Options(always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs)
-    create_namespaced_packages(ns, output_directory, parsed_files, options)
     return nothing
 end

@@ -1,4 +1,4 @@
-function maybe_generate_deprecation(io, t::Union{MessageType,EnumType})
+function maybe_generate_deprecation(io, t::Union{MessageType, EnumType, ServiceType})
     if parse(Bool, get(t.options, "deprecated", "false"))
         name = safename(t)
         println(io, "Base.depwarn(\"`$name` is deprecated.\", ((Base.Core).Typeof($name)).name.mt.name)")
@@ -7,60 +7,100 @@ end
 
 function maybe_generate_reserved_fields_method(io, t::MessageType)
     isempty(t.reserved_names) && isempty(t.reserved_nums) && return
-    println(io, "PB.reserved_fields(::Type{", safename(t), "}) = ", (names=t.reserved_names, numbers=t.reserved_nums))
+    println(io, "PB.reserved_fields(::Type{", safename(t), "}) = (names = ", string(t.reserved_names), ", numbers = Union{Int,UnitRange{Int}}[", join(t.reserved_nums, ", "), "])")
 end
 
 function maybe_generate_extendable_field_numbers_method(io, t::MessageType)
-    isempty(t.extensions) && return
-    println(io, "PB.extendable_field_numbers(::Type{", safename(t), "}) = ", t.extensions)
+    n = length(t.extensions)
+    n == 0 && return
+    print(io, "PB.extendable_field_numbers(::Type{", safename(t), "}) = Union{Int,UnitRange{Int}}[")
+    print(io, string(t.extensions[1]))
+    n == 1 && (println(io, "]"); return)
+    for i in 2:n
+        print(io, ", ")
+        print(io, string(t.extensions[i]))
+    end
+    println(io, ']')
 end
 
 _get_fields(t::AbstractProtoType) = [t]
 _get_fields(t::Union{OneOfType,MessageType}) = Iterators.flatten(Iterators.map(_get_fields, t.fields))
 
 function maybe_generate_oneof_field_types_method(io, t::MessageType, ctx)
-    types = join(
-        (
-            string(jl_fieldname(f), " = (;", join((string(jl_fieldname(o), "=", jl_typename(o, ctx)) for o in f.fields), ", "), ")")
-            for f
-            in t.fields
-            if isa(f, OneOfType)
-        ),
-        ",\n    "
-    )
-    if isempty(types)
-        return
-    else
-        types = "(;\n    $(types)\n)"
+    oneofs = filter(x->isa(x, OneOfType), t.fields)
+    n = length(oneofs)
+    n == 0 && return
+    print(io, "PB.oneof_field_types(::Type{", safename(t), "}) = (;")
+    for oneof in oneofs
+        n = length(oneof.fields)
+        print(io, "\n    ", jl_fieldname(oneof), " = (;")
+        for (i, field) in enumerate(oneof.fields)
+            print(io, jl_fieldname(field), "=", jl_typename(field, ctx))
+            i < n && print(io, ", ")
+        end
+        print(io, "),")
     end
-    println(io, "PB.oneof_field_types(::Type{", safename(t), "}) = $(types)")
+    println(io, "\n)")
 end
 
+function _field_numbers_per_field(io, f::Union{FieldType,GroupType})
+    print(io, jl_fieldname(f), " = ", string(f.number))
+end
+function _field_numbers_per_field(io, f::OneOfType)
+    n = length(f.fields)
+    for (i, field) in enumerate(f.fields)
+        _field_numbers_per_field(io, field)
+        i < n && print(io, ", ")
+    end
+end
 function maybe_generate_field_numbers_method(io, t::MessageType)
-    isempty(t.fields) && return
-    field_numbers = join((string(jl_fieldname(f), " = ",  f.number) for f in _get_fields(t)), ", ")
-    println(io, "PB.field_numbers(::Type{", safename(t), "}) = (;$(field_numbers))", )
+    n = length(t.fields)
+    n == 0 && return nothing
+    print(io, "PB.field_numbers(::Type{", safename(t), "}) = (;")
+    for (i, field) in enumerate(t.fields)
+        _field_numbers_per_field(io, field)
+        i < n && print(io, ", ")
+    end
+    println(io,  ')')
 end
 
-function maybe_generate_default_values_method(io, t::MessageType, ctx)
-    isempty(t.fields) && return
-    default_values = join((string(jl_fieldname(f), " = ",  @something(jl_default_value(f, ctx), f)) for f in _get_fields(t)), ", ")
-    println(io, "PB.default_values(::Type{", safename(t), "}) = (;$(default_values))", )
+function _default_values_per_leaf_field(io, f::Union{FieldType,GroupType}, ctx::Context)
+    @nospecialize
+    val = jl_default_value(f, ctx)
+    print(io, jl_fieldname(f), !isnothing(val) ? string(" = ", val) : "")
+end
+function _default_values_per_leaf_field(io, f::OneOfType, ctx::Context)
+    n = length(f.fields)
+    for (i, field) in enumerate(f.fields)
+        _default_values_per_leaf_field(io, field, ctx)
+        i < n && print(io, ", ")
+    end
+end
+function maybe_generate_default_values_method(io, t::MessageType, ctx::Context)
+    n = length(t.fields)
+    n == 0 && return nothing
+    print(io, "PB.default_values(::Type{", safename(t), "}) = (;")
+    for (i, field) in enumerate(t.fields)
+        _default_values_per_leaf_field(io, field, ctx)
+        i < n && print(io, ", ")
+    end
+    println(io,  ')')
 end
 
-function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx)
-    (!ctx.options.add_kwarg_constructors || isempty(t.fields)) && return
+function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx::Context)
+    n = length(t.fields)
+    (!ctx.options.add_kwarg_constructors || n == 0) && return
     type_name = safename(t)
-    default_values = join(
-        Iterators.map(t.fields) do f
-            default_value = jl_default_value(f, ctx)
-            if isnothing(default_value)
-                jl_fieldname(f)
-            else
-                string(jl_fieldname(f), " = ", jl_default_value(f, ctx))
-            end
-        end,
-        ", "
-    )
-    println(io, "$(type_name)(;$(default_values)) = $(type_name)($(join(Iterators.map(jl_fieldname, t.fields), ", ")))")
+    print(io, "$(type_name)(;")
+    for (i, field) in enumerate(t.fields)
+        val = jl_default_value(field, ctx)
+        print(io, jl_fieldname(field), !isnothing(val) ? string(" = ", val) : "")
+        i < n && print(io, ", ")
+    end
+    print(io, ") = $(type_name)(")
+    for (i, field) in enumerate(t.fields)
+        print(io, jl_fieldname(field))
+        i < n && print(io, ", ")
+    end
+    println(io, ')')
 end

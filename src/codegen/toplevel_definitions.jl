@@ -1,24 +1,14 @@
-struct Context
-    proto_file::ProtoFile
-    proto_file_path::String
-    imports::Set{String}
-    file_map::Dict{String,ResolvedProtoFile}
-    _curr_cyclic_defs::Set{String}
-    _toplevel_name::Ref{String}
-    options::Options
-end
-
-function _should_force_required(qualified_name, ctx)
+function _should_force_required(qualified_name, ctx::Context)
     isnothing(ctx.options.force_required) && return false
     force_required = get(ctx.options.force_required, ctx.proto_file_path, Set{String}())
     return qualified_name in force_required
 end
 
-function generate_struct_field(io, field, ctx, type_params)
+function generate_struct_field(io, @nospecialize(field), ctx::Context, type_params)
     println(io, "    ", jl_fieldname(field), "::", jl_typename(field, ctx))
 end
 
-function generate_struct_field(io, field::FieldType{ReferencedType}, ctx, type_params)
+function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Context, type_params)
     field_name = jl_fieldname(field)
     type_name = jl_typename(field, ctx)
     struct_name = ctx._toplevel_name[]
@@ -40,7 +30,7 @@ function generate_struct_field(io, field::FieldType{ReferencedType}, ctx, type_p
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::GroupType, ctx, type_params)
+function generate_struct_field(io, field::GroupType, ctx::Context, type_params)
     field_name = jl_fieldname(field)
     type_name = jl_typename(field, ctx)
     struct_name = ctx._toplevel_name[]
@@ -62,7 +52,7 @@ function generate_struct_field(io, field::GroupType, ctx, type_params)
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::FieldType{MapType}, ctx, type_params)
+function generate_struct_field(io, field::FieldType{MapType}, ctx::Context, type_params)
     field_name = jl_fieldname(field)
     type_name = jl_typename(field, ctx)
     struct_name = ctx._toplevel_name[]
@@ -77,7 +67,7 @@ function generate_struct_field(io, field::FieldType{MapType}, ctx, type_params)
     println(io, "    ", field_name, "::", type_name)
 end
 
-function generate_struct_field(io, field::OneOfType, ctx, type_params)
+function generate_struct_field(io, field::OneOfType, ctx::Context, type_params)
     field_name = jl_fieldname(field)
     type_param = get(type_params, field.name, nothing)
     if !isnothing(type_param)
@@ -122,11 +112,13 @@ function codegen(io, t::MessageType, ctx::Context)
     generate__encoded_size_method(io, t, ctx)
 end
 
-codegen(io, t::GroupType, ctx::Context) = codegen(io, t.type, ctx)
-
 function codegen(io, t::EnumType, ::Context)
     name = safename(t)
-    println(io, "@enumx ", name, join(" $k=$n" for (k, n) in zip(keys(t.elements), t.elements)))
+    print(io, "@enumx ", name)
+    for (k, n) in zip(t.element_names, t.element_values)
+        print(io, " $k=$n")
+    end
+    println(io)
     maybe_generate_deprecation(io, t)
 end
 
@@ -174,7 +166,12 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "using EnumX: @enumx")
     if (is_namespaced(p) || options.always_use_modules) && !isempty(p.definitions)
         println(io)
-        println(io, "export ", join(Iterators.map(x->_safename(x), keys(p.definitions)), ", "))
+        n = length(p.sorted_definitions)
+        print(io, "export ")
+        for (i, def) in enumerate(p.sorted_definitions)
+            print(io, _safename(def))
+            i < n && print(io, ", ")
+        end
     end
     !isempty(p.cyclic_definitions) && println(io, "\n# Abstract types to help resolve mutually recursive definitions")
     for name in p.cyclic_definitions
