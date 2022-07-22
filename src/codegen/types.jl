@@ -98,8 +98,8 @@ _is_message(t::ReferencedType, ctx) = _get_referenced_type_type!(t, ctx) == "mes
 _is_enum(t::ReferencedType, ctx)    = _get_referenced_type_type!(t, ctx) == "enum"
 
 _needs_type_params(f::FieldType{ReferencedType}, ctx) = f.type.name in ctx._curr_cyclic_defs && f.type.name != ctx._toplevel_name[]
-_needs_type_params(f::FieldType, ctx) = false
-_needs_type_params(f::OneOfType, ctx) = true
+_needs_type_params(::FieldType, ctx) = false
+_needs_type_params(::OneOfType, ctx) = ctx.options.parametrize_oneofs
 _needs_type_params(f::GroupType, ctx) = f.name in ctx._curr_cyclic_defs
 function _needs_type_params(f::FieldType{MapType}, ctx)
     if isa(f.type.valuetype, ReferencedType)

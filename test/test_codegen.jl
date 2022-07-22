@@ -279,17 +279,31 @@ end
     end
 
     @testset "OneOf field codegen" begin
-        s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }")
+        s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }", Options(parametrize_oneofs=true))
         @test occursin("""
         struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32,var"##AbstractA"}}}} <: var"##AbstractA"
             a::T1
         end""", s)
 
-        s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; } }")
+        s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; } }", Options(parametrize_oneofs=true))
         ctx._toplevel_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
         struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32}}}}
             a::T1
+        end
+        """
+
+        s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }", Options(parametrize_oneofs=false))
+        @test occursin("""
+        struct A <: var"##AbstractA"
+            a::Union{Nothing,OneOf{<:Union{Int32,UInt32,var"##AbstractA"}}}
+        end""", s)
+
+        s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; } }", Options(parametrize_oneofs=false))
+        ctx._toplevel_name[] = "A"
+        @test generate_struct_str(p.definitions["A"], ctx) == """
+        struct A
+            a::Union{Nothing,OneOf{<:Union{Int32,UInt32}}}
         end
         """
     end

@@ -83,7 +83,7 @@ function generate_struct_field(io, field::OneOfType, ctx, type_params)
     if !isnothing(type_param)
         type_name = type_param.param
     else
-        type_name = jl_typename(field, ctx)
+        type_name = _get_type_bound(field, ctx)
     end
     println(io, "    ", field_name, "::", type_name)
 end
