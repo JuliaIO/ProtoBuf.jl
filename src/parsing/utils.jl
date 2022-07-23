@@ -1,12 +1,15 @@
+_postprocess_reference!(referenced, type, definitions, namespace) = nothing
 function _postprocess_reference!(referenced, type::ReferencedType, definitions, namespace)
-    # if isempty(type.namespace)
-    #     namespaced_name = string(namespace, '.', type.name)
-    #     if namespaced_name in keys(definitions)
-    #         @warn type.name namespace type
-    #         type.name = namespaced_name
-    #         type.enclosing_type = namespace
-    #     end
-    # end
+    if isempty(type.namespace)
+        namespaced_name = string(namespace, '.', type.name)
+        if namespaced_name in keys(definitions)
+            type.name = namespaced_name
+            type.enclosing_type = namespace
+        elseif endswith(namespace, string('.', type.name))
+            type.enclosing_type = namespace[1:end-length(type.name)-1]
+            type.name = namespace
+        end
+    end
     push!(referenced, type.name)
     if type.namespace in keys(definitions)
         type.namespace_is_type = true
@@ -19,6 +22,9 @@ end
 function _postprocess_field!(referenced, invalid_enums, f::FieldType{ReferencedType}, definitions, preamble, namespace)
     _postprocess_reference!(referenced, f.type, definitions, namespace)
 end
+function _postprocess_field!(referenced, invalid_enums, f::FieldType{MapType}, definitions, preamble, namespace)
+    _postprocess_reference!(referenced, f.type.valuetype, definitions, namespace)
+end
 _postprocess_field!(referenced, invalid_enums, f::FieldType, definitions, preamble, namespace) = nothing
 function _postprocess_field!(referenced, invalid_enums, f::OneOfType, definitions, preamble, namespace)
     for field in f.fields
@@ -29,7 +35,6 @@ end
 function _postprocess_field!(referenced, invalid_enums, f::GroupType, definitions, preamble, namespace)
     for field in f.type.fields
         _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, namespace)
-        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, f.type.name)
     end
     return nothing
 end

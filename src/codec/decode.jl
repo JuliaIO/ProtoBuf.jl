@@ -24,7 +24,10 @@ function decode(d::AbstractProtoDecoder, ::Type{T}, ::Type{Val{:zigzag}}) where 
     return reinterpret(T, z)
 end
 decode(d::AbstractProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
-decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}} = T(vbyte_decode(d.io, UInt32))
+function decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}}
+    val = vbyte_decode(d.io, UInt32)
+    return val in keys(Base.Enums.namemap(T)) ? T(val) : T(0)
+end
 decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
 function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V<:_ScalarTypesEnum}
     len = vbyte_decode(d.io, UInt32)

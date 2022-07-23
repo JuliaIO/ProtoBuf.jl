@@ -279,6 +279,12 @@ end
     end
 
     @testset "OneOf field codegen" begin
+        s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; } }", Options(parametrize_oneofs=true))
+        @test occursin("""
+        struct A{T1<:Union{Nothing,OneOf{Int32}}}
+            a::T1
+        end""", s)
+
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }", Options(parametrize_oneofs=true))
         @test occursin("""
         struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32,var"##AbstractA"}}}} <: var"##AbstractA"
@@ -306,6 +312,32 @@ end
             a::Union{Nothing,OneOf{<:Union{Int32,UInt32}}}
         end
         """
+    end
+
+    @testset "`force_required` OneOf field" begin
+        s, p, ctx = translate_simple_proto("message B { oneof a { int32 a = 1; } }", Options(force_required=Dict("main" => Set(["B.a"]))))
+        @test occursin("""
+        struct B
+            a::OneOf{Int32}
+        end""", s)
+
+        s, p, ctx = translate_simple_proto("message B { oneof a { int32 a = 1; uint32 b = 2; } }", Options(force_required=Dict("main" => Set(["B.a"]))))
+        @test occursin("""
+        struct B
+            a::OneOf{<:Union{Int32,UInt32}}
+        end""", s)
+
+        s, p, ctx = translate_simple_proto("message B { oneof a { int32 a = 1; } }", Options(force_required=Dict("main" => Set(["B.a"])), parametrize_oneofs=true))
+        @test occursin("""
+        struct B{T1<:OneOf{Int32}}
+            a::T1
+        end""", s)
+
+        s, p, ctx = translate_simple_proto("message B { oneof a { int32 a = 1; uint32 b = 2; } }", Options(force_required=Dict("main" => Set(["B.a"])), parametrize_oneofs=true))
+        @test occursin("""
+        struct B{T1<:OneOf{<:Union{Int32,UInt32}}}
+            a::T1
+        end""", s)
     end
 
     @testset "Basic enum codegen" begin
@@ -605,8 +637,8 @@ end
             @test strify(CodeGenerators.maybe_generate_field_numbers_method, p.definitions["A"]) == ""
 
             struct A end
-            @test reserved_fields(A) == (names = String[], numbers = Union{UnitRange{Int64}, Int64}[])
-            @test extendable_field_numbers(A) == Union{UnitRange{Int64}, Int64}[]
+            @test reserved_fields(A) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
+            @test extendable_field_numbers(A) == Union{Int,UnitRange{Int}}[]
             @test default_values(A) == (;)
             @test oneof_field_types(A) == (;)
             @test field_numbers(A) == (;)

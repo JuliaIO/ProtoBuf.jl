@@ -11,13 +11,11 @@ Base.position(x::BufferedStreams.BufferedOutputStream) = max(0, position(x.sink)
 
 # TODO:
 # - Docs!
-# - Get rid of quadratic behavior in _try_namespace_referenced_types
-# - Test against test_messages_proto2.proto and test_messages_proto3.proto
 # - configs for protojl:
 #    * Allow the user to use inline string for specific message string fields
 #    * Make Dicts robust to missing values where possible
 # - Vendor proto definitions of common Julia types and dedicated methods for encode/decode
-#    * Int8, UInt8, Int16, UInt16, Int128, UInt128, Float16, UUID, Date, DateTime
+#    * Int8, UInt8, Int16, UInt16, Int128, UInt128, Float16, UUID, Date, DateTime, Rational
 # - Services & RPC
 # - Extensions
 
@@ -61,7 +59,7 @@ Return a named tuple of reserved field `names` and `numbers` from the original p
 The numbers might be individual integers or integer ranges.
 """
 function reserved_fields(::Type{T}) where T
-    return (names = String[], numbers = Union{UnitRange{Int64}, Int64}[])
+    return (names = String[], numbers = Union{Int,UnitRange{Int}}[])
 end
 """
     extendable_field_numbers(::Type{T}) where T
@@ -70,7 +68,7 @@ Return `extensions` field numbers from the original proto message definition.
 The numbers might be individual integers or integer ranges.
 """
 function extendable_field_numbers(::Type{T}) where T
-    return Union{UnitRange{Int64}, Int64}[]
+    return Union{Int,UnitRange{Int}}[]
 end
 """
     oneof_field_types(::Type{T}) where T
@@ -103,12 +101,12 @@ function default_values(::Type{T}) where T
 end
 
 export protojl, encode, ProtoEncoder, decode, decode!, ProtoDecoder
+export OneOf
 export reserved_fields, extendable_field_numbers, oneof_field_types, field_numbers, default_values
 
 if Base.VERSION >= v"1.4.2"
     include("precompile.jl")
     _precompile_()
 end
-
 
 end # module

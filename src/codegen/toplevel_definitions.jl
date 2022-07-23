@@ -5,7 +5,7 @@ function _should_force_required(qualified_name, ctx::Context)
 end
 
 function generate_struct_field(io, @nospecialize(field), ctx::Context, type_params)
-    println(io, "    ", jl_fieldname(field), "::", jl_typename(field, ctx))
+    println(io, "    ", jl_fieldname(field)::String, "::", jl_typename(field, ctx)::String)
 end
 
 function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Context, type_params)

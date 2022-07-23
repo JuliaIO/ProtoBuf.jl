@@ -98,7 +98,7 @@ function _protojl(
         output_directory = abspath(output_directory)
     end
     ns = NamespaceTrie(values(parsed_files))
-    create_namespaced_packages(ns, output_directory, parsed_files, options)
+    create_namespaced_packages(ns, output_directory, output_directory, parsed_files, options)
     return nothing
 end
 

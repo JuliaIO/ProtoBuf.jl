@@ -97,6 +97,9 @@ end
 _is_message(t::ReferencedType, ctx::Context) = _get_referenced_type_type!(t, ctx) == "message"
 _is_enum(t::ReferencedType, ctx::Context)    = _get_referenced_type_type!(t, ctx) == "enum"
 
+_is_cyclic_reference(t, ::Context) = false
+_is_cyclic_reference(t::ReferencedType, ctx::Context) = t.name in ctx.proto_file.cyclic_definitions || t.name == ctx._toplevel_name[]
+
 _needs_type_params(f::FieldType{ReferencedType}, ctx::Context) = f.type.name in ctx._curr_cyclic_defs && f.type.name != ctx._toplevel_name[]
 _needs_type_params(::FieldType, ctx::Context) = false
 _needs_type_params(::OneOfType, ctx::Context) = ctx.options.parametrize_oneofs
@@ -113,19 +116,25 @@ _get_type_bound(f::GroupType, ::Context) = string("Union{Nothing,", abstract_typ
 _get_type_bound(f::FieldType{MapType}, ::Context) = string("Union{Nothing,", abstract_type_name(f.type.valuetype.name), '}')
 function _get_type_bound(f::OneOfType, ctx::Context)
     seen = Dict{String,Nothing}()
+    struct_name = ctx._toplevel_name[]
     union_types = String[]
     for o in f.fields
         name = jl_typename(o.type, ctx)
         get!(seen, name) do
-            push!(union_types, name in ctx._curr_cyclic_defs || name == ctx._toplevel_name[] ? abstract_type_name(name) : name)
+            push!(union_types, _is_cyclic_reference(o.type, ctx) ? abstract_type_name(_get_name(o.type)) : name)
             nothing
         end
     end
+    should_force_required = _should_force_required(string(struct_name, ".", f.name), ctx)
     if length(union_types) == 1
-        return string("Union{Nothing,OneOf{", only(union_types), "}}")
+        type = string("OneOf{", only(union_types), '}')
     else
-        return string("Union{Nothing,OneOf{<:Union{", join(union_types, ','), "}}}")
+        type = string("OneOf{<:Union{", join(union_types, ','), "}}")
     end
+    if !should_force_required
+        type = string("Union{Nothing,", type, '}')
+    end
+    return type
 end
 
 function _maybe_subtype(name)
@@ -135,9 +144,12 @@ end
 
 function get_type_params(t::MessageType, ctx::Context)
     out = (field.name => _get_type_bound(field, ctx) for field in t.fields if _needs_type_params(field, ctx))
+    i = 0
     type_params = Dict{String,ParamMetadata}()
-    for (i, (k, v)) in enumerate(out)
-        type_params[k] = ParamMetadata(string("T", i), v)
+    for field in t.fields
+        !_needs_type_params(field, ctx) && continue
+        i += 1
+        type_params[field.name] = ParamMetadata(string("T", i), _get_type_bound(field, ctx))
     end
     return type_params
 end

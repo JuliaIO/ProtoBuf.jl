@@ -227,4 +227,56 @@ end
         @test p.definitions["A"].fields[2].type.type_name == "message"
         @test p.definitions["A"].fields[2].type.namespace == ""
     end
+
+    @testset "Referenced Types are assumed to refer to messages defined within the parent message" begin
+        s, p, ctx = translate_simple_proto(
+            """
+            message B { }
+            message A {
+                B nested_message = 3;
+                oneof oneof_field {
+                    B oneof_nested_message = 4;
+                }
+                map<string, B> map_string_nested_message = 5;
+                message B {
+                    int32 a = 1;
+                    A corecursive = 2;
+                }
+            }
+            """
+        )
+        @test p.definitions["A"].fields[1].type.name == "A.B"
+        @test p.definitions["A"].fields[1].type.enclosing_type == "A"
+        @test p.definitions["A"].fields[2].fields[1].type.name == "A.B"
+        @test p.definitions["A"].fields[2].fields[1].type.enclosing_type == "A"
+        @test p.definitions["A"].fields[3].type.valuetype.name == "A.B"
+        @test p.definitions["A"].fields[3].type.valuetype.enclosing_type == "A"
+    end
+
+    @testset "Referenced Types are correctly namespaced when nested" begin
+        s, p, ctx = translate_simple_proto(
+            """
+            message A {
+                message B {
+                    message B {
+                        B b = 2;
+                      }
+                  A a = 1;
+                }
+                B b = 3;
+              }
+            """
+        )
+        @test p.definitions["A"].fields[1].type.name == "A.B"
+        @test p.definitions["A"].fields[1].type.enclosing_type == "A"
+        @test p.definitions["A"].fields[1].number == 3
+
+        @test p.definitions["A.B"].fields[1].type.name == "A"
+        @test p.definitions["A.B"].fields[1].type.enclosing_type === nothing
+        @test p.definitions["A.B"].fields[1].number == 1
+
+        @test p.definitions["A.B.B"].fields[1].type.name == "A.B.B"
+        @test p.definitions["A.B.B"].fields[1].type.enclosing_type == "A.B"
+        @test p.definitions["A.B.B"].fields[1].number == 2
+    end
 end

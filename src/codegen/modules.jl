@@ -86,7 +86,7 @@ function get_upstream_dependencies!(file::ResolvedProtoFile, upstreams)
     end
 end
 
-function create_namespaced_packages(ns::NamespaceTrie, output_directory::AbstractString, parsed_files, options)
+function create_namespaced_packages(ns::NamespaceTrie, output_directory::AbstractString, root::AbstractString, parsed_files, options)
     path = joinpath(output_directory, ns.scope, "")
     if !isempty(ns.scope) # top level, not in a module
         current_module_path = proto_module_file_name(ns.scope)
@@ -103,7 +103,7 @@ function create_namespaced_packages(ns::NamespaceTrie, output_directory::Abstrac
                 if is_namespaced(file)
                     import_pkg_name = namespaced_top_import(file)
                     get!(seen_imports, import_pkg_name) do
-                        println(io, "include(", repr(relpath(namespaced_top_include(file), current_module_path)), ")")
+                        println(io, "include(", repr(relpath(joinpath(root, namespaced_top_include(file)), path)), ")")
                         println(io, "import $(import_pkg_name)")
                     end
                 else
@@ -140,7 +140,7 @@ function create_namespaced_packages(ns::NamespaceTrie, output_directory::Abstrac
     end
     for (child_dir, child) in ns.children
         !isdir(joinpath(path, child_dir)) && mkdir(joinpath(path, child_dir))
-        create_namespaced_packages(child, path, parsed_files, options)
+        create_namespaced_packages(child, path, root, parsed_files, options)
     end
     return nothing
 end

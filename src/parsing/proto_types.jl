@@ -62,26 +62,6 @@ function lowercase_first(s)
     return String(take!(b))
 end
 
-function _try_namespace_referenced_types!(fields, definitions, namespace)
-    isempty(definitions) && return nothing
-    __try_namespace_referenced_types!(fields, definitions, namespace)
-    return nothing
-end
-function __try_namespace_referenced_types!(fields, definitions, namespace)
-    for field in fields
-        if isa(field, OneOfType)
-            _try_namespace_referenced_types!(field.fields, definitions, namespace)
-        elseif isa(field.type, ReferencedType) && isempty(field.type.namespace)
-            namespaced_name = string(namespace, '.', field.type.name)
-            if namespaced_name in keys(definitions)
-                field.type.name = namespaced_name
-                field.type.enclosing_type = namespace
-            end
-        end
-    end
-    return nothing
-end
-
 _dot_join(prefix, s) = isempty(prefix) ? s : string(prefix, '.', s)
 
 @enum(FieldLabel, DEFAULT, REQUIRED, OPTIONAL, REPEATED)
@@ -372,16 +352,6 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
             break
         else
             push!(fields, parse_field(ps))
-        end
-    end
-    _try_namespace_referenced_types!(fields, definitions, name)
-    for definition in values(definitions)
-        # If the newly defined messages are self referential, they need to point
-        # to themselves including their namespace.
-        if isa(definition, GroupType)
-            __try_namespace_referenced_types!(definition.type.fields, definitions, name)
-        elseif isa(definition, MessageType)
-            __try_namespace_referenced_types!(definition.fields, definitions, name)
         end
     end
     # TODO: validate field_numbers vs reserved and extensions
