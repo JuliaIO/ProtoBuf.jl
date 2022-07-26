@@ -39,7 +39,7 @@ You can generate Julia bindings with the `protojl` function:
 ```julia-repl
 julia> using ProtocolBuffers
 
-julia> protojl("test.proto", "output_dir")
+julia> protojl("test.proto", ".", "output_dir")
 ```
 
 This will create a Julia file at `output_dir/test_pb.jl` which you can simply `include` and start using it to encode and decode messages:
