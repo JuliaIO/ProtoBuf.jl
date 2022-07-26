@@ -60,4 +60,6 @@ include("vbyte.jl")
 include("decode.jl")
 include("encode.jl")
 
+export encode, decode
+
 end # module

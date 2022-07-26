@@ -276,9 +276,6 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:zigza
     return nothing
 end
 
-# Overload this for new struct types
-function encode(e::AbstractProtoEncoder, x) end
-
 # T is a struct/message type
 function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T}
     maybe_ensure_room(e.io, length(x) * sizeof(T))

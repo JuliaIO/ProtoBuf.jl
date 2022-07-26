@@ -10,7 +10,6 @@ using TOML
 Base.position(x::BufferedStreams.BufferedOutputStream) = max(0, position(x.sink) + x.position - 1)
 
 # TODO:
-# - Docs!
 # - configs for protojl:
 #    * Allow the user to use inline string for specific message string fields
 #    * Make Dicts robust to missing values where possible
@@ -18,6 +17,7 @@ Base.position(x::BufferedStreams.BufferedOutputStream) = max(0, position(x.sink)
 #    * Int8, UInt8, Int16, UInt16, Int128, UInt128, Float16, UUID, Date, DateTime, Rational
 # - Services & RPC
 # - Extensions
+# - Text Format
 
 
 const PACKAGE_VERSION = let
@@ -99,6 +99,24 @@ Fields of `OneOf` types are expanded as they don't map to any single default val
 function default_values(::Type{T}) where T
     return (;)
 end
+
+"""
+    decode(d::AbstractProtoDecoder, ::Type{T}) where {T}
+
+Decode a protobuf message from `IO` wrapped by `AbstractProtoDecoder` into s struct of type T.
+
+For general structs, these methods should be generated using the [`protojl`](@ref) function.
+"""
+function decode(d::AbstractProtoDecoder, ::Type{T}) where {T} end
+
+"""
+    encode(d::AbstractProtoDecoder, x::T) where {T}
+
+Encode struct `x` of type `T` as protobuf message to `IO` wrapped by `AbstractProtoEncoder`.
+
+For general structs, these methods should be generated using the [`protojl`](@ref) function.
+"""
+function encode(e::AbstractProtoEncoder, x::T) where {T} end
 
 export protojl, encode, ProtoEncoder, decode, decode!, ProtoDecoder
 export OneOf
