@@ -12,7 +12,7 @@ mktempdir() do tmpdir
                         @test isnothing(protojl("google/protobuf/unittest.proto", joinpath(@__DIR__, "test_protos"), tmpdir; options...))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "protobuf_unittest/ProtobufUnittest_PB.jl")) isa Module
+                        @test include(joinpath(tmpdir, "protobuf_unittest/protobuf_unittest.jl")) isa Module
                     end
                 end
 
@@ -21,7 +21,7 @@ mktempdir() do tmpdir
                         @test isnothing(protojl("google/protobuf/unittest_proto3.proto", joinpath(@__DIR__, "test_protos"), tmpdir; options...))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "proto3_unittest/Proto3Unittest_PB.jl")) isa Module
+                        @test include(joinpath(tmpdir, "proto3_unittest/proto3_unittest.jl")) isa Module
                     end
                 end
 
@@ -30,7 +30,7 @@ mktempdir() do tmpdir
                         @test isnothing(protojl("google/protobuf/unittest_well_known_types.proto", joinpath(@__DIR__, "test_protos"), tmpdir; options...))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "protobuf_unittest/ProtobufUnittest_PB.jl")) isa Module
+                        @test include(joinpath(tmpdir, "protobuf_unittest/protobuf_unittest.jl")) isa Module
                     end
                 end
 
@@ -39,7 +39,7 @@ mktempdir() do tmpdir
                         @test isnothing(protojl("datasets/google_message3/benchmark_message3.proto", joinpath(@__DIR__, "test_protos/benchmarks"), tmpdir; options...))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "benchmarks/google_message3/GoogleMessage3_PB.jl")) isa Module
+                        @test include(joinpath(tmpdir, "benchmarks/google_message3/google_message3.jl")) isa Module
                     end
                 end
 
@@ -48,7 +48,7 @@ mktempdir() do tmpdir
                         @test isnothing(protojl("datasets/google_message4/benchmark_message4.proto", joinpath(@__DIR__, "test_protos/benchmarks"), tmpdir; options...))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "benchmarks/google_message4/GoogleMessage4_PB.jl")) isa Module
+                        @test include(joinpath(tmpdir, "benchmarks/google_message4/google_message4.jl")) isa Module
                     end
                 end
 
@@ -57,7 +57,7 @@ mktempdir() do tmpdir
                         @test isnothing(protojl("google/protobuf/test_messages_proto2.proto", joinpath(@__DIR__, "test_protos"), tmpdir; options...))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "protobuf_test_messages/proto2/Proto2_PB.jl")) isa Module
+                        @test include(joinpath(tmpdir, "protobuf_test_messages/protobuf_test_messages.jl")) isa Module
                     end
                 end
 
@@ -66,7 +66,16 @@ mktempdir() do tmpdir
                         @test isnothing(protojl("google/protobuf/test_messages_proto3.proto", joinpath(@__DIR__, "test_protos"), tmpdir; options...))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "protobuf_test_messages/proto3/Proto3_PB.jl")) isa Module
+                        @test include(joinpath(tmpdir, "protobuf_test_messages/protobuf_test_messages.jl")) isa Module
+                    end
+                end
+
+                @testset "google/protobuf/unittest_custom_options.proto" begin
+                    @testset "translate source" begin
+                        @test isnothing(protojl("google/protobuf/unittest_custom_options.proto", joinpath(@__DIR__, "test_protos"), tmpdir; options...))
+                    end
+                    @testset "include generated" begin
+                        @test include(joinpath(tmpdir, "protobuf_unittest/protobuf_unittest.jl")) isa Module
                     end
                 end
             end

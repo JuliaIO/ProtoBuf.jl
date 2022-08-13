@@ -158,11 +158,12 @@ For `.proto` files that are packages, a nested directory structure will be gener
 ```bash
 root  # `output_directory` arg from from `protojl`
 └── foo_bar
-    ├── FooBar_PB.jl  # defines module `FooBar_PB`, imports `BazGrok_PB`
+    ├── foo_bar.jl  # defines module `foo_bar`, imports `baz_grok`
     └── baz_grok
         ├── {file_name}_pb.jl
-        └── BazGrok_PB.jl  # defines module `BazGrok_PB`, includes `{file_name}_pb.jl`
+        └── baz_grok.jl  # defines module `baz_grok`, includes `{file_name}_pb.jl`
 ```
+You should include the top-level module of a generated package, i.e. `foo_bar.jl` in this example.
 When reading `.proto` files that use `import` statements, the imported files have to be located at the respective import paths relative to `search_directories`.
 
 `.proto` files that don't have a `package` specifier will generate a single file containing a module. For example, `{file_name}.proto` will translate to a `{file_name}_pb.jl` file defining a `{file_name}_pb` module. You can generate a file without a module by providing `always_use_modules=false` options to `protojl`.

@@ -1,7 +1,7 @@
 function maybe_generate_deprecation(io, t::Union{MessageType, EnumType, ServiceType})
     if parse(Bool, get(t.options, "deprecated", "false"))
         name = safename(t)
-        println(io, "Base.depwarn(\"`$name` is deprecated.\", ((Base.Core).Typeof($name)).name.mt.name)")
+        println(io, "Base.depwarn(\"`$(escape_string(name))` is deprecated.\", ((Base.Core).Typeof($name)).name.mt.name)")
     end
 end
 

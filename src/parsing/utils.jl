@@ -1,73 +1,117 @@
-_postprocess_reference!(referenced, type, definitions, namespace) = nothing
-function _postprocess_reference!(referenced, type::ReferencedType, definitions, namespace)
-    if isempty(type.namespace)
-        namespaced_name = string(namespace, '.', type.name)
-        if namespaced_name in keys(definitions)
-            type.name = namespaced_name
-            type.enclosing_type = namespace
-        elseif endswith(namespace, string('.', type.name))
-            type.enclosing_type = namespace[1:end-length(type.name)-1]
-            type.name = namespace
+function _findfunc(namespace, i, name, from_innermost)
+    n = length(namespace)
+    if from_innermost
+        i > n && return (string(namespace, '.', name), n) # first search
+        i == 0 && return ("", -1)                         # not found
+        j = something(findprev('.', namespace, i-1), 0)
+        j == 0 && i != 0 && return (name, 0)              # last search
+        j != 0 && i != 0 && return (string(@view(namespace[1:j]), name), j)
+    else
+        i < 1 && return (name, 1)                                    # first search
+        i == n && return ("", -1)                                    # not found
+        j = something(findnext('.', namespace, i+1), n)
+        j == n && i != n && return (string(namespace, '.', name), n) # last search
+        j != n && i != n && return (string(@view(namespace[1:j]), name), j)
+    end
+    throw(error("When from_innermost is `true`, i must be >= 0, when from_innermost is `false`, i must be <= length(namespace), got (from_innermost=$from_innermost, i=$i)"))
+end
+
+function match_prefix(prefix, name)
+    i = length(prefix)
+    subprefix = @view prefix[begin:end]
+    while true
+        startswith(name, subprefix) && return subprefix
+        i = findprev('.', prefix, i-1)
+        isnothing(i) && return SubString("", 1, 0)
+        subprefix = @view prefix[i+1:end]
+    end
+end
+
+abstract type AbstractResolvingContext end
+
+struct IntraFileResolvingContext <: AbstractResolvingContext
+    external_references::Set{String}
+    definitions::Dict{String, Union{MessageType, EnumType, ServiceType}}
+    package_prefix::String
+end
+
+function reference_type(def, t::ReferencedType)
+    isa(def, MessageType) ? MESSAGE :
+    isa(def, EnumType)    ? ENUM    :
+    isa(def, ServiceType) ? SERVICE :
+    isa(def, RPCType)     ? RPC     :
+    throw(error("Referenced type `$(t.name)` has unsupported type $(typeof(def))"))
+end
+
+_postprocess_reference!(type, rctx::AbstractResolvingContext, namespace) = nothing
+function _postprocess_reference!(type::ReferencedType, rctx::IntraFileResolvingContext, namespace)
+    if !type.resolved
+        # Get rid of the package prefix if it coincides with the package of the current file
+        matched_prefix = match_prefix(rctx.package_prefix, type.name)
+        if !isempty(matched_prefix)
+            type.name = type.name[length(matched_prefix)+1:end]
+        end
+        # We're trying to resolve the reference within our current file
+        # if we don't succeed, we'll try to resolve the reference among
+        # other proto files later, duing codegen.
+        i = type.resolve_from_innermost ? (length(namespace) + 1) : 0
+        while true
+            (namespaced_name, i) = _findfunc(namespace, i, type.name, type.resolve_from_innermost)
+            if i == -1
+                push!(rctx.external_references, type.name)
+                break
+            end
+            def = get(rctx.definitions, namespaced_name, nothing)
+            if !isnothing(def)
+                type.name = namespaced_name
+                type.reference_type = reference_type(def, type)
+                type.resolved = true
+                break
+            end
         end
     end
-    push!(referenced, type.name)
-    if type.namespace in keys(definitions)
-        type.namespace_is_type = true
-        # The prefix is referring to another type in which the referenced type is defined
-        # we need to change the name to reflect that to prevent name collisions.
-        type.name = string(type.namespace, '.', type.name)
-    end
 end
 
-function _postprocess_field!(referenced, invalid_enums, f::FieldType{ReferencedType}, definitions, preamble, namespace)
-    _postprocess_reference!(referenced, f.type, definitions, namespace)
-end
-function _postprocess_field!(referenced, invalid_enums, f::FieldType{MapType}, definitions, preamble, namespace)
-    _postprocess_reference!(referenced, f.type.valuetype, definitions, namespace)
-end
-_postprocess_field!(referenced, invalid_enums, f::FieldType, definitions, preamble, namespace) = nothing
-function _postprocess_field!(referenced, invalid_enums, f::OneOfType, definitions, preamble, namespace)
+_postprocess_field!(f::FieldType{ReferencedType}, rctx, namespace) = _postprocess_reference!(f.type, rctx, namespace)
+_postprocess_field!(f::FieldType{MapType}, rctx, namespace)        = _postprocess_reference!(f.type.valuetype, rctx, namespace)
+_postprocess_field!(f::FieldType, rctx, namespace) = nothing
+function _postprocess_field!(f::OneOfType, rctx, namespace)
     for field in f.fields
-        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, namespace)
+        _postprocess_field!(field, rctx, namespace)
     end
     return nothing
 end
-function _postprocess_field!(referenced, invalid_enums, f::GroupType, definitions, preamble, namespace)
+function _postprocess_field!(f::GroupType, rctx, namespace)
     for field in f.type.fields
-        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, namespace)
+        _postprocess_field!(field, rctx, namespace)
     end
     return nothing
 end
 
-function _postprocess_type!(referenced, invalid_enums, t::EnumType, definitions, preamble)
-    preamble.isproto3 && first(t.element_values) != 0 && push!(invalid_enums, t.name)
-    return nothing
-end
-function _postprocess_type!(referenced, invalid_enums, t::ServiceType, definitions, preamble)
+_postprocess_type!(t::EnumType, rctx::AbstractResolvingContext) = nothing
+function _postprocess_type!(t::ServiceType, rctx::AbstractResolvingContext)
     for rpc in t.rpcs
-        _postprocess_reference!(referenced, rpc.request_type, definitions, t.name)
-        _postprocess_reference!(referenced, rpc.response_type, definitions, t.name)
+        _postprocess_reference!(rpc.request_type, rctx, t.name)
+        _postprocess_reference!(rpc.response_type, rctx, t.name)
     end
     return nothing
 end
-function _postprocess_type!(referenced, invalid_enums, t::MessageType, definitions, preamble)
+function _postprocess_type!(t::MessageType, rctx::AbstractResolvingContext)
     for field in t.fields
-        _postprocess_field!(referenced, invalid_enums, field, definitions, preamble, t.name)
+        _postprocess_field!(field, rctx, t.name)
     end
     return nothing
 end
 
-function postprocess_types!(definitions::Dict{String, Union{MessageType, EnumType, ServiceType}}, preamble::ProtoFilePreamble)
+function postprocess_types!(definitions::Dict{String, Union{MessageType, EnumType, ServiceType}}, package_name::String)
     # Traverse all definitions and see which of those referenced are not defined
     # in this module. Create a list of these imported definitions so that we can ignore
     # them when doing the topological sort.
-    referenced = Set{String}()
-    invalid_enums = Set{String}()
+    rctx = IntraFileResolvingContext(Set{String}(), definitions, string(package_name, '.'))
     for definition in values(definitions)
-        _postprocess_type!(referenced, invalid_enums, definition, definitions, preamble)
+        _postprocess_type!(definition, rctx)
     end
-    !isempty(invalid_enums) && error("In proto3, enums' first element must map to zero, following enums violate that: $invalid_enums")
-    return setdiff(referenced, keys(definitions))
+    return rctx.external_references
 end
 
 get_type_name(::AbstractProtoNumericType) = nothing
@@ -80,7 +124,7 @@ get_type_name(t::EnumType)       = t.name
 get_type_name(t::ServiceType)    = t.name
 get_type_name(::StringType)      = nothing
 get_type_name(::BytesType)       = nothing
-get_type_name(::MapType)         = nothing
+get_type_name(t::MapType)        = get_type_name(t.valuetype)
 
 function get_upstream_dependencies!(t::ServiceType, out)
     for rpc in t.rpcs
@@ -90,10 +134,6 @@ function get_upstream_dependencies!(t::ServiceType, out)
     return nothing
 end
 function get_upstream_dependencies!(::EnumType, out)
-    return nothing
-end
-function get_upstream_dependencies!(t::GroupType, out)
-    get_upstream_dependencies!(t.type, out)
     return nothing
 end
 function get_upstream_dependencies!(t::MessageType, out)

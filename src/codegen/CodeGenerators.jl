@@ -20,7 +20,10 @@ _is_repeated_field(::OneOfType) = false
 struct ResolvedProtoFile
     import_path::String
     proto_file::ProtoFile
+    implicit_imports::Set{String}
+    transitive_imports::Set{String}
 end
+ResolvedProtoFile(rel_path, p) = ResolvedProtoFile(rel_path, p, Set{String}(), Set{String}())
 
 Base.@kwdef struct Options
     include_vendored_wellknown_types::Bool = true
@@ -33,10 +36,10 @@ end
 struct Context
     proto_file::ProtoFile
     proto_file_path::String
-    imports::Set{String}
     file_map::Dict{String,ResolvedProtoFile}
     _curr_cyclic_defs::Set{String}
     _toplevel_name::Ref{String}
+    transitive_imports::Set{String}
     options::Options
 end
 
@@ -48,6 +51,7 @@ include("decode_methods.jl")
 include("encode_methods.jl")
 include("metadata_methods.jl")
 include("toplevel_definitions.jl")
+include("utils.jl")
 
 """
     protojl(
@@ -68,11 +72,12 @@ When a `{file_name}.proto` contains e.g. `package foo_bar.baz_grok`, the followi
 ```bash
 root  # `output_directory` arg from from `protojl`
 └── foo_bar
-    ├── FooBar_PB.jl  # defines module `FooBar_PB`, imports `BazGrok_PB`
+    ├── foo_bar.jl  # defines module `foo_bar`, imports `baz_grok`
     └── baz_grok
         ├── {file_name}_pb.jl
-        └── BazGrok_PB.jl  # defines module `BazGrok_PB`, includes `{file_name}_pb.jl`
+        └── baz_grok.jl  # defines module `baz_grok`, includes `{file_name}_pb.jl`
 ```
+You should include the top-level module of a generated package, i.e. `foo_bar.jl` in this example.
 All imported `.proto` files are compiled as well; an error is thrown if they cannot be resolved or found within `search_directories`.
 
 # Arguments
@@ -126,7 +131,7 @@ function protojl(
     parametrize_oneofs::Bool=false,
 )
     options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs)
-    _protojl(relative_paths, search_directories, output_directory, options)
+    return _protojl(relative_paths, search_directories, output_directory, options)
 end
 
 function _protojl(
@@ -163,8 +168,26 @@ function _protojl(
         isdir(output_directory) || error("`output_directory` \"$output_directory\" doesn't exist")
         output_directory = abspath(output_directory)
     end
-    ns = NamespaceTrie(values(parsed_files))
-    create_namespaced_packages(ns, output_directory, output_directory, parsed_files, options)
+
+    foreach(p->get_all_transitive_imports!(p, parsed_files), values(parsed_files))
+    # Files within the same package could use definitions from different files
+    # without fully qualifying their name -- on Julia side, we need to make sure
+    # the files are read in order that respect these implicit dependencies.
+    resolve_inter_package_references!(parsed_files, options)
+    sorted_files, cyclical_imports = _topological_sort(parsed_files)
+    !isempty(cyclical_imports) && throw(error(string(
+        "Detected cyclical dependency among following imports: $cyclical_imports, ",
+        "possibly, the individual files are resolvable, but their `package`s are not."
+    )))
+    sorted_files = [parsed_files[sorted_file] for sorted_file in sorted_files]
+    n = Namespaces(sorted_files, output_directory, parsed_files)
+    for m in n.non_namespaced_protos
+        dst_path = joinpath(output_directory, proto_script_name(m))
+        CodeGenerators.translate(dst_path, m, parsed_files, options)
+    end
+    for m in values(n.packages)
+        generate_package(m, output_directory, parsed_files, options)
+    end
     return nothing
 end
 

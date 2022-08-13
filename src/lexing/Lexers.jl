@@ -186,9 +186,10 @@ function lex_whitespace(l::Lexer)
     return emit(l, Tokens.WHITESPACE)
 end
 
+_is_end_of_single_line_comment(c) = c == '\n' || c == EOF_CHAR
 # We consumed a '#' or //
 function lex_single_line_comment(l::Lexer)
-    accept_batch(l, !in(('\n', EOF_CHAR)))
+    accept_batch(l, !_is_end_of_single_line_comment)
     return emit(l, Tokens.COMMENT)
 end
 

@@ -13,6 +13,7 @@ mutable struct ParserState
     nt::Tokens.Token
     nnt::Tokens.Token
     errored::Bool
+    is_proto3::Bool
 end
 
 function readtoken(ps::ParserState)
@@ -38,6 +39,7 @@ function ParserState(l::Lexer)
         Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
         Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
         Tokens.Token(Tokens.UNINIT, Tokens.NO_ERROR, (0,0), (0,0), ""),
+        false,
         false,
     )
     readtoken(ps)
@@ -101,23 +103,6 @@ function accept_batch(ps, f)
     return ok
 end
 
-function _parse_option_value(ps) # TODO: proper value parsing with validation
-    accept(ps, Tokens.PLUS)
-    has_minus = accept(ps, Tokens.MINUS)
-    return has_minus ? string("-", val(readtoken(ps))) : val(readtoken(ps))
-end
-
-# We consumed a LBRACKET ([)
-function parse_field_options!(ps::ParserState, options::Dict{String,<:Union{String,Dict{String,String}}})
-    while true
-        _parse_option!(ps, options)
-        accept(ps, Tokens.COMMA) && continue
-        accept(ps, Tokens.RBRACKET) && break
-        error("Missing comma in option lists at $(ps.l.current_row):$(ps.l.current_col)")
-    end
-end
-
-
 function parse_integer_value(ps)
     nk, nnk = dpeekkind(ps)
     if nk == Tokens.DEC_INT_LIT
@@ -137,66 +122,6 @@ function parse_integer_value(ps)
     end
 end
 
-# We consumed OPTION
-# NOTE: does not eat SEMICOLON
-function _parse_option!(ps::ParserState, options::Dict{String,<:Union{String,Dict{String,String}}})
-    option_name = ""
-    last_name_part = ""
-    prev_had_parens = false
-    while true
-        if accept(ps, Tokens.LPAREN)
-            option_name *= string("(", val(expectnext(ps, Tokens.IDENTIFIER)), ")")
-            expectnext(ps, Tokens.RPAREN)
-            prev_had_parens = true
-        elseif accept(ps, Tokens.IDENTIFIER)
-            last_name_part = val(token(ps))
-            if prev_had_parens
-                startswith(last_name_part, '.') || error("Invalid option identifier $(option_name)$(last_name_part)")
-            end
-            option_name *= last_name_part
-        elseif accept(ps, Tokens.DOT)
-            expectnext(ps, Tokens.LPAREN)
-            option_name *= option_name *= string(".(", val(expectnext(ps, Tokens.IDENTIFIER)), ")")
-            expectnext(ps, Tokens.RPAREN)
-            prev_had_parens = true
-        else
-            break
-        end
-    end
-
-    expectnext(ps, Tokens.EQ)  # =
-
-    is_aggregate = accept(ps, Tokens.LBRACE)
-    if is_aggregate # {key: val, ...}
-        # TODO: properly validate that `option (complex_opt2).waldo = { waldo: 212 }` doesn't happen
-        #       `option (complex_opt2) = { waldo: 212 }` ok
-        #       `option (complex_opt2).waldo = 212 ` ok
-        option_value = Dict{String,String}()
-        while !accept(ps, Tokens.RBRACE)
-            if accept(ps, Tokens.IDENTIFIER)
-                key = val(token(ps))
-                @assert key != last_name_part
-            elseif accept(ps, Tokens.RBRACKET)
-                key = val(token(ps))
-                expectnext(ps, Tokens.LBRACKET)
-                key = string("[", key, "]")
-            else
-                error("Unexpected token name in option mapping $(peektoken(ps))")
-            end
-
-            expectnext(ps, Tokens.COLON)
-            value = _parse_option_value(ps)
-            option_value[key] = value
-            accept(ps, Tokens.COMMA)
-        end
-        # accept(ps, Tokens.SEMICOLON)
-    else
-        option_value = _parse_option_value(ps)
-    end
-    options[option_name] = option_value
-    return nothing
-end
-
 include("proto_types.jl")
 
 @enum(ImportOption, NONE, PUBLIC, WEAK)
@@ -208,9 +133,20 @@ end
 
 struct ProtoFilePreamble
     isproto3::Bool
-    namespace::String
-    options::Dict{String,Union{String,Dict{String,String}}}
+    namespace::Vector{String}
+    options::Dict{String,Union{String,Dict{String}}}
     imports::Vector{ProtoImportedPackage}
+end
+
+function check_name_collisions(packages, definitions, package_file, definitions_file)
+    levels_to_check = length(packages) <= 1 ? @view(packages[1:length(packages)]) : @view(packages[[begin,end]])
+    collisions = intersect(levels_to_check, keys(definitions))
+    !isempty(collisions) &&
+        throw(error(string(
+            "Proto package `$(join(packages, '.'))` @ '$(package_file)', clashes with names of ",
+            "following top-level definitions $(string.(collisions))",
+            package_file == definitions_file ? "." : " from '$(definitions_file)'."
+        )))
 end
 
 struct ProtoFile
@@ -223,6 +159,7 @@ struct ProtoFile
 end
 
 include("utils.jl")
+include("proto_options.jl")
 
 parse_proto_file(path::String) = parse_proto_file(ParserState(path))
 function parse_proto_file(ps::ParserState)
@@ -234,10 +171,11 @@ function parse_proto_file(ps::ParserState)
     else
         proto_version_string = "proto2"
     end
+    ps.is_proto3 = proto_version_string == "proto3"
 
     definitions = Dict{String,Union{MessageType, EnumType, ServiceType}}()
     extends = ExtendType[]
-    options = Dict{String,Union{String,Dict{String,String}}}()
+    options = Dict{String,Union{String,Dict{String}}}()
     imported_packages = ProtoImportedPackage[]
     package_identifier = ""
 
@@ -267,13 +205,15 @@ function parse_proto_file(ps::ParserState)
             definitions[type.name] = type
         end
     end
+    package_parts = split(package_identifier, '.', keepempty=false)
     preamble = ProtoFilePreamble(
-        proto_version_string=="proto3",
-        package_identifier,
+        ps.is_proto3,
+        package_parts,
         options,
         imported_packages,
     )
-    external_references = postprocess_types!(definitions, preamble)
+    check_name_collisions(package_parts, definitions, filepath(ps.l), filepath(ps.l))
+    external_references = postprocess_types!(definitions, package_identifier)
     topologically_sorted, cyclic_definitions = _topological_sort(definitions, external_references)
     return ProtoFile(
         filepath(ps.l),
@@ -284,6 +224,5 @@ function parse_proto_file(ps::ParserState)
         extends,
     )
 end
-
 
 end # module

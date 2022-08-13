@@ -1,13 +1,15 @@
 # to hook in, import and define get_upstream_dependencies! methods for your types
-function get_upstream_dependencies!(definition, upstreams) end
+function get_upstream_dependencies!(definition, upstreams)
+    throw(MethodError(get_upstream_dependencies!, (typeof(definition), typeof(upstreams))))
+end
 
-function _topological_sort(definitions, ignored_keys::Set{String})
-    has_ignored_keys = !isempty(ignored_keys)
-    number_of_upstream_dependencies = Dict{String,Int}()
-    downstream_dependencies = Dict{String,Vector{String}}()
-    upstreams = Set{String}()
-    topologically_sorted = sizehint!(String[], length(definitions))
-    queue = sizehint!(String[], length(definitions))
+function _topological_sort(definitions::Dict{K}, ignored_keys::Union{Nothing,Set{K}}=nothing) where {K}
+    has_ignored_keys = !isnothing(ignored_keys) && !isempty(ignored_keys)
+    number_of_upstream_dependencies = Dict{K,Int}()
+    downstream_dependencies = Dict{K,Vector{K}}()
+    upstreams = Set{K}()
+    topologically_sorted = sizehint!(K[], length(definitions))
+    queue = sizehint!(K[], length(definitions))
 
     for (name, definition) in definitions
         empty!(upstreams)
@@ -18,17 +20,19 @@ function _topological_sort(definitions, ignored_keys::Set{String})
         else
             number_of_upstream_dependencies[name] = length(upstreams)
         end
-        get!(downstream_dependencies, name, String[])
+        get!(downstream_dependencies, name, K[])
         for u in upstreams
             # add current definition as an downstream dependency to it's upstreams
-            push!(get!(downstream_dependencies, u, String[]), name)
+            push!(get!(downstream_dependencies, u, K[]), name)
         end
     end
 
     while !isempty(queue)
         u = popfirst!(queue)
         push!(topologically_sorted, u)
-        for d in downstream_dependencies[u]
+        D = downstream_dependencies[u]
+        while !isempty(D)
+            d = pop!(D)
             if (number_of_upstream_dependencies[d] -= 1) == 0
                 pop!(number_of_upstream_dependencies, d)
                 push!(queue, d)

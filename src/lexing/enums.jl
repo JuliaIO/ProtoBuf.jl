@@ -91,9 +91,6 @@
         INF,
         NAN,
     end_literals,
-
-    # begin_assignments,
-    # end_assignments,
 )
 
 isident(k::Kind) = begin_identifiers < k < end_identifiers

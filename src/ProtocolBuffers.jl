@@ -16,9 +16,10 @@ Base.position(x::BufferedStreams.BufferedOutputStream) = max(0, position(x.sink)
 # - Vendor proto definitions of common Julia types and dedicated methods for encode/decode
 #    * Int8, UInt8, Int16, UInt16, Int128, UInt128, Float16, UUID, Date, DateTime, Rational
 # - Services & RPC
-# - Extensions
+# - Preserve docstrings
+# - Add a metadata method to query integer encodings (varint / zigzag / fixed)
+# - Extensions / well-known Any type support
 # - Text Format
-
 
 const PACKAGE_VERSION = let
     project = TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))

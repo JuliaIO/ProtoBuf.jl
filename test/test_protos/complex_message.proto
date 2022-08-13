@@ -1,4 +1,4 @@
-syntax = "proto3";
+syntax = "proto2";
 
 enum TestEnum {
     DEFAULT = 0;
@@ -6,25 +6,25 @@ enum TestEnum {
 }
 
 message EmptyMessage {}
-message NonEmptyMessage { uint32 x = 1; NonEmptyMessage self_referential_field = 2; }
+message NonEmptyMessage { optional uint32 x = 1; optional NonEmptyMessage self_referential_field = 2; }
 
 message OmniMessage {
-    bytes bytes_field = 1;
-    string string_field = 2;
-    uint32 uint32_field = 3;
-    uint64 uint64_field = 4;
-    int32 int32_field = 5;
-    int64 int64_field = 6;
-    bool bool_field = 7;
-    sint32 sint32_field = 8;
-    sint64 sint64_field = 9;
-    TestEnum enum_field = 10;
-    sfixed32 sfixed32_field = 11;
-    sfixed64 sfixed64_field = 12;
-    fixed32 fixed32_field = 13;
-    fixed64 fixed64_field = 14;
-    EmptyMessage empty_message_field = 15;
-    NonEmptyMessage non_empty_message_field = 16;
+    optional bytes bytes_field = 1;
+    optional string string_field = 2;
+    optional uint32 uint32_field = 3;
+    optional uint64 uint64_field = 4;
+    optional int32 int32_field = 5;
+    optional int64 int64_field = 6;
+    optional bool bool_field = 7;
+    optional sint32 sint32_field = 8;
+    optional sint64 sint64_field = 9;
+    optional TestEnum enum_field = 10;
+    optional sfixed32 sfixed32_field = 11;
+    optional sfixed64 sfixed64_field = 12;
+    optional fixed32 fixed32_field = 13;
+    optional fixed64 fixed64_field = 14;
+    optional EmptyMessage empty_message_field = 15;
+    optional NonEmptyMessage non_empty_message_field = 16;
 
     oneof oneof_field {
         bytes oneof_bytes_field = 17;
@@ -91,20 +91,20 @@ message OmniMessage {
     map<fixed32, string> map_fixed32_string_field = 74;
     map<fixed64, string> map_fixed64_string_field = 75;
 
-    float float_field = 76;
-    double double_field = 77;
+    optional float float_field = 76;
+    optional double double_field = 77;
     repeated float repeated_float_field = 78;
     repeated double repeated_double_field = 79;
     map<string, float> map_string_float_field = 80;
     map<string, double> map_string_double_field = 81;
 
-    group Group = 82 {
-        int32 a = 1;
+    optional group Group = 82 {
+        optional int32 a = 1;
     }
     repeated group Repeated_group = 83 {
-        int32 a = 1;
+        optional int32 a = 1;
     }
 }
 
-message DuplicatedInnerMessage { uint32 x = 1; repeated uint32 y = 2; DuplicatedMessage r = 3; }
-message DuplicatedMessage { DuplicatedInnerMessage i = 1; }
+message DuplicatedInnerMessage { optional uint32 x = 1; repeated uint32 y = 2; optional DuplicatedMessage r = 3; }
+message DuplicatedMessage { optional DuplicatedInnerMessage i = 1; }
