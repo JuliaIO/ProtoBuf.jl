@@ -1,8 +1,4 @@
 #TODO: Cleanup!
-struct ParamMetadata
-    param::String
-    bound::String
-end
 
 function jl_typename(f::AbstractProtoFieldType, ctx)
     type_name = jl_typename(f.type, ctx)
@@ -112,6 +108,11 @@ end
 function _maybe_subtype(name)
     isempty(name) && return ""
     return string(" <: ", abstract_type_name(name))
+end
+
+struct ParamMetadata
+    param::String
+    bound::String
 end
 
 function get_type_params(t::MessageType, ctx::Context)
