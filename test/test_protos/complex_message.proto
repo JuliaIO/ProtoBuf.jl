@@ -6,7 +6,15 @@ enum TestEnum {
 }
 
 message EmptyMessage {}
-message NonEmptyMessage { optional uint32 x = 1; optional NonEmptyMessage self_referential_field = 2; }
+message CoRecursiveMessage { optional NonEmptyMessage r = 1; }
+message NonEmptyMessage {
+    optional uint32 x = 1;
+    optional NonEmptyMessage self_referential_field = 2;
+    oneof oneof_field {
+        int64 y = 3;
+    }
+    optional CoRecursiveMessage c = 4;
+}
 
 message OmniMessage {
     optional bytes bytes_field = 1;

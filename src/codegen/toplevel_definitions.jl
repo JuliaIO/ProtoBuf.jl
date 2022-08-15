@@ -20,7 +20,7 @@ function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Contex
     if struct_name == type_name
         type_name = string("Union{Nothing,", type_name,"}")
     elseif !isnothing(type_param)
-        type_name = type_param.param
+        type_name = _is_repeated_field(field) ? string("Vector{", type_param.param, '}') : type_param.param
     elseif field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT
         should_force_required = _should_force_required(string(struct_name, ".", field.name), ctx)
         if !should_force_required && _is_message(field.type, ctx)

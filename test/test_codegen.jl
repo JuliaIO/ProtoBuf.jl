@@ -420,7 +420,7 @@ end
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }")
         @test CodeGenerators.jl_typename(p.definitions["A"].fields[1], ctx) == "OneOf{Union{Int32,UInt32,A}}"
         s, p, ctx = translate_simple_proto("message A { repeated A a = 1; }")
-        @test CodeGenerators.jl_typename(p.definitions["A"].fields[1], ctx) == "Vector{A}"
+        @test CodeGenerators.jl_typename(p.definitions["A"].fields[1], ctx) == "Vector{<:A}"
     end
 
     @testset "Default values" begin
