@@ -2,7 +2,7 @@ module Parsers
 
 using ..Lexers: Lexers, Lexer, next_token, filepath
 using ..Tokens: Tokens, kind, val
-import ..ProtocolBuffers: _topological_sort, get_upstream_dependencies!
+import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
 const MAX_FIELD_NUMBER = Int(typemax(UInt32) >> 3)
 

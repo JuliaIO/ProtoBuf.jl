@@ -1,9 +1,9 @@
-using ProtocolBuffers
-using ProtocolBuffers.CodeGenerators: Options, ResolvedProtoFile, translate, namespace, jl_typename
-using ProtocolBuffers.CodeGenerators: import_paths, Context, get_all_transitive_imports!
-using ProtocolBuffers.CodeGenerators: resolve_inter_package_references!
-using ProtocolBuffers.Parsers: parse_proto_file, ParserState, Parsers
-using ProtocolBuffers.Lexers: Lexer
+using ProtoBuf
+using ProtoBuf.CodeGenerators: Options, ResolvedProtoFile, translate, namespace, jl_typename
+using ProtoBuf.CodeGenerators: import_paths, Context, get_all_transitive_imports!
+using ProtoBuf.CodeGenerators: resolve_inter_package_references!
+using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers
+using ProtoBuf.Lexers: Lexer
 using Test
 
 function translate_simple_proto(str::String, options=Options())

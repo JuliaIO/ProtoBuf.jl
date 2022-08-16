@@ -1,6 +1,6 @@
 using Aqua
 using JET
-using ProtocolBuffers
+using ProtoBuf
 using Test
 
 function is_ci()
@@ -13,11 +13,11 @@ include("unittests.jl")
 
 @testset "JET" begin
     include("jet_test_utils.jl")
-    is_ci() || jet_test_package(ProtocolBuffers)
+    is_ci() || jet_test_package(ProtoBuf)
     # jet_test_file("unittests.jl", ignored_modules=(JET.AnyFrameModule(Test),))
     include("test_perf.jl")
 end
 
 @testset "Aqua" begin
-    Aqua.test_all(ProtocolBuffers)
+    Aqua.test_all(ProtoBuf)
 end

@@ -1,10 +1,10 @@
-using ProtocolBuffers
-using ProtocolBuffers.CodeGenerators: Options, ResolvedProtoFile, translate, namespace
-using ProtocolBuffers.CodeGenerators: import_paths, Context, generate_struct, codegen
-using ProtocolBuffers.CodeGenerators: resolve_inter_package_references!, get_all_transitive_imports!
-using ProtocolBuffers.CodeGenerators: CodeGenerators
-using ProtocolBuffers.Parsers: parse_proto_file, ParserState, Parsers
-using ProtocolBuffers.Lexers: Lexer
+using ProtoBuf
+using ProtoBuf.CodeGenerators: Options, ResolvedProtoFile, translate, namespace
+using ProtoBuf.CodeGenerators: import_paths, Context, generate_struct, codegen
+using ProtoBuf.CodeGenerators: resolve_inter_package_references!, get_all_transitive_imports!
+using ProtoBuf.CodeGenerators: CodeGenerators
+using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers
+using ProtoBuf.Lexers: Lexer
 using Test
 
 strify(f, args...) = (io = IOBuffer(); f(io, args...); String(take!(io)))
@@ -64,15 +64,15 @@ end
     @testset "Minimal proto file" begin
         s, p, ctx = translate_simple_proto("", Options(always_use_modules=false))
         @test s == """
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
+        import ProtoBuf as PB
+        using ProtoBuf: OneOf
         using EnumX: @enumx"""
 
         s, p, ctx = translate_simple_proto("", Options(always_use_modules=true))
         @test s == """
         module main_pb
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
+        import ProtoBuf as PB
+        using ProtoBuf: OneOf
         using EnumX: @enumx
         end # module"""
     end
@@ -81,8 +81,8 @@ end
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => ""), Options(always_use_modules=false))
         @test s == """
         include("a_pb.jl")
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
+        import ProtoBuf as PB
+        using ProtoBuf: OneOf
         using EnumX: @enumx"""
 
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => ""), Options(always_use_modules=true))
@@ -90,8 +90,8 @@ end
         module main_pb
         include("a_pb.jl")
         import a_pb
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
+        import ProtoBuf as PB
+        using ProtoBuf: OneOf
         using EnumX: @enumx
         end # module"""
     end
@@ -101,8 +101,8 @@ end
         @test s == """
         include($(repr(joinpath("p", "p.jl"))))
         import .p
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
+        import ProtoBuf as PB
+        using ProtoBuf: OneOf
         using EnumX: @enumx"""
 
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=true))
@@ -110,8 +110,8 @@ end
         module main_pb
         include($(repr(joinpath("p", "p.jl"))))
         import .p
-        import ProtocolBuffers as PB
-        using ProtocolBuffers: OneOf
+        import ProtoBuf as PB
+        using ProtoBuf: OneOf
         using EnumX: @enumx
         end # module"""
     end

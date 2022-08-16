@@ -1,7 +1,10 @@
-name = "ProtocolBuffers"
-uuid = "33b38db7-f37a-4066-8d88-48be842fb53f"
+name = "ProtoBuf"
+uuid = "3349acd9-ac6a-5e09-bcdb-63829b23a429"
+keywords = ["protobuf", "protoc"]
+license = "MIT"
+desc = "Julia protobuf implementation"
 authors = ["Tomáš Drvoštěp <tomas.drvostep@gmail.com>"]
-version = "0.1.0"
+version = "1.0.0"
 
 [deps]
 BufferedStreams = "e1450e63-4bb3-523b-b2a4-4ffa8c0fd77d"

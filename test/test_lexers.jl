@@ -1,4 +1,4 @@
-using ProtocolBuffers: Lexers
+using ProtoBuf: Lexers
 using .Lexers: Tokens
 using Test
 

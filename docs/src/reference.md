@@ -4,7 +4,7 @@ Depth = 3
 ```
 
 ```@meta
-CurrentModule = ProtocolBuffers
+CurrentModule = ProtoBuf
 ```
 
 # API Reference

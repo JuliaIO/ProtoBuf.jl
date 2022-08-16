@@ -1,7 +1,7 @@
 using Test
-import ProtocolBuffers
+import ProtoBuf
 
-@testset "ProtocolBuffers" begin
+@testset "ProtoBuf" begin
     include("test_lexers.jl")
     include("test_vbyte.jl")
     include("test_encode.jl")

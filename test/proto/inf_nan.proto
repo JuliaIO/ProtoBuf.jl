@@ -1,8 +1,0 @@
-syntax = "proto2";
-
-message InfNan {
-    optional double inf_64 = 1 [default = inf];
-    optional double nan_64 = 2 [default = nan];
-    optional float inf_32 = 3 [default = inf];
-    optional float nan_32 = 4 [default = nan];
-}

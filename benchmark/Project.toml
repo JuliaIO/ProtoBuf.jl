@@ -1,4 +1,4 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 EnumX = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
-ProtocolBuffers = "33b38db7-f37a-4066-8d88-48be842fb53f"
+ProtoBuf = "3349acd9-ac6a-5e09-bcdb-63829b23a429"

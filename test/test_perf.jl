@@ -1,6 +1,6 @@
 module JETPerformanceAnalysis
 using JET
-using ProtocolBuffers: Codecs
+using ProtoBuf: Codecs
 import .Codecs: vbyte_decode, vbyte_encode, _encoded_size
 using Test
 using EnumX

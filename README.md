@@ -1,10 +1,10 @@
-# ProtocolBuffers.jl
+# ProtoBuf.jl
 
 [![][docs-dev-img]][docs-dev-url]
 
 This is a Julia package that provides a compiler and a codec for Protocol Buffers.
 
-Protocol Buffers are a language-neutral, platform-neutral extensible mechanism for serializing structured data.
+[Protocol Buffers](https://developers.google.com/protocol-buffers) are a language-neutral, platform-neutral extensible mechanism for serializing structured data.
 
 ## Example
 
@@ -19,7 +19,7 @@ message MyMessage {
 ```
 You can generate Julia bindings with the `protojl` function:
 ```julia
-using ProtocolBuffers
+using ProtoBuf
 protojl("test.proto", ".", "output_dir")
 ```
 
@@ -48,7 +48,7 @@ decode(d, test_pb.MyMessage)
 We'd like to thank the authors of the following packages, as we took inspiration from their projects:
 
 * We used [Tokenize.jl](https://github.com/JuliaLang/Tokenize.jl) as a reference when implementing the Lexer/Parser.
-* We used [ProtoBuf.jl](https://github.com/JuliaIO/ProtoBuf.jl) as a giant shoulder to stand on:).
+* We used the pre-1.0 version of `ProtoBuf.jl` as a giant shoulder to stand on:).
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://drvi.github.io/ProtocolBuffers.jl/dev/
+[docs-dev-url]: https://drvi.github.io/ProtoBuf.jl/dev/

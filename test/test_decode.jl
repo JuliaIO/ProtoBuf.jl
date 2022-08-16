@@ -1,6 +1,6 @@
 module TestDecode
-using ProtocolBuffers: Codecs
-import ProtocolBuffers as PB
+using ProtoBuf: Codecs
+import ProtoBuf as PB
 using .Codecs: decode, decode!, ProtoDecoder, BufferedVector
 using Test
 using EnumX: @enumx

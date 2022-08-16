@@ -1,11 +1,11 @@
-using ProtocolBuffers
-using ProtocolBuffers: _topological_sort
-using ProtocolBuffers.CodeGenerators: ResolvedProtoFile
-using ProtocolBuffers.CodeGenerators: Options
-using ProtocolBuffers.CodeGenerators: Namespaces
-using ProtocolBuffers.CodeGenerators: generate_module_file
-using ProtocolBuffers.Parsers: parse_proto_file, ParserState
-using ProtocolBuffers.Lexers: Lexer
+using ProtoBuf
+using ProtoBuf: _topological_sort
+using ProtoBuf.CodeGenerators: ResolvedProtoFile
+using ProtoBuf.CodeGenerators: Options
+using ProtoBuf.CodeGenerators: Namespaces
+using ProtoBuf.CodeGenerators: generate_module_file
+using ProtoBuf.Parsers: parse_proto_file, ParserState
+using ProtoBuf.Lexers: Lexer
 using Test
 
 function simple_namespace_from_protos(str::String, deps::Dict{String,String}=Dict{String, String}(), pkg::String="", options::Options=Options())

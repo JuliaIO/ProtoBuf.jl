@@ -11,8 +11,8 @@ import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType
 import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixedType
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
 import Dates
-import ..ProtocolBuffers: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
-import ..ProtocolBuffers: _topological_sort, get_upstream_dependencies!
+import ..ProtoBuf: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
+import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
 _is_repeated_field(f::AbstractProtoFieldType) = f.label == Parsers.REPEATED
 _is_repeated_field(::OneOfType) = false
@@ -86,7 +86,7 @@ All imported `.proto` files are compiled as well; an error is thrown if they can
 - `output_directory::Union{String,Nothing}=nothing`: Path to store the generated Julia source code. When omitted, the translated code is saved to temp directory, the path is shown as a @info log.
 
 # Keywords
-- `include_vendored_wellknown_types::Bool=true`: Append `ProtocolBuffers.VENDORED_WELLKNOWN_TYPES_PARENT_PATH` to `search_directories`, making the "well-known" message definitions available.
+- `include_vendored_wellknown_types::Bool=true`: Append `ProtoBuf.VENDORED_WELLKNOWN_TYPES_PARENT_PATH` to `search_directories`, making the "well-known" message definitions available.
 - `always_use_modules::Bool=true`: Generate julia code in a module even if the `.proto` file doesn't contain a `package` specifier. The module name of `{file_name}.proto` file is `{file_name}_pb`.
 - `force_required::Union{Nothing,Dict{String,Set{String}}}=nothing`: Assume `message` and `oneof` fields to be aleways send over the wire -- then we woudln't need to `Union` their respective types with `Nothing`. E.g:
 ```julia

@@ -1,4 +1,4 @@
-using ProtocolBuffers: Codecs
+using ProtoBuf: Codecs
 using .Codecs: vbyte_decode, vbyte_encode
 using Test
 

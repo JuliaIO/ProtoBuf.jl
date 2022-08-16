@@ -1,5 +1,5 @@
 # using SnoopCompileCore
-# import ProtocolBuffers as PB
+# import ProtoBuf as PB
 # tinf = @snoopi tmin=0.005 PB.protojl("test_protos/google/protobuf/unittest.proto", ["./test/", "./test/test_protos/"], "dev/tst2")
 # tinf = @snoopi tmin=0.005 PB.protojl("datasets/google_message3/benchmark_message3.proto", ["./test/test_protos/benchmarks"], "dev/tst2")
 # tinf = @snoopi tmin=0.005 PB.protojl("datasets/google_message4/benchmark_message4.proto", ["./test/test_protos/benchmarks"], "dev/tst2")

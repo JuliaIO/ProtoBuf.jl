@@ -1,6 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-ProtocolBuffers = "33b38db7-f37a-4066-8d88-48be842fb53f"
+ProtoBuf = "3349acd9-ac6a-5e09-bcdb-63829b23a429"
 
 [compat]
 Documenter = "0.27"

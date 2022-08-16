@@ -1,8 +1,8 @@
 using Documenter
-using ProtocolBuffers
+using ProtoBuf
 
 makedocs(
-    sitename = "ProtocolBuffers.jl",
+    sitename = "ProtoBuf.jl",
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true"
     ),
@@ -14,6 +14,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/Drvi/ProtocolBuffers.jl.git",
+    repo = "github.com/JuliaIO/ProtoBuf.jl.git",
     push_preview = true,
 )

@@ -1,6 +1,6 @@
 module TestEncode
-using ProtocolBuffers: Codecs
-import ProtocolBuffers as PB
+using ProtoBuf: Codecs
+import ProtoBuf as PB
 using .Codecs: encode, ProtoEncoder, WireType
 using Test
 using EnumX: @enumx
@@ -317,8 +317,8 @@ end # module
 
 module TestEncodedSize
 using Test
-using ProtocolBuffers: _encoded_size
-import ProtocolBuffers as PB
+using ProtoBuf: _encoded_size
+import ProtoBuf as PB
 
 using EnumX
 @enumx TestEnum DEFAULT=0 OTHER=1

@@ -1,8 +1,8 @@
 using BenchmarkTools
-using ProtocolBuffers
+using ProtoBuf
 using EnumX
 
-using ProtocolBuffers.Codecs: BufferedVector, LENGTH_DELIMITED
+using ProtoBuf.Codecs: BufferedVector, LENGTH_DELIMITED
 
 
 @enumx TestEnum a b c d e
@@ -27,7 +27,7 @@ function setup_decoder(x)
     e = ProtoEncoder(io)
     encode(e, 1, x)
     seekstart(io)
-    ProtocolBuffers.Codecs.decode_tag(d)
+    ProtoBuf.Codecs.decode_tag(d)
     return d
 end
 
@@ -37,7 +37,7 @@ function setup_decoder(x, V)
     e = ProtoEncoder(io)
     encode(e, 1, x, V)
     seekstart(io)
-    ProtocolBuffers.Codecs.decode_tag(d)
+    ProtoBuf.Codecs.decode_tag(d)
     return d
 end
 

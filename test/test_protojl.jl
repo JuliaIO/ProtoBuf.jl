@@ -1,6 +1,6 @@
 module TestCompelexProtoFile
 using Test
-using ProtocolBuffers
+using ProtoBuf
 
 mktempdir() do tmpdir
     @testset "Translate and include complex proto files" begin
@@ -85,7 +85,7 @@ end
 
 module TestComplexMessage
 using Test
-using ProtocolBuffers
+using ProtoBuf
 using TranscodingStreams
 using BufferedStreams
 
