@@ -1,17 +1,27 @@
 #TODO: Cleanup!
-struct ParamMetadata
-    param::String
-    bound::String
+_needs_subtyping_in_containers(t::AbstractProtoType, ctx::Context) = false
+function _needs_subtyping_in_containers(t::ReferencedType, ctx::Context)
+    !_is_message(t, ctx) && return false
+    _is_cyclic_reference(t, ctx) && return true
+    if ctx.options.parametrize_oneofs
+        return (_get_referenced_type(t, ctx)::MessageType).has_oneof_field
+    end
+    return false
 end
 
 function jl_typename(f::AbstractProtoFieldType, ctx)
     type_name = jl_typename(f.type, ctx)
     if _is_repeated_field(f)
-        return string("Vector{", type_name, "}")
+        return string("Vector{", _needs_subtyping_in_containers(f.type, ctx) ? "<:" : "", type_name, "}")
     end
     return type_name
 end
 
+function jl_typename(t::MapType, ctx::Context)
+    key_type = jl_typename(t.keytype, ctx)
+    val_type = jl_typename(t.valuetype, ctx)
+    return string("Dict{", key_type, ',', _needs_subtyping_in_containers(t.valuetype, ctx) ? "<:" : "", val_type,"}")
+end
 jl_typename(::DoubleType, ::Context)   = "Float64"
 jl_typename(::FloatType, ::Context)    = "Float32"
 jl_typename(::Int32Type, ::Context)    = "Int32"
@@ -28,11 +38,6 @@ jl_typename(::BoolType, ::Context)     = "Bool"
 jl_typename(::StringType, ::Context)   = "String"
 jl_typename(::BytesType, ::Context)    = "Vector{UInt8}"
 jl_typename(t::MessageType, ::Context) = safename(t)
-function jl_typename(t::MapType, ctx::Context)
-    key_type = jl_typename(t.keytype, ctx)
-    val_type = jl_typename(t.valuetype, ctx)
-    return string("Dict{", key_type, ',', val_type,"}")
-end
 function jl_typename(t::ReferencedType, ctx::Context)
     # Assessing the type makes sure we search for the reference in imports
     # and populate the resolved_package field.
@@ -72,27 +77,25 @@ _is_enum(t::ReferencedType, ctx::Context)    = t.reference_type == Parsers.ENUM
 _is_cyclic_reference(t, ::Context) = false
 _is_cyclic_reference(t::ReferencedType, ctx::Context) = t.name in ctx.proto_file.cyclic_definitions || t.name == ctx._toplevel_name[]
 
-_needs_type_params(f::FieldType{ReferencedType}, ctx::Context) = f.type.name in ctx._curr_cyclic_defs && f.type.name != ctx._toplevel_name[]
+
+_needs_type_params(f::FieldType{ReferencedType}, ctx::Context) = __needs_type_params(f.type, ctx)
 _needs_type_params(::FieldType, ctx::Context) = false
 _needs_type_params(::OneOfType, ctx::Context) = ctx.options.parametrize_oneofs
 _needs_type_params(f::GroupType, ctx::Context) = f.name in ctx._curr_cyclic_defs
-function _needs_type_params(f::FieldType{MapType}, ctx::Context)
-    if isa(f.type.valuetype, ReferencedType)
-        return f.type.valuetype.name in ctx._curr_cyclic_defs && f.type.valuetype.name != ctx._toplevel_name[]
-    end
-    return false
-end
+_needs_type_params(f::FieldType{MapType}, ctx::Context) = __needs_type_params(f.type.valuetype, ctx)
+__needs_type_params(t::ReferencedType, ctx::Context) = t.name in ctx._curr_cyclic_defs && t.name != ctx._toplevel_name[]
+__needs_type_params(t::AbstractProtoType, ctx::Context) = false
 
 _get_type_bound(f::FieldType{ReferencedType}, ::Context) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
 _get_type_bound(f::GroupType, ::Context) = string("Union{Nothing,", abstract_type_name(f.type.name), '}')
 _get_type_bound(f::FieldType{MapType}, ::Context) = string("Union{Nothing,", abstract_type_name(f.type.valuetype.name), '}')
 function _get_type_bound(f::OneOfType, ctx::Context)
-    seen = Dict{String,Nothing}()
+    seen = Set{String}()
     struct_name = ctx._toplevel_name[]
     union_types = String[]
     for o in f.fields
         name = jl_typename(o.type, ctx)
-        get!(seen, name) do
+        get!(seen.dict, name) do
             push!(union_types, _is_cyclic_reference(o.type, ctx) ? abstract_type_name(_get_name(o.type)) : name)
             nothing
         end
@@ -112,6 +115,11 @@ end
 function _maybe_subtype(name)
     isempty(name) && return ""
     return string(" <: ", abstract_type_name(name))
+end
+
+struct ParamMetadata
+    param::String
+    bound::String
 end
 
 function get_type_params(t::MessageType, ctx::Context)

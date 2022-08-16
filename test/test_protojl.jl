@@ -2,7 +2,6 @@ module TestCompelexProtoFile
 using Test
 using ProtocolBuffers
 
-
 mktempdir() do tmpdir
     @testset "Translate and include complex proto files" begin
         for options in ((;), (parametrize_oneofs = true,))
@@ -128,7 +127,7 @@ end
 
 @testset "Translate and roundtrip a complex message" begin
     mktempdir() do tmpdir
-        protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false);
+        protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
         include(joinpath(tmpdir, "complex_message_pb.jl"))
     end
     msg = OmniMessage(
@@ -147,7 +146,7 @@ end
         typemax(UInt32),
         typemax(UInt64),
         EmptyMessage(),
-        NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing)),
+        NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 1), nothing), OneOf(:y, 2), nothing),
         OneOf(:oneof_uint32_field, typemax(UInt32)),
 
         [UInt8[0xff]],
@@ -165,7 +164,10 @@ end
         [typemax(UInt32)],
         [typemax(UInt64)],
         [EmptyMessage()],
-        [NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))],
+        [
+            NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 3), nothing), OneOf(:y, 4), nothing),
+            NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 3), nothing), OneOf(:y, 4), CoRecursiveMessage(nothing)),
+        ],
 
         Dict("K" => UInt8[0xff]),
         Dict("K" => "S"),
@@ -182,7 +184,11 @@ end
         Dict("K" => typemax(UInt32)),
         Dict("K" => typemax(UInt64)),
         Dict("K" => EmptyMessage()),
-        Dict("K" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))),
+        Dict(
+            "K1" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 5), nothing), OneOf(:y, 6), nothing),
+            "K2" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 5), nothing), OneOf(:y, 6), CoRecursiveMessage(nothing)),
+
+        ),
 
         Dict(typemax(UInt32) => "V"),
         Dict(typemax(UInt64) => "V"),

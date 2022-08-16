@@ -193,3 +193,29 @@ end
     @test n.packages["A"].submodules[["A", "B"]].internal_imports == Set([["A", "B", "C", "D"]])
     @test n.packages["A"].submodules[["A", "B"]].name == "B"
 end
+
+@testset "Imports within a leaf module which name-clashes with top module" begin
+    s, d, n = simple_namespace_from_protos(
+        """
+        package A.A;
+        import \"main2\";
+        message FromA {
+            optional FromB f = 1;
+        }
+        """,
+        Dict(
+            "main2" => """package A.B; message FromB {}""",
+        ),
+        "A",
+    );
+    @test s == """
+    module A
+
+    import .A as var"#A"
+
+    include("main_pb.jl")
+    include($(repr(joinpath("B", "B.jl"))))
+
+    end # module A
+    """
+end

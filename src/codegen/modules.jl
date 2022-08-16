@@ -138,7 +138,14 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
 
     # This is where we import internal dependencies
     if !isempty(m.internal_imports)
-        println(io, "import ", string("." ^ length(namespace(m)), first(namespace(m))))
+        print(io, "import ", string("." ^ length(namespace(m)), first(namespace(m))))
+        # We can't import the toplevel module to a leaf module if their names collide
+        # we also need to tweak the `package_namespace` field of each imported ReferencedType
+        if first(namespace(m)) == last(namespace(m))
+            println(io,  " as var\"#", first(namespace(m)), '"')
+        else
+            println(io)
+        end
     end
     has_deps && println(io)
     # Load in imported proto files that are defined in this package (the files ending with `_pb.jl`)

@@ -420,7 +420,7 @@ end
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }")
         @test CodeGenerators.jl_typename(p.definitions["A"].fields[1], ctx) == "OneOf{Union{Int32,UInt32,A}}"
         s, p, ctx = translate_simple_proto("message A { repeated A a = 1; }")
-        @test CodeGenerators.jl_typename(p.definitions["A"].fields[1], ctx) == "Vector{A}"
+        @test CodeGenerators.jl_typename(p.definitions["A"].fields[1], ctx) == "Vector{<:A}"
     end
 
     @testset "Default values" begin
@@ -658,5 +658,21 @@ end
             @test strify(CodeGenerators.maybe_generate_field_numbers_method,            p.definitions["A"])      == "PB.field_numbers(::Type{A}) = (;a = 1, s = 3)\n"
             @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method,        p.definitions["A"], ctx) == "A(;a = nothing, o = nothing) = A(a, o)\n"
         end
+    end
+
+    @testset "Imports within a leaf module which name-clashes with top module" begin
+        s, d, ctx = translate_simple_proto(
+            """
+            package A.A;
+            import \"main2\";
+            message FromA {
+                optional FromB f = 1;
+            }
+            """,
+            Dict(
+                "main2" => """package A.B; message FromB {}""",
+            ),
+        );
+        @test  d["main"].proto_file.definitions["FromA"].fields[1].type.package_namespace == "var\"#A\".B"
     end
 end
