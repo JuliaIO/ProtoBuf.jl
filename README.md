@@ -1,14 +1,54 @@
-# ProtoBuf.jl
+# ProtocolBuffers.jl
 
-[![Build Status](https://github.com/JuliaIO/ProtoBuf.jl/workflows/CI/badge.svg)](https://github.com/JuliaIO/ProtoBuf.jl/actions?query=workflow%3ACI+branch%3Amaster)
+[![][docs-dev-img]][docs-dev-url]
 
-[![codecov.io](http://codecov.io/github/JuliaIO/ProtoBuf.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaIO/ProtoBuf.jl?branch=master)
+This is a Julia package that provides a compiler and a codec for Protocol Buffers.
 
-[**Protocol buffers**](https://developers.google.com/protocol-buffers/docs/overview) are a language-neutral, platform-neutral, extensible way of serializing structured data for use in communications protocols, data storage, and more.
+Protocol Buffers are a language-neutral, platform-neutral extensible mechanism for serializing structured data.
 
-**ProtoBuf.jl** is a Julia implementation for protocol buffers.
+## Example
 
-- [Generating Julia Code from .proto Specifications](PROTOC.md)
-- [Using ProtoBuf to Read and Write Messages](USAGE.md)
+Given a `test.proto` file in your current working directory:
+```protobuf
+syntax = "proto3";
 
-Both version 2 and 3 of the protobuf specification language are supported.
+message MyMessage {
+    sint32 a = 1;
+    repeated string b = 2;
+}
+```
+You can generate Julia bindings with the `protojl` function:
+```julia
+using ProtocolBuffers
+protojl("test.proto", ".", "output_dir")
+```
+
+This will create a Julia file at `output_dir/test_pb.jl` which you can simply `include` and start using it to encode and decode messages:
+
+```julia
+include("output_dir/test_pb.jl")
+# Main.test_pb
+
+io = IOBuffer();
+
+e = ProtoEncoder(io);
+
+encode(e, test_pb.MyMessage(-1, ["a", "b"]))
+# 8
+
+seekstart(io);
+
+d = ProtoDecoder(io);
+
+decode(d, test_pb.MyMessage)
+# Main.test_pb.MyMessage(-1, ["a", "b"])
+```
+## Acknowledgement
+
+We'd like to thank the authors of the following packages, as we took inspiration from their projects:
+
+* We used [Tokenize.jl](https://github.com/JuliaLang/Tokenize.jl) as a reference when implementing the Lexer/Parser.
+* We used [ProtoBuf.jl](https://github.com/JuliaIO/ProtoBuf.jl) as a giant shoulder to stand on:).
+
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://drvi.github.io/ProtocolBuffers.jl/dev/
