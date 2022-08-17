@@ -376,6 +376,8 @@ end
     @test _encoded_size([typemax(UInt32)], Val{:fixed}) == 4
     @test _encoded_size([typemax(UInt64)], Val{:fixed}) == 8
     @test _encoded_size([EmptyMessage()]) == 1
+    @test _encoded_size([EmptyMessage(), EmptyMessage()]) == 2
+    @test _encoded_size([EmptyMessage(), EmptyMessage()], 1) == 4
     #                                                                                                     L    T   D     T    L    T   D
     @test _encoded_size([NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))]) == 1 + (1 + 5) + (1 + (1 + (1 + 5)))
     #                                                                                                                  S    T   D     T    L    T   D      E

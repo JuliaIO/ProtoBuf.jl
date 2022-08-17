@@ -44,15 +44,23 @@ for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
     @eval _encoded_size(d::AbstractDict, ::Type{Val{Tuple{$(T),$(S)}}}) = mapreduce(x->_encoded_size(x.first, 1, Val{$(S)}) + _encoded_size(x.second, 2, Val{$(S)}), +, d, init=0)
 end
 
-_encoded_size(xs, i::Int) = _encoded_size(i << 3) + _with_size(_encoded_size(xs))
+# These methods handle fields that refer to messages/groups
+_encoded_size(xs, i::Int)                      = _encoded_size(i << 3) + _with_size(_encoded_size(xs))
+_encoded_size(xs, i::Int, ::Type{Val{:group}}) = _encoded_size(i << 3) + _encoded_size(xs) + 2
 
+# These methods handle vectors of messages, these (like strings and bytes) are not "packed"
 _encoded_size(xs::AbstractArray)          = sum(x->_with_size(_encoded_size(x)), xs, init=0)
-_encoded_size(xs::AbstractArray, i::Int)  = _encoded_size(i << 3) + _with_size(_encoded_size(xs))
-_encoded_size(xs::AbstractString, i::Int) = _encoded_size(i << 3) + _with_size(_encoded_size(xs))
+_encoded_size(xs::AbstractArray, i::Int)  = _encoded_size(i << 3) * length(xs) + _encoded_size(xs)
+
+_encoded_size(xs::AbstractArray, ::Type{Val{:group}})          = sum(x->_encoded_size(x) + 2, xs, init=0)
+_encoded_size(xs::AbstractArray, i::Int, ::Type{Val{:group}})  = _encoded_size(i << 3) * length(xs) + _encoded_size(xs, Val{:group})
+
+_encoded_size(xs::Union{AbstractString,AbstractVector{UInt8}}, i::Int) = _encoded_size(i << 3) + _with_size(_encoded_size(xs))
+function _encoded_size(xs::AbstractVector{T}, i::Int) where {T<:Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,Enum}}
+    return _encoded_size(i << 3) + _with_size(_encoded_size(xs))
+end
 function _encoded_size(xs::Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,Enum}, i::Int)
     return _encoded_size(i << 3) + _encoded_size(xs)
 end
 
-_encoded_size(xs::AbstractArray, ::Type{Val{:group}}) = sum(x->_encoded_size(x) + 2, xs, init=0)
-_encoded_size(xs, i::Int, ::Type{Val{:group}}) = _encoded_size(i << 3) + _encoded_size(xs) + 2
-_encoded_size(xs::AbstractArray, i::Int, ::Type{Val{:group}})  = _encoded_size(i << 3) + _with_size(_encoded_size(xs, Val{:group}))
+
