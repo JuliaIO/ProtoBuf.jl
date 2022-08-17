@@ -51,4 +51,4 @@ We'd like to thank the authors of the following packages, as we took inspiration
 * We used the pre-1.0 version of `ProtoBuf.jl` as a giant shoulder to stand on:).
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://drvi.github.io/ProtoBuf.jl/dev/
+[docs-dev-url]: https://juliaio.github.io/ProtoBuf.jl/dev/
