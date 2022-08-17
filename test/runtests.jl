@@ -11,11 +11,13 @@ end
 
 include("unittests.jl")
 
-@testset "JET" begin
-    include("jet_test_utils.jl")
-    is_ci() || jet_test_package(ProtoBuf)
-    # jet_test_file("unittests.jl", ignored_modules=(JET.AnyFrameModule(Test),))
-    include("test_perf.jl")
+if Base.VERSION > v"1.7.0"
+    @testset "JET" begin
+        include("jet_test_utils.jl")
+        is_ci() || jet_test_package(ProtoBuf)
+        # jet_test_file("unittests.jl", ignored_modules=(JET.AnyFrameModule(Test),))
+        include("test_perf.jl")
+    end
 end
 
 @testset "Aqua" begin
