@@ -110,7 +110,9 @@ Decode a protobuf message from `IO` wrapped by `AbstractProtoDecoder` into s str
 
 For general structs, these methods should be generated using the [`protojl`](@ref) function.
 """
-function decode(d::AbstractProtoDecoder, ::Type{T}) where {T} end  # TODO: MethodError by default?
+function decode(d::AbstractProtoDecoder, ::Type{T}) where {T}
+    throw(MethodError(decode, (typeof(d), T)))
+end
 
 """
     encode(d::AbstractProtoDecoder, x::T) where {T}
@@ -119,7 +121,9 @@ Encode struct `x` of type `T` as protobuf message to `IO` wrapped by `AbstractPr
 
 For general structs, these methods should be generated using the [`protojl`](@ref) function.
 """
-function encode(e::AbstractProtoEncoder, x::T) where {T} end  # TODO: MethodError by default?
+function encode(e::AbstractProtoEncoder, ::T) where {T}
+    throw(MethodError(encode, (typeof(e), T)))
+end
 
 export protojl, encode, ProtoEncoder, decode, decode!, ProtoDecoder
 export OneOf

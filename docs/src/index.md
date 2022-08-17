@@ -116,10 +116,13 @@ function PB._encoded_size(x::MyMessage)
 end
 end # module
 ```
-## Migrating from ProtoBuf.jl
+## Migrating from earlier versions of ProtoBuf.jl
 
-Below is a list of notable differences between the generated code produced by `ProtoBuf.jl` and `ProtoBuf.jl`.
+Below is a list of notable differences that were introduced in 1.0.
 
+### Method Names
+
+For translating proto files, use `protojl` function (previously `protoc`). To decode proto messages, use the `decode` method (previously `readproto`) and to encode Julia structs, use `encode` (previously `writeproto`). See [Quickstart](@ref) for an example.
 ### Mutability
 Messages are now translated to immutable structs. This means that code that used the mutable structs to accumulate data will now have to prepare each field and construct the struct after all of them are ready.
 
@@ -131,6 +134,8 @@ message A {
 }
 ```
 now generates structs named `A` and `var"A.B"`. In protobuf, it is legal to a define message called `A_B` but not `A.B`, which is a syntax to refer to these nested definitions.
+
+Similarly, field names that coincide with Julia reserved keywords were previously prefixed with an underscore (e.g. `_function`), now we prefix them with a `#` (e.g. `var"#function"`).
 
 ### Enumerations
 [EnumX.jl](https://github.com/fredrikekre/EnumX.jl) is used to define `enums` instead of `NamedTuple`s. This means that to get the type of the enum, one must use `MyEnum.T` as `MyEnum` is a `Module`. You can now dispatch on `Base.Enum` when working with `@enumx`-based enums.
