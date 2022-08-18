@@ -298,6 +298,10 @@ end
         @testset "enum" begin
             test_decode([0x02], TestEnum.C)
         end
+
+        @testset "unknown enum member" begin
+            test_decode([0x10], Core.bitcast(TestEnum.T, Int32(0x10)))
+        end
     end
 
     @testset "fixed" begin
