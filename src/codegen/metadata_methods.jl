@@ -10,6 +10,11 @@ function maybe_generate_reserved_fields_method(io, t::MessageType)
     println(io, "PB.reserved_fields(::Type{", safename(t), "}) = (names = ", string(t.reserved_names), ", numbers = Union{Int,UnitRange{Int}}[", join(t.reserved_nums, ", "), "])")
 end
 
+function maybe_generate_reserved_fields_method(io, t::EnumType)
+    isempty(t.reserved_names) && isempty(t.reserved_nums) && return
+    println(io, "PB.reserved_fields(::Type{", safename(t), ".T}) = (names = ", string(t.reserved_names), ", numbers = Union{Int,UnitRange{Int}}[", join(t.reserved_nums, ", "), "])")
+end
+
 function maybe_generate_extendable_field_numbers_method(io, t::MessageType)
     n = length(t.extensions)
     n == 0 && return
