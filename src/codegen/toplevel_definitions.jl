@@ -120,6 +120,7 @@ function codegen(io, t::EnumType, ::Context)
     end
     println(io)
     maybe_generate_deprecation(io, t)
+    maybe_generate_reserved_fields_method(io, t)
 end
 
 function codegen(io, t::ServiceType, ::Context)

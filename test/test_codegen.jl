@@ -5,6 +5,7 @@ using ProtoBuf.CodeGenerators: resolve_inter_package_references!, get_all_transi
 using ProtoBuf.CodeGenerators: CodeGenerators
 using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers
 using ProtoBuf.Lexers: Lexer
+using EnumX
 using Test
 
 strify(f, args...) = (io = IOBuffer(); f(io, args...); String(take!(io)))
@@ -634,15 +635,18 @@ end
 
     @testset "Metadata methods" begin
         @testset "metadata_methods have generic fallback" begin
-            s, p, ctx = translate_simple_proto("message A { }")
+            s, p, ctx = translate_simple_proto("message A { } enum Foo { }")
             @test strify(CodeGenerators.maybe_generate_reserved_fields_method, p.definitions["A"]) == ""
+            @test strify(CodeGenerators.maybe_generate_reserved_fields_method, p.definitions["Foo"]) == ""
             @test strify(CodeGenerators.maybe_generate_extendable_field_numbers_method, p.definitions["A"]) == ""
             @test strify(CodeGenerators.maybe_generate_default_values_method, p.definitions["A"], ctx) == ""
             @test strify(CodeGenerators.maybe_generate_oneof_field_types_method, p.definitions["A"], ctx) == ""
             @test strify(CodeGenerators.maybe_generate_field_numbers_method, p.definitions["A"]) == ""
 
             struct A end
+            @enumx Foo
             @test reserved_fields(A) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
+            @test reserved_fields(Foo.T) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
             @test extendable_field_numbers(A) == Union{Int,UnitRange{Int}}[]
             @test default_values(A) == (;)
             @test oneof_field_types(A) == (;)
@@ -657,6 +661,16 @@ end
             @test strify(CodeGenerators.maybe_generate_oneof_field_types_method,        p.definitions["A"], ctx) == "PB.oneof_field_types(::Type{A}) = (;\n    o = (;s=Int32),\n)\n"
             @test strify(CodeGenerators.maybe_generate_field_numbers_method,            p.definitions["A"])      == "PB.field_numbers(::Type{A}) = (;a = 1, s = 3)\n"
             @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method,        p.definitions["A"], ctx) == "A(;a = nothing, o = nothing) = A(a, o)\n"
+        end
+
+        @testset "reserved fields are available for enums" begin
+            s, p, ctx = translate_simple_proto("""
+            enum Foo {
+                reserved 2, 15, 9 to 11, 40 to max;
+                reserved "FOO", "BAR";
+              }
+            """)
+            @test strify(CodeGenerators.maybe_generate_reserved_fields_method, p.definitions["Foo"]) =="PB.reserved_fields(::Type{Foo.T}) = (names = [\"FOO\", \"BAR\"], numbers = Union{Int,UnitRange{Int}}[2, 15, 9:11, 40:536870911])\n"
         end
     end
 

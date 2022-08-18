@@ -117,6 +117,8 @@ struct EnumType <: AbstractProtoType
     element_names::Vector{Symbol}
     element_values::Vector{Int}
     options::Dict{String,Union{String,Dict{String}}}
+    reserved_nums::Vector{Union{Int,UnitRange{Int}}}
+    reserved_names::Vector{String}
     field_options::Dict{String,Union{String,Dict{String}}}
 end
 
@@ -268,6 +270,8 @@ function parse_enum_type(ps::ParserState, name_prefix="")
     name = unsafe_name(ps)
 
     options = Dict{String,Union{String,Dict{String}}}()
+    reserved_nums = Vector{Union{Int,UnitRange{Int}}}()
+    reserved_names = Vector{String}()
     field_options = Dict{String,Union{String,Dict{String}}}()
     element_names = Symbol[]
     element_values = Int[]
@@ -286,6 +290,8 @@ function parse_enum_type(ps::ParserState, name_prefix="")
                 parse_field_options!(ps, get!(field_options, element_name, Dict{String,Union{String,Dict{String}}}()))
             end
             expectnext(ps, Tokens.SEMICOLON)
+        elseif accept(ps, Tokens.RESERVED)
+            _parse_reserved_statement!(ps, reserved_nums, reserved_names)
         else
             expectnext(ps, Tokens.RBRACE)
             break
@@ -300,7 +306,7 @@ function parse_enum_type(ps::ParserState, name_prefix="")
         error("In proto3, enums' first element must map to zero, $name has `$(first(element_names)) = $(first(element_values))` as first element.")
     end
     # TODO: validate field_numbers
-    return EnumType(_dot_join(name_prefix, name), element_names, element_values, options, field_options)
+    return EnumType(_dot_join(name_prefix, name), element_names, element_values, options, reserved_nums, reserved_names, field_options)
 end
 
 # We consumed EXTEND
