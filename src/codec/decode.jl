@@ -26,7 +26,7 @@ end
 decode(d::AbstractProtoDecoder, ::Type{Bool}) = Bool(read(d.io, UInt8))
 function decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}}
     val = vbyte_decode(d.io, UInt32)
-    return val in keys(Base.Enums.namemap(T)) ? T(val) : T(0)
+    return Core.bitcast(T, reinterpret(Int32, val))
 end
 decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
 function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V<:_ScalarTypesEnum}
