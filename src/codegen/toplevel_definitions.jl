@@ -177,11 +177,16 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "using EnumX: @enumx")
     if (is_namespaced(p) || options.always_use_modules) && !isempty(p.definitions)
         println(io)
-        n = length(p.sorted_definitions)
-        print(io, "export ")
+        s = "export "
         for (i, def) in enumerate(p.sorted_definitions)
-            print(io, _safename(def))
-            i < n && print(io, ", ")
+            if length(s *string(def)) > 92
+                println(io, s[1: end-2])
+                s = "export "
+            end
+            s *= string(def)*", "
+        end
+        if s[end-1:end] == ", "
+            println(io, s[1: end-2])
         end
     end
     !isempty(p.cyclic_definitions) && println(io, "\n# Abstract types to help resolve mutually recursive definitions")
