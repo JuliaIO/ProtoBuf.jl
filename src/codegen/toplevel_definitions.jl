@@ -179,11 +179,11 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
         println(io)
         s = "export "
         for (i, def) in enumerate(p.sorted_definitions)
-            if length(s * def) > 92
+            if length(s * _safename(def)) > 92
                 println(io, s[1:end-2])
                 s = "export "
             end
-            s *= def * ", "
+            s *= _safename(def) * ", "
         end
         if s[end-1:end] == ", "
             println(io, s[1:end-2])
