@@ -176,20 +176,20 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "using ProtoBuf: OneOf")
     println(io, "using EnumX: @enumx")
     if (is_namespaced(p) || options.always_use_modules) && !isempty(p.definitions)
-        println(io)
-        s = "export "
-        for (i, def) in enumerate(p.sorted_definitions)
-            if length(s * _safename(def)) > 92
-                println(io, s[1:end-2])
-                s = "export "
+        len = 93
+        for name in Iterators.map(_safename, p.sorted_definitions)
+            if len + length(name) + 2 >= 92
+                print(io, "\nexport ")
+                len = 7
+            else
+                print(io, ", ")
+                len += 2
             end
-            s *= _safename(def) * ", "
-        end
-        if s[end-1:end] == ", "
-            println(io, s[1:end-2])
+            print(io, name)
+            len += length(name)
         end
     end
-    !isempty(p.cyclic_definitions) && println(io, "\n# Abstract types to help resolve mutually recursive definitions")
+    !isempty(p.cyclic_definitions) && println(io, "\n\n# Abstract types to help resolve mutually recursive definitions")
     for name in p.cyclic_definitions
         println(io, "abstract type ", abstract_type_name(name), " end")
     end
