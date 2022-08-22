@@ -72,6 +72,15 @@ end
         @test p.definitions["A"].element_values == [0]
     end
 
+    @testset "Trailing semicolon is fine" begin
+        s, p, ctx = translate_simple_proto("message A {}; enum B { b = 0; };")
+
+        @test haskey(p.definitions, "A")
+        @test p.definitions["A"] isa Parsers.MessageType
+        @test haskey(p.definitions, "B")
+        @test p.definitions["B"] isa Parsers.EnumType
+    end
+
     @testset "Single enum with `allow_alias = true` proto file" begin
         s, p, ctx = translate_simple_proto("enum A { option allow_alias = true; a = 0; b = 0; }")
 
