@@ -62,6 +62,26 @@ end
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.MessageType
     end
+    
+    @testset "Single message proto file with single decimal-numbered field" begin
+        s, p, ctx = translate_simple_proto("message A { required uint32 b = 1234; }")
+
+        @test haskey(p.definitions, "A")
+        @test p.definitions["A"] isa Parsers.MessageType
+        @test p.definitions["A"].fields[1].name == "b"
+        @test p.definitions["A"].fields[1].number == 1234
+        @test p.definitions["A"].fields[1].type isa Parsers.UInt32Type
+    end
+
+    @testset "Single message proto file with single hex-numbered field" begin
+        s, p, ctx = translate_simple_proto("message A { required uint32 b = 0x4321; }")
+
+        @test haskey(p.definitions, "A")
+        @test p.definitions["A"] isa Parsers.MessageType
+        @test p.definitions["A"].fields[1].name == "b"
+        @test p.definitions["A"].fields[1].number == 0x4321
+        @test p.definitions["A"].fields[1].type isa Parsers.UInt32Type
+    end
 
     @testset "Single enum proto file" begin
         s, p, ctx = translate_simple_proto("enum A { a = 0; }")
