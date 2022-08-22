@@ -369,6 +369,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
             push!(fields, group)
             definitions[group.type.name] = group.type
         elseif accept(ps, Tokens.RBRACE)
+            accept(ps, Tokens.SEMICOLON)
             break
         else
             push!(fields, parse_field(ps))
