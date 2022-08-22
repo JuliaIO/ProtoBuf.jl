@@ -1,7 +1,7 @@
 module TestEncode
 using ProtoBuf: Codecs
 import ProtoBuf as PB
-using .Codecs: encode, ProtoEncoder, WireType
+using .Codecs: _with_size, encode, ProtoEncoder, WireType
 using Test
 using EnumX: @enumx
 
@@ -319,6 +319,7 @@ module TestEncodedSize
 using Test
 using ProtoBuf: _encoded_size
 import ProtoBuf as PB
+using ProtoBuf: Codecs
 
 using EnumX
 @enumx TestEnum DEFAULT=0 OTHER=1
@@ -336,6 +337,24 @@ function PB._encoded_size(x::NonEmptyMessage)
     x.x != zero(UInt32) && (encoded_size += PB._encoded_size(x.x, 1))
     !isnothing(x.self_referential_field) && (encoded_size += PB._encoded_size(x.self_referential_field, 2))
     return encoded_size
+end
+
+@testset "_with_size" begin
+    io = IOBuffer()
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = IOBuffer()
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
+
+    io = PipeBuffer()
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = PipeBuffer()
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
 end
 
 @testset "_encoded_size" begin
