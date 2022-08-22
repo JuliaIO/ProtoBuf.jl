@@ -148,7 +148,7 @@ function parse_field(ps::ParserState, labelable::Bool=true)
     labelable && ps.is_proto3 && label == REQUIRED && (ps.errored = true) && error("Field `$(name)` has a `required` label which is not supported in proto3 syntax.")
     labelable && !ps.is_proto3 && label == DEFAULT && (ps.errored = true) && error("Field `$(name)` is missing a label (`required`, `optional` or `repeated`), this is not supported in proto2 syntax.")
     expectnext(ps, Tokens.EQ)
-    number = parse(Int, val(expectnext(ps, Tokens.DEC_INT_LIT)))
+    number = parse(Int, val(expectnext(ps, kind -> (kind == Tokens.DEC_INT_LIT || kind == Tokens.HEX_INT_LIT))))
     if !(1 <= number <= MAX_FIELD_NUMBER) || (19000 <= number <= 19999)
         ps.errored = true
         error("Invalid field number $number for field $name")
