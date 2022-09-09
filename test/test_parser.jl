@@ -62,7 +62,7 @@ end
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.MessageType
     end
-    
+
     @testset "Single message proto file with single decimal-numbered field" begin
         s, p, ctx = translate_simple_proto("message A { required uint32 b = 1234; }")
 
@@ -93,7 +93,7 @@ end
     end
 
     @testset "Trailing semicolon is fine" begin
-        s, p, ctx = translate_simple_proto("message A {}; enum B { b = 0; };")
+        s, p, ctx = translate_simple_proto("message A { oneof oneof_field { uint32 u = 1; };}; enum B { b = 0; };")
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.MessageType

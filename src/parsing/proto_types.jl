@@ -262,6 +262,7 @@ function parse_oneof_type(ps::ParserState, definitions, name_prefix="")
             push!(fields, parse_field(ps, false))
         end
     end
+    accept(ps, Tokens.SEMICOLON)
     return OneOfType(name, fields, options)
 end
 
