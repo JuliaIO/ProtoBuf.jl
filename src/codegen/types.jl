@@ -112,8 +112,8 @@ function _get_type_bound(f::OneOfType, ctx::Context)
     return type
 end
 
-function _maybe_subtype(name)
-    isempty(name) && return ""
+function _maybe_subtype(name, options)
+    isempty(name) && return options.common_abstract_type ? " <: AbstractProtoBufMessage" : ""
     return string(" <: ", abstract_type_name(name))
 end
 

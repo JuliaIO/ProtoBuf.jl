@@ -78,6 +78,15 @@ end
         end # module"""
     end
 
+    @testset "Minimal proto file with common abstract type" begin
+        s, p, ctx = translate_simple_proto("", Options(always_use_modules=false, common_abstract_type=true))
+        @test s == """
+        import ProtoBuf as PB
+        using ProtoBuf: AbstractProtoBufMessage
+        using ProtoBuf: OneOf
+        using EnumX: @enumx"""
+    end
+
     @testset "Minimal proto file with file imports" begin
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => ""), Options(always_use_modules=false))
         @test s == """
@@ -282,6 +291,25 @@ end
         """
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
+    end
+
+    @testset "Simple type with a common abstract type" begin
+        s, p, ctx = translate_simple_proto("message B { optional int32 b = 1; }", Options(always_use_modules=false, common_abstract_type=true))
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        struct B <: AbstractProtoBufMessage
+            b::Int32
+        end
+        """
+    end
+
+    @testset "Self-referential type with a common abstract type" begin
+        s, p, ctx = translate_simple_proto("message B { optional B b = 1; }", Options(always_use_modules=false, common_abstract_type=true))
+        @test occursin("abstract type var\"##AbstractB\" <: AbstractProtoBufMessage end", s)
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        struct B <: var"##AbstractB"
+            b::Union{Nothing,B}
+        end
+        """
     end
 
     @testset "OneOf field codegen" begin

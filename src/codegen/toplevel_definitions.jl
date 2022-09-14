@@ -86,7 +86,7 @@ function generate_struct(io, t::MessageType, ctx::Context)
     type_params = get_type_params(t, ctx)
     params_string = get_type_param_string(type_params)
 
-    print(io, "struct ", struct_name, length(t.fields) > 0 ? params_string : ' ', _maybe_subtype(abstract_base_name))
+    print(io, "struct ", struct_name, length(t.fields) > 0 ? params_string : ' ', _maybe_subtype(abstract_base_name, ctx.options))
     length(t.fields) > 0 && println(io)
     for field in t.fields
         generate_struct_field(io, field, ctx, type_params)
@@ -173,6 +173,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
         end
     end # Otherwise all includes will happen in the enclosing module
     println(io, "import ProtoBuf as PB")
+    options.common_abstract_type && println(io, "using ProtoBuf: AbstractProtoBufMessage")
     println(io, "using ProtoBuf: OneOf")
     println(io, "using EnumX: @enumx")
     if (is_namespaced(p) || options.always_use_modules) && !isempty(p.definitions)
@@ -191,7 +192,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     end
     !isempty(p.cyclic_definitions) && println(io, "\n\n# Abstract types to help resolve mutually recursive definitions")
     for name in p.cyclic_definitions
-        println(io, "abstract type ", abstract_type_name(name), " end")
+        println(io, "abstract type ", abstract_type_name(name), options.common_abstract_type ? " <: AbstractProtoBufMessage" : "", " end")
     end
     println(io)
     for def_name in p.sorted_definitions
