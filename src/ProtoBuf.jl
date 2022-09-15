@@ -125,8 +125,10 @@ function encode(e::AbstractProtoEncoder, ::T) where {T}
     throw(MethodError(encode, (typeof(e), T)))
 end
 
+abstract type AbstractProtoBufMessage end
+
 export protojl, encode, ProtoEncoder, decode, decode!, ProtoDecoder
-export OneOf
+export OneOf, AbstractProtoBufMessage
 export reserved_fields, extendable_field_numbers, oneof_field_types, field_numbers, default_values
 
 if Base.VERSION >= v"1.4.2"

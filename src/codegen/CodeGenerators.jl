@@ -31,6 +31,7 @@ Base.@kwdef struct Options
     force_required::Union{Nothing,Dict{String,Set{String}}} = nothing
     add_kwarg_constructors::Bool = false
     parametrize_oneofs::Bool = false
+    common_abstract_type::Bool = false
 end
 
 struct Context
@@ -63,6 +64,7 @@ include("utils.jl")
         force_required::Union{Nothing,Dict{String,Set{String}}}=nothing,
         add_kwarg_constructors::Bool=false,
         parametrize_oneofs::Bool=false,
+        common_abstract_type::Bool=false,
     ) -> Nothing
 
 Generate Julia code for `.proto` files at `relative_paths` within `search_directories` and save it to `output_directory`.
@@ -115,6 +117,7 @@ to
 struct MyMessage{T1<:Union{Nothing, OneOf{<:Union{Int, String}}}}
     oneof_field::T1
 end
+- `common_abstract_type::Bool=false`: When `true`, all generated structs will subtype `ProtoBuf.AbstractProtoBufMessage`.
 ```
 
 # Notes
@@ -129,8 +132,9 @@ function protojl(
     force_required::Union{Nothing,<:Dict{<:AbstractString,<:Set{<:AbstractString}}}=nothing,
     add_kwarg_constructors::Bool=false,
     parametrize_oneofs::Bool=false,
+    common_abstract_type::Bool = false,
 )
-    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs)
+    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type)
     return _protojl(relative_paths, search_directories, output_directory, options)
 end
 

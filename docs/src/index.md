@@ -126,6 +126,10 @@ For translating proto files, use `protojl` function (previously `protoc`). To de
 ### Mutability
 Messages are now translated to immutable structs. This means that code that used the mutable structs to accumulate data will now have to prepare each field and construct the struct after all of them are ready.
 
+### Common abstract type
+
+By default, the generated structs don't share any common abstract type (well, except `Any`), when you set the `common_abstract_type` option to `true`, every struct definition will be a subtype of `ProtoBuf.AbstractProtoBufMessage`.
+
 ### Naming Conventions
 The naming of nested messages and enums now generates names, that cannot collide with other definitions. For example:
 ```protobuf
