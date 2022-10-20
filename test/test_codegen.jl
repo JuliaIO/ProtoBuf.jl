@@ -67,14 +67,14 @@ end
         @test s == """
         import ProtoBuf as PB
         using ProtoBuf: OneOf
-        using EnumX: @enumx"""
+        using ProtoBuf.EnumX: @enumx"""
 
         s, p, ctx = translate_simple_proto("", Options(always_use_modules=true))
         @test s == """
         module main_pb
         import ProtoBuf as PB
         using ProtoBuf: OneOf
-        using EnumX: @enumx
+        using ProtoBuf.EnumX: @enumx
         end # module"""
     end
 
@@ -84,7 +84,7 @@ end
         import ProtoBuf as PB
         using ProtoBuf: AbstractProtoBufMessage
         using ProtoBuf: OneOf
-        using EnumX: @enumx"""
+        using ProtoBuf.EnumX: @enumx"""
     end
 
     @testset "Minimal proto file with file imports" begin
@@ -93,7 +93,7 @@ end
         include("a_pb.jl")
         import ProtoBuf as PB
         using ProtoBuf: OneOf
-        using EnumX: @enumx"""
+        using ProtoBuf.EnumX: @enumx"""
 
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => ""), Options(always_use_modules=true))
         @test s == """
@@ -102,7 +102,7 @@ end
         import a_pb
         import ProtoBuf as PB
         using ProtoBuf: OneOf
-        using EnumX: @enumx
+        using ProtoBuf.EnumX: @enumx
         end # module"""
     end
 
@@ -113,7 +113,7 @@ end
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf
-        using EnumX: @enumx"""
+        using ProtoBuf.EnumX: @enumx"""
 
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=true))
         @test s == """
@@ -122,7 +122,7 @@ end
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf
-        using EnumX: @enumx
+        using ProtoBuf.EnumX: @enumx
         end # module"""
     end
 
