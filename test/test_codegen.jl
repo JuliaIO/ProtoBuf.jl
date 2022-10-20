@@ -312,6 +312,13 @@ end
         """
     end
 
+    @testset "Empty struct with common abstract type" begin
+        s, p, ctx = translate_simple_proto("message A { }", Options(always_use_modules=false, common_abstract_type=true))
+        @test generate_struct_str(p.definitions["A"], ctx) == """
+        struct A  <: AbstractProtoBufMessage end
+        """
+    end
+
     @testset "OneOf field codegen" begin
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; } }", Options(parametrize_oneofs=true))
         @test occursin("""
