@@ -66,13 +66,13 @@ function print_field_encode_expr(io, f::GroupType, ctx::Context)
     println(io, "    !isnothing(x.$(jl_fieldname(f))) && ", field_encode_expr(f, ctx))
 end
 
-function print_field_encode_expr(io, fs::OneOfType, ::Context)
+function print_field_encode_expr(io, fs::OneOfType, ctx::Context)
     println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
         V = _decoding_val_type(f.type)
         V = isempty(V) ? "" : ", Val{$V}"
         println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
-        println(io, "    " ^ 2, "PB.encode(e, $(string(f.number)), x.$(safename(fs))[]$V)")
+        println(io, "    " ^ 2, "PB.encode(e, $(string(f.number)), x.$(safename(fs))[]::$(jl_typename(f, ctx))$V)")
     end
     println(io, "    end")
 end
@@ -96,13 +96,13 @@ function print_field_encoded_size_expr(io, f::GroupType, ::Context)
     println(io, "    !isnothing(x.$(jl_fieldname(f))) && (encoded_size += ", field_encoded_size_expr(f), ')')
 end
 
-function print_field_encoded_size_expr(io, fs::OneOfType, ::Context)
+function print_field_encoded_size_expr(io, fs::OneOfType, ctx::Context)
     println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
         V = _decoding_val_type(f.type)
         V = isempty(V) ? "" : ", Val{$V}"
         println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
-        println(io, "    " ^ 2, "encoded_size += PB._encoded_size(x.$(safename(fs))[], $(string(f.number))$V)")
+        println(io, "    " ^ 2, "encoded_size += PB._encoded_size(x.$(safename(fs))[]::$(jl_typename(f, ctx)), $(string(f.number))$V)")
     end
     println(io, "    end")
 end

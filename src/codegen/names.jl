@@ -4,7 +4,9 @@ const JULIA_RESERVED_KEYWORDS = Set{String}([
     "ccall", "finally", "typealias", "break", "continue", "type",
     "global", "module", "using", "import", "export", "const", "let",
     "bitstype", "do", "baremodule", "importall", "immutable",
-    "Type", "Enum", "Any", "DataType", "Base", "Set", "Method"
+    "Type", "Enum", "Any", "DataType", "Base", "Set", "Method",
+    "Array", "Vector", "Dict", "Union",
+    "OneOf",
 ])
 
 _get_name(t::AbstractProtoType) = t.name

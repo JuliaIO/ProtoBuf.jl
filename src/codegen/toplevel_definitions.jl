@@ -87,7 +87,8 @@ function generate_struct(io, t::MessageType, ctx::Context)
     params_string = get_type_param_string(type_params)
 
     print(io, "struct ", struct_name, length(t.fields) > 0 ? params_string : ' ', _maybe_subtype(abstract_base_name, ctx.options))
-    length(t.fields) > 0 && println(io)
+    # new line if there are fields, otherwise ensure that we have space before `end`
+    length(t.fields) > 0 ? println(io) : print(io, ' ')
     for field in t.fields
         generate_struct_field(io, field, ctx, type_params)
     end
@@ -175,7 +176,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "import ProtoBuf as PB")
     options.common_abstract_type && println(io, "using ProtoBuf: AbstractProtoBufMessage")
     println(io, "using ProtoBuf: OneOf")
-    println(io, "using EnumX: @enumx")
+    println(io, "using ProtoBuf.EnumX: @enumx")
     if (is_namespaced(p) || options.always_use_modules) && !isempty(p.definitions)
         len = 93
         for name in Iterators.map(_safename, p.sorted_definitions)
