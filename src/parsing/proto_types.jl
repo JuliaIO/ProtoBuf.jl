@@ -400,6 +400,7 @@ function parse_rpc_type(ps::ParserState)
             expectnext(ps, Tokens.SEMICOLON)
         end
         expectnext(ps, Tokens.RBRACE)
+        accept(ps, Tokens.SEMICOLON)
     else
         # ./test/test_protos/protobuf/factory_test1.proto end an RPC without a SEMICOLON
         expectnext(ps, Tokens.SEMICOLON)
