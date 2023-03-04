@@ -125,8 +125,61 @@ function codegen(io, t::EnumType, ::Context)
 end
 
 function codegen(io, t::ServiceType, ::Context)
-    println(io, "# TODO: SERVICE")
-    println(io, "#    ", safename(t))
+    service_name = safename(t)
+    service_stub_stub = service_name * "BlockingStub"
+    service_methods_name = "_" * service_name * "_methods"
+
+    println(io, "# SERVICE: $(service_name)")
+    println(io, "using gRPC")
+
+    # Service Methods
+    println(io, "const $(service_methods_name) = gRPC.MethodDescriptor[")
+    for (index, rpc_type) in enumerate(t.rpcs)
+        method_name = safename(rpc_type)
+
+        request_type = safename(rpc_type.request_type)
+        response_type = safename(rpc_type.response_type)
+
+        if rpc_type.request_stream
+            request_type = "AbstractChannel{" * request_type * "}"
+        end
+
+        if rpc_type.response_stream
+            response_type = "AbstractChannel{" * response_type * "}"
+        end
+
+        println(io, "    gRPC.MethodDescriptor(\"$(method_name)\", $(index), $(request_type), $(response_type)),")
+    end
+
+    println(io, "] # const $(service_methods_name)")
+
+    # Service Stub
+    println(io, "$(service_name)(impl::Module) = gRPC.ProtoService(_$(service_name)_desc, impl)")
+    println(io)
+
+    println(io, "mutable struct $(service_stub_stub) <: gRPC.AbstractProtoServiceStub{true}")
+    println(io, "    impl::gRPC.ProtoServiceBlockingStub")
+    println(io, "    $(service_stub_stub)(channel::gRPC.ProtoRpcChannel) = new(gRPC.ProtoServiceBlockingStub(_$(service_name)_desc, channel))")
+    println(io, "end # mutable struct $(service_stub_stub)")
+    println(io)
+
+    # Client methods.
+    for (index, rpc_type) in enumerate(t.rpcs)
+        method_name = safename(rpc_type)
+
+        println(io, "$method_name(stub::$(service_stub_stub), controller::gRPC.ProtoRpcController, inp) =")
+        println(io, "    call_method(stub.impl, _$(service_name)_methods[$(index)], controller, inp)")
+        println(io)
+    end
+
+    # Exports
+    for (index, rpc_type) in enumerate(t.rpcs)
+        method_name = safename(rpc_type)
+
+        println(io, "export $(method_name)")
+    end
+
+    println(io, "# End SERVICE $(service_name)")
 end
 
 function translate(path::String, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile}, options)

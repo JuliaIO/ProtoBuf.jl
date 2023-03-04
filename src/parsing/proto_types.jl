@@ -392,7 +392,7 @@ function parse_rpc_type(ps::ParserState)
     expectnext(ps, Tokens.RETURNS)
     expectnext(ps, Tokens.LPAREN)
     response_stream = accept(ps, Tokens.STREAM)
-    request_type = parse_type(ps)
+    response_type = parse_type(ps)
     expectnext(ps, Tokens.RPAREN)
     if accept(ps, Tokens.LBRACE)
         while accept(ps, Tokens.OPTION)
@@ -405,7 +405,7 @@ function parse_rpc_type(ps::ParserState)
         # ./test/test_protos/protobuf/factory_test1.proto end an RPC without a SEMICOLON
         expectnext(ps, Tokens.SEMICOLON)
     end
-    return RPCType(name, request_stream, request_type, response_stream, request_type, options)
+    return RPCType(name, request_stream, request_type, response_stream, response_type, options)
 end
 
 # We consumed SERVICE
