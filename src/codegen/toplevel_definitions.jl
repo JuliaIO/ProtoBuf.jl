@@ -86,6 +86,7 @@ function generate_struct(io, t::MessageType, ctx::Context)
     type_params = get_type_params(t, ctx)
     params_string = get_type_param_string(type_params)
 
+    dump(t)
     if parse(Bool, get(t.options, "mutable", "false"))
         print(io, "mutable struct ", struct_name, length(t.fields) > 0 ? params_string : ' ', _maybe_subtype(abstract_base_name, ctx.options))
     else
