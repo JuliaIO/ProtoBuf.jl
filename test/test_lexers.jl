@@ -64,11 +64,11 @@ end
         lexer_test("\"a\"", Tokens.STRING_LIT)
         lexer_test("'a'", Tokens.STRING_LIT)
         lexer_test("\"proto3\"", Tokens.STRING_LIT)
-        lexer_test("'\uffff'", Tokens.STRING_LIT)
-        lexer_test("'\xff'", Tokens.STRING_LIT)
-        lexer_test("'\777'", Tokens.STRING_LIT)
-        lexer_test("'\U000fffff'", Tokens.STRING_LIT)
-        lexer_test("'\U0010ffff'", Tokens.STRING_LIT)
+        lexer_test(raw"'\uffff'", Tokens.STRING_LIT)
+        lexer_test(raw"'\xff'", Tokens.STRING_LIT)
+        lexer_test(raw"'\777'", Tokens.STRING_LIT)
+        lexer_test(raw"'\U000fffff'", Tokens.STRING_LIT)
+        lexer_test(raw"'\U0010ffff'", Tokens.STRING_LIT)
     end
 
     @testset "numeric literals" begin
