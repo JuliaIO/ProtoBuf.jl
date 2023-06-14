@@ -4,11 +4,6 @@ import TranscodingStreams
 import BufferedStreams
 using TOML
 
-#TODO: This has to be removed, but is needed until
-#      https://github.com/JuliaIO/BufferedStreams.jl/pull/67
-#       is merged.
-Base.position(x::BufferedStreams.BufferedOutputStream) = max(0, position(x.sink) + x.position - 1)
-
 # TODO:
 # - Services & RPC
 # - Support proper julia package generation when proto packages share a dependency
