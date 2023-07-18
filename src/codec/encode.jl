@@ -140,8 +140,11 @@ function _encode(io::IO, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64
 end
 
 function _encode(_e::ProtoEncoder, x::Dict{K,V}) where {K,V}
-    maybe_ensure_room(_e.io, 2length(x))
+    maybe_ensure_room(_e.io, 2*(length(x)+1))
     for (k, v) in x
+        # encode header for key-value pair message
+        encode_tag(_e, 1, LENGTH_DELIMITED)
+        vbyte_encode(_e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2)))
         encode(_e, 1, k)
         encode(_e, 2, v)
     end
@@ -150,16 +153,20 @@ end
 
 for T in (:(:fixed), :(:zigzag))
     @eval function _encode(_e::ProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
-        maybe_ensure_room(_e.io, 2length(x))
+        maybe_ensure_room(_e.io, 2*(length(x)+1))
         for (k, v) in x
+            encode_tag(_e, 1, LENGTH_DELIMITED)
+            vbyte_encode(_e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2)))
             encode(_e, 1, k, Val{$(T)})
             encode(_e, 2, v)
         end
         nothing
     end
     @eval function _encode(_e::ProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
-        maybe_ensure_room(_e.io, 2length(x))
+        maybe_ensure_room(_e.io, 2*(length(x)+1))
         for (k, v) in x
+            encode_tag(_e, 1, LENGTH_DELIMITED)
+            vbyte_encode(_e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2, Val{$(T)})))
             encode(_e, 1, k)
             encode(_e, 2, v, Val{$(T)})
         end
@@ -169,8 +176,10 @@ end
 
 for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
     @eval function _encode(_e::AbstractProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
-        maybe_ensure_room(_e.io, 2length(x))
+        maybe_ensure_room(_e.io, 2*(length(x)+1))
         for (k, v) in x
+            encode_tag(_e, 1, LENGTH_DELIMITED)
+            vbyte_encode(_e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2, Val{$(S)})))
             encode(_e, 1, k, Val{$(T)})
             encode(_e, 2, v, Val{$(S)})
         end
