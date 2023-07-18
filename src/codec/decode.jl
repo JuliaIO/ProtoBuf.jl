@@ -33,6 +33,7 @@ function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V<:_Scalar
     len = vbyte_decode(d.io, UInt32)
     endpos = position(d.io) + len
     while position(d.io) < endpos
+        pair_field_number, pair_wire_type = decode_tag(d)
         field_number, wire_type = decode_tag(d)
         key = decode(d, K)
         field_number, wire_type = decode_tag(d)
@@ -47,6 +48,7 @@ function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V}
     len = vbyte_decode(d.io, UInt32)
     endpos = position(d.io) + len
     while position(d.io) < endpos
+        pair_field_number, pair_wire_type = decode_tag(d)
         field_number, wire_type = decode_tag(d)
         key = decode(d, K)
         field_number, wire_type = decode_tag(d)
@@ -62,6 +64,7 @@ for T in (:(:fixed), :(:zigzag))
         len = vbyte_decode(d.io, UInt32)
         endpos = position(d.io) + len
         while position(d.io) < endpos
+            pair_field_number, pair_wire_type = decode_tag(d)
             field_number, wire_type = decode_tag(d)
             key = decode(d, K)
             field_number, wire_type = decode_tag(d)
@@ -76,6 +79,7 @@ for T in (:(:fixed), :(:zigzag))
         len = vbyte_decode(d.io, UInt32)
         endpos = position(d.io) + len
         while position(d.io) < endpos
+            pair_field_number, pair_wire_type = decode_tag(d)
             field_number, wire_type = decode_tag(d)
             key = decode(d, K, Val{$(T)})
             field_number, wire_type = decode_tag(d)
@@ -92,6 +96,7 @@ for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
         len = vbyte_decode(d.io, UInt32)
         endpos = position(d.io) + len
         while position(d.io) < endpos
+            pair_field_number, pair_wire_type = decode_tag(d)
             field_number, wire_type = decode_tag(d)
             key = decode(d, K, Val{$(T)})
             field_number, wire_type = decode_tag(d)
