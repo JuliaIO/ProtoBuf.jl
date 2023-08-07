@@ -231,3 +231,44 @@ end
     end
 end
 end
+
+module TestMappingStruct
+using Test
+using ProtoBuf
+
+@testset "Roundtrip a dictionary mapping" begin
+    mktempdir() do tmpdir
+        protojl("pair_struct.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
+        include(joinpath(tmpdir, "pair_struct_pb.jl"))
+    end
+
+    function encode_bytes(msg)
+        io = IOBuffer()
+        e = PB.ProtoEncoder(io)
+        PB.encode(e, msg)
+        return take!(io)
+    end
+
+    function decode_bytes(::Type{T}, bytes) where {T}
+        io = IOBuffer(bytes)
+        d = PB.ProtoDecoder(io)
+        return PB.decode(d, T)
+    end
+
+    test_dictionary = Dict{String, Int64}(
+        "field1"=>1,
+        "field2"=>-5,
+        "field3"=>120
+    )
+    native_message = NativeMappingStruct(test_dictionary)
+    equiv_message = NaiveMappingStruct(StringIntMapStruct([PairStruct(k, v) for (k, v) in test_dictionary]))
+
+    encoded_native = encode_bytes(native_message)
+    encoded_equiv = encode_bytes(equiv_message)
+
+    @test encoded_native == encoded_equiv
+
+    decoded_equiv = decode_bytes(NativeMappingStruct, encoded_equiv)
+    @test decoded_equiv.map_field == test_dictionary
+end
+end
