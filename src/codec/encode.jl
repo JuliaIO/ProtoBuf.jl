@@ -139,49 +139,52 @@ function _encode(io::IO, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64
     return nothing
 end
 
-function _encode(_e::ProtoEncoder, x::Dict{K,V}) where {K,V}
-    maybe_ensure_room(_e.io, 2*(length(x)+1))
+function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
+    maybe_ensure_room(e.io, 2*(length(x)+1))
     for (k, v) in x
         # encode header for key-value pair message
-        encode_tag(_e, 1, LENGTH_DELIMITED)
-        vbyte_encode(_e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2)))
-        encode(_e, 1, k)
-        encode(_e, 2, v)
+        encode_tag(e, i, LENGTH_DELIMITED)
+        vbyte_encode(e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2)))
+        encode(e, 1, k)
+        encode(e, 2, v)
     end
     nothing
 end
 
 for T in (:(:fixed), :(:zigzag))
-    @eval function _encode(_e::ProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
-        maybe_ensure_room(_e.io, 2*(length(x)+1))
+    @eval function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
+        maybe_ensure_room(e.io, 2*(length(x)+1))
         for (k, v) in x
-            encode_tag(_e, 1, LENGTH_DELIMITED)
-            vbyte_encode(_e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2)))
-            encode(_e, 1, k, Val{$(T)})
-            encode(_e, 2, v)
+            # encode header for key-value pair message
+            encode_tag(e, i, LENGTH_DELIMITED)
+            vbyte_encode(e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2)))
+            encode(e, 1, k, Val{$(T)})
+            encode(e, 2, v)
         end
         nothing
     end
-    @eval function _encode(_e::ProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
-        maybe_ensure_room(_e.io, 2*(length(x)+1))
+    @eval function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
+        maybe_ensure_room(e.io, 2*(length(x)+1))
         for (k, v) in x
-            encode_tag(_e, 1, LENGTH_DELIMITED)
-            vbyte_encode(_e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2, Val{$(T)})))
-            encode(_e, 1, k)
-            encode(_e, 2, v, Val{$(T)})
+            # encode header for key-value pair message
+            encode_tag(e, i, LENGTH_DELIMITED)
+            vbyte_encode(e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2, Val{$(T)})))
+            encode(e, 1, k)
+            encode(e, 2, v, Val{$(T)})
         end
         nothing
     end
 end
 
 for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
-    @eval function _encode(_e::AbstractProtoEncoder, x::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
-        maybe_ensure_room(_e.io, 2*(length(x)+1))
+    @eval function encode(e::AbstractProtoEncoder, i::Int, x::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
+        maybe_ensure_room(e.io, 2*(length(x)+1))
         for (k, v) in x
-            encode_tag(_e, 1, LENGTH_DELIMITED)
-            vbyte_encode(_e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2, Val{$(S)})))
-            encode(_e, 1, k, Val{$(T)})
-            encode(_e, 2, v, Val{$(S)})
+            # encode header for key-value pair message
+            encode_tag(e, i, LENGTH_DELIMITED)
+            vbyte_encode(e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2, Val{$(S)})))
+            encode(e, 1, k, Val{$(T)})
+            encode(e, 2, v, Val{$(S)})
         end
         nothing
     end
@@ -275,18 +278,6 @@ end
 function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{UInt32,UInt64,Int32,Int64,Enum{Int32},Enum{UInt32}}}
     encode_tag(e, i, LENGTH_DELIMITED)
     _with_size(_encode, e.io, e.io, x)
-    return nothing
-end
-
-function encode(e::AbstractProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
-    encode_tag(e, i, LENGTH_DELIMITED)
-    _with_size(_encode, e.io, e, x)
-    return nothing
-end
-
-function encode(e::AbstractProtoEncoder, i::Int, x::Dict{K,V}, ::Type{W}) where {K,V,W}
-    encode_tag(e, i, LENGTH_DELIMITED)
-    _with_size(_encode, e.io, e, x, W)
     return nothing
 end
 

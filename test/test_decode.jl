@@ -69,7 +69,7 @@ wire_type(::Type{<:AbstractString})                             = Codecs.LENGTH_
 function test_decode(input_bytes, expected, V::Type=Nothing)
     w = wire_type(typeof(expected), V)
     input_bytes = collect(input_bytes)
-    if w == Codecs.LENGTH_DELIMITED
+    if w == Codecs.LENGTH_DELIMITED && !isa(expected, Dict)
         input_bytes = vcat(UInt8(length(input_bytes)), input_bytes)
     end
 
@@ -89,7 +89,10 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
             x = x[]
         elseif isa(expected, Dict)
             x = Dict{keytype(expected), valtype(expected)}()
-            decode!(e, x)
+            while !eof(e.io)
+                num, tag = PB.decode_tag(e)
+                decode!(e, x)
+            end
         else
             x = decode(e, typeof(expected))
         end
@@ -100,7 +103,10 @@ function test_decode(input_bytes, expected, V::Type=Nothing)
             x = x[]
         elseif isa(expected, Dict)
             x = Dict{keytype(expected), valtype(expected)}()
-            decode!(e, x, V)
+            while !eof(e.io)
+                num, tag = PB.decode_tag(e)
+                decode!(e, x, V)
+            end
         else
             x = decode(e, typeof(expected), V)
         end
@@ -206,7 +212,7 @@ end
 
         @testset "map" begin
             @testset "string,string" begin test_decode([0x0a, 0x06, 0x0a, 0x01, 0x62, 0x12, 0x01, 0x61], Dict{String,String}("b" => "a")) end
-            
+
             @testset "multiple string,string" begin test_decode([0x0a, 0x06, 0x0a, 0x01, 0x63, 0x12, 0x01, 0x64, 0x0a, 0x06, 0x0a, 0x01, 0x62, 0x12, 0x01, 0x61], Dict{String,String}("b" => "a", "c" => "d")) end
             @testset "multiple string,string reversed" begin test_decode([0x0a, 0x06, 0x0a, 0x01, 0x62, 0x12, 0x01, 0x61, 0x0a, 0x06, 0x0a, 0x01, 0x63, 0x12, 0x01, 0x64], Dict{String,String}("b" => "a", "c" => "d")) end
 

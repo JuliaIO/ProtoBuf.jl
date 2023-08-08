@@ -237,10 +237,9 @@ using Test
 using ProtoBuf
 
 @testset "Roundtrip a dictionary mapping" begin
-    mktempdir() do tmpdir
-        protojl("pair_struct.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
-        include(joinpath(tmpdir, "pair_struct_pb.jl"))
-    end
+    tmpdir = mktempdir()
+    protojl("pair_struct.proto", joinpath(pkgdir(ProtoBuf), "test", "test_protos"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
+    include(joinpath(tmpdir, "pair_struct_pb.jl"))
 
     function encode_bytes(msg)
         io = IOBuffer()
@@ -258,17 +257,24 @@ using ProtoBuf
     test_dictionary = Dict{String, Int64}(
         "field1"=>1,
         "field2"=>-5,
-        "field3"=>120
+        "field3"=>120,
     )
-    native_message = NativeMappingStruct(test_dictionary)
-    equiv_message = NaiveMappingStruct(StringIntMapStruct([PairStruct(k, v) for (k, v) in test_dictionary]))
 
-    encoded_native = encode_bytes(native_message)
-    encoded_equiv = encode_bytes(equiv_message)
+    dict_message = Map(test_dictionary)
+    pairs_message = Pairs([ProtoPair(k, v) for (k, v) in test_dictionary])
 
-    @test encoded_native == encoded_equiv
+    encoded_dict = encode_bytes(dict_message)
+    encoded_pairs = encode_bytes(pairs_message)
 
-    decoded_equiv = decode_bytes(NativeMappingStruct, encoded_equiv)
-    @test decoded_equiv.map_field == test_dictionary
+    decoded_dict = decode_bytes(Map, encoded_pairs)
+    decoded_pairs = decode_bytes(Pairs, encoded_dict)
+
+    @test encoded_dict == encoded_pairs
+
+    @test typeof(dict_message) == typeof(decoded_dict)
+    @test dict_message.map_field == decoded_dict.map_field
+
+    @test typeof(pairs_message) == typeof(decoded_pairs)
+    @test pairs_message.map_field == decoded_pairs.map_field
 end
 end
