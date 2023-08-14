@@ -231,3 +231,50 @@ end
     end
 end
 end
+
+module TestMappingStruct
+using Test
+using ProtoBuf
+
+@testset "Roundtrip a dictionary mapping" begin
+    tmpdir = mktempdir()
+    protojl("pair_struct.proto", joinpath(pkgdir(ProtoBuf), "test", "test_protos"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
+    include(joinpath(tmpdir, "pair_struct_pb.jl"))
+
+    function encode_bytes(msg)
+        io = IOBuffer()
+        e = PB.ProtoEncoder(io)
+        PB.encode(e, msg)
+        return take!(io)
+    end
+
+    function decode_bytes(::Type{T}, bytes) where {T}
+        io = IOBuffer(bytes)
+        d = PB.ProtoDecoder(io)
+        return PB.decode(d, T)
+    end
+
+    test_dictionary = Dict{String, Int64}(
+        "field1"=>1,
+        "field2"=>-5,
+        "field3"=>120,
+    )
+
+    dict_message = Map(test_dictionary)
+    pairs_message = Pairs([ProtoPair(k, v) for (k, v) in test_dictionary])
+
+    encoded_dict = encode_bytes(dict_message)
+    encoded_pairs = encode_bytes(pairs_message)
+
+    decoded_dict = decode_bytes(Map, encoded_pairs)
+    decoded_pairs = decode_bytes(Pairs, encoded_dict)
+
+    @test encoded_dict == encoded_pairs
+
+    @test typeof(dict_message) == typeof(decoded_dict)
+    @test dict_message.map_field == decoded_dict.map_field
+
+    @test typeof(pairs_message) == typeof(decoded_pairs)
+    @test pairs_message.map_field == decoded_pairs.map_field
+end
+end

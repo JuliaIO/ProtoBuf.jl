@@ -30,75 +30,65 @@ function decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32
 end
 decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Float64,Float32}} = read(d.io, T)
 function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V<:_ScalarTypesEnum}
-    len = vbyte_decode(d.io, UInt32)
-    endpos = position(d.io) + len
-    while position(d.io) < endpos
-        field_number, wire_type = decode_tag(d)
-        key = decode(d, K)
-        field_number, wire_type = decode_tag(d)
-        val = decode(d, V)
-        buffer[key] = val
-    end
-    @assert position(d.io) == endpos
+    pair_len = vbyte_decode(d.io, UInt32)
+    pair_end_pos = position(d.io) + pair_len
+    field_number, wire_type = decode_tag(d)
+    key = decode(d, K)
+    field_number, wire_type = decode_tag(d)
+    val = decode(d, V)
+    @assert position(d.io) == pair_end_pos
+    buffer[key] = val
     nothing
 end
 
 function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}) where {K,V}
-    len = vbyte_decode(d.io, UInt32)
-    endpos = position(d.io) + len
-    while position(d.io) < endpos
-        field_number, wire_type = decode_tag(d)
-        key = decode(d, K)
-        field_number, wire_type = decode_tag(d)
-        val = decode(d, Ref{V})
-        buffer[key] = val
-    end
-    @assert position(d.io) == endpos
+    pair_len = vbyte_decode(d.io, UInt32)
+    pair_end_pos = position(d.io) + pair_len
+    field_number, wire_type = decode_tag(d)
+    key = decode(d, K)
+    field_number, wire_type = decode_tag(d)
+    val = decode(d, Ref{V})
+    @assert position(d.io) == pair_end_pos
+    buffer[key] = val
     nothing
 end
 
 for T in (:(:fixed), :(:zigzag))
     @eval function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{Nothing,$(T)}}}) where {K,V}
-        len = vbyte_decode(d.io, UInt32)
-        endpos = position(d.io) + len
-        while position(d.io) < endpos
-            field_number, wire_type = decode_tag(d)
-            key = decode(d, K)
-            field_number, wire_type = decode_tag(d)
-            val = decode(d, V, Val{$(T)})
-            buffer[key] = val
-        end
-        @assert position(d.io) == endpos
+        pair_len = vbyte_decode(d.io, UInt32)
+        pair_end_pos = position(d.io) + pair_len
+        field_number, wire_type = decode_tag(d)
+        key = decode(d, K)
+        field_number, wire_type = decode_tag(d)
+        val = decode(d, V, Val{$(T)})
+        @assert position(d.io) == pair_end_pos
+        buffer[key] = val
         nothing
     end
 
     @eval function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),Nothing}}}) where {K,V}
-        len = vbyte_decode(d.io, UInt32)
-        endpos = position(d.io) + len
-        while position(d.io) < endpos
-            field_number, wire_type = decode_tag(d)
-            key = decode(d, K, Val{$(T)})
-            field_number, wire_type = decode_tag(d)
-            val = decode(d, V)
-            buffer[key] = val
-        end
-        @assert position(d.io) == endpos
+        pair_len = vbyte_decode(d.io, UInt32)
+        pair_end_pos = position(d.io) + pair_len
+        field_number, wire_type = decode_tag(d)
+        key = decode(d, K, Val{$(T)})
+        field_number, wire_type = decode_tag(d)
+        val = decode(d, V)
+        @assert position(d.io) == pair_end_pos
+        buffer[key] = val
         nothing
     end
 end
 
 for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
     @eval function decode!(d::AbstractProtoDecoder, buffer::Dict{K,V}, ::Type{Val{Tuple{$(T),$(S)}}}) where {K,V}
-        len = vbyte_decode(d.io, UInt32)
-        endpos = position(d.io) + len
-        while position(d.io) < endpos
-            field_number, wire_type = decode_tag(d)
-            key = decode(d, K, Val{$(T)})
-            field_number, wire_type = decode_tag(d)
-            val = decode(d, V, Val{$(S)})
-            buffer[key] = val
-        end
-        @assert position(d.io) == endpos
+        pair_len = vbyte_decode(d.io, UInt32)
+        pair_end_pos = position(d.io) + pair_len
+        field_number, wire_type = decode_tag(d)
+        key = decode(d, K, Val{$(T)})
+        field_number, wire_type = decode_tag(d)
+        val = decode(d, V, Val{$(S)})
+        @assert position(d.io) == pair_end_pos
+        buffer[key] = val
         nothing
     end
 end

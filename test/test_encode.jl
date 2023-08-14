@@ -80,7 +80,7 @@ function test_encode(input, i, w::WireType, expected, V::Type=Nothing)
         encode(d, i, input, V)
     end
     bytes = take!(d.io)
-    if isa(input, AbstractVector) && eltype(input) <: Union{Vector{UInt8}, String, TestInner}
+    if (isa(input, AbstractVector) && eltype(input) <: Union{Vector{UInt8}, String, TestInner}) || isa(input, AbstractDict)
         j = 1
         while !isempty(bytes)
             tag = bytes[1]
@@ -207,37 +207,38 @@ end
         end
 
         @testset "map" begin
-            @testset "string,string" begin test_encode(Dict{String,String}("b" => "a"), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x62, 0x12, 0x01, 0x61]) end
+            @testset "string,string" begin test_encode(Dict{String,String}("b" => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x06, 0x0a, 0x01, 0x62, 0x12, 0x01, 0x61]) end
+            @testset "multiple string,string" begin test_encode(Dict{String,String}("b" => "a", "c" => "d"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x06, 0x0a, 0x01, 0x63, 0x12, 0x01, 0x64, 0x12, 0x06, 0x0a, 0x01, 0x62, 0x12, 0x01, 0x61]) end
 
-            @testset "int32,string" begin test_encode(Dict{Int32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x08, 0x01, 0x12, 0x01, 0x61]) end
-            @testset "int64,string" begin test_encode(Dict{Int64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x08, 0x01, 0x12, 0x01, 0x61]) end
-            @testset "uint32,string" begin test_encode(Dict{UInt32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x08, 0x01, 0x12, 0x01, 0x61]) end
-            @testset "uint64,string" begin test_encode(Dict{UInt64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x08, 0x01, 0x12, 0x01, 0x61]) end
-            @testset "bool,string" begin test_encode(Dict{Bool,String}(true => "a"), 2, Codecs.LENGTH_DELIMITED, [0x08, 0x01, 0x12, 0x01, 0x61]) end
+            @testset "int32,string" begin test_encode(Dict{Int32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x08, 0x01, 0x12, 0x01, 0x61]) end
+            @testset "int64,string" begin test_encode(Dict{Int64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x08, 0x01, 0x12, 0x01, 0x61]) end
+            @testset "uint32,string" begin test_encode(Dict{UInt32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x08, 0x01, 0x12, 0x01, 0x61]) end
+            @testset "uint64,string" begin test_encode(Dict{UInt64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x08, 0x01, 0x12, 0x01, 0x61]) end
+            @testset "bool,string" begin test_encode(Dict{Bool,String}(true => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x08, 0x01, 0x12, 0x01, 0x61]) end
 
-            @testset "sfixed32,string" begin test_encode(Dict{Int32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x0d, 0x01, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
-            @testset "sfixed64,string" begin test_encode(Dict{Int64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
-            @testset "fixed32,string" begin test_encode(Dict{UInt32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x0d, 0x01, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
-            @testset "fixed64,string" begin test_encode(Dict{UInt64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
+            @testset "sfixed32,string" begin test_encode(Dict{Int32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x08, 0x0d, 0x01, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
+            @testset "sfixed64,string" begin test_encode(Dict{Int64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x0c, 0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
+            @testset "fixed32,string" begin test_encode(Dict{UInt32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x08, 0x0d, 0x01, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
+            @testset "fixed64,string" begin test_encode(Dict{UInt64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x0c, 0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x01, 0x61], Val{Tuple{:fixed,Nothing}}) end
 
-            @testset "sint32,string" begin test_encode(Dict{Int32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x08, 0x02, 0x12, 0x01, 0x61], Val{Tuple{:zigzag,Nothing}}) end
-            @testset "sint64,string" begin test_encode(Dict{Int64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x08, 0x02, 0x12, 0x01, 0x61], Val{Tuple{:zigzag,Nothing}}) end
+            @testset "sint32,string" begin test_encode(Dict{Int32,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x08, 0x02, 0x12, 0x01, 0x61], Val{Tuple{:zigzag,Nothing}}) end
+            @testset "sint64,string" begin test_encode(Dict{Int64,String}(1 => "a"), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x08, 0x02, 0x12, 0x01, 0x61], Val{Tuple{:zigzag,Nothing}}) end
 
-            @testset "string,int32" begin test_encode(Dict{String,Int32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x10, 0x01]) end
-            @testset "string,int64" begin test_encode(Dict{String,Int64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x10, 0x01]) end
-            @testset "string,uint32" begin test_encode(Dict{String,UInt32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x10, 0x01]) end
-            @testset "string,uint64" begin test_encode(Dict{String,UInt64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x10, 0x01]) end
-            @testset "string,bool" begin test_encode(Dict{String,Bool}("a" => true), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x10, 0x01]) end
+            @testset "string,int32" begin test_encode(Dict{String,Int32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x0a, 0x01, 0x61, 0x10, 0x01]) end
+            @testset "string,int64" begin test_encode(Dict{String,Int64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x0a, 0x01, 0x61, 0x10, 0x01]) end
+            @testset "string,uint32" begin test_encode(Dict{String,UInt32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x0a, 0x01, 0x61, 0x10, 0x01]) end
+            @testset "string,uint64" begin test_encode(Dict{String,UInt64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x0a, 0x01, 0x61, 0x10, 0x01]) end
+            @testset "string,bool" begin test_encode(Dict{String,Bool}("a" => true), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x05, 0x0a, 0x01, 0x61, 0x10, 0x01]) end
 
-            @testset "string,sfixed32" begin test_encode(Dict{String,Int32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
-            @testset "string,sfixed64" begin test_encode(Dict{String,Int64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
-            @testset "string,fixed32" begin test_encode(Dict{String,UInt32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
-            @testset "string,fixed64" begin test_encode(Dict{String,UInt64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x0a, 0x01, 0x61, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+            @testset "string,sfixed32" begin test_encode(Dict{String,Int32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x08, 0x0a, 0x01, 0x61, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+            @testset "string,sfixed64" begin test_encode(Dict{String,Int64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x0c, 0x0a, 0x01, 0x61, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+            @testset "string,fixed32" begin test_encode(Dict{String,UInt32}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x08, 0x0a, 0x01, 0x61, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
+            @testset "string,fixed64" begin test_encode(Dict{String,UInt64}("a" => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x0c, 0x0a, 0x01, 0x61, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{Nothing,:fixed}}) end
 
-            @testset "sfixed32,sfixed32" begin test_encode(Dict{Int32,Int32}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x0d, 0x01, 0x00, 0x00, 0x00, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
-            @testset "sfixed64,sfixed64" begin test_encode(Dict{Int64,Int64}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
-            @testset "fixed32,fixed32" begin test_encode(Dict{UInt32,UInt32}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x0d, 0x01, 0x00, 0x00, 0x00, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
-            @testset "fixed64,fixed64" begin test_encode(Dict{UInt64,UInt64}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
+            @testset "sfixed32,sfixed32" begin test_encode(Dict{Int32,Int32}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x0a, 0x0d, 0x01, 0x00, 0x00, 0x00, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
+            @testset "sfixed64,sfixed64" begin test_encode(Dict{Int64,Int64}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x12, 0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
+            @testset "fixed32,fixed32" begin test_encode(Dict{UInt32,UInt32}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x0a, 0x0d, 0x01, 0x00, 0x00, 0x00, 0x15, 0x01, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
+            @testset "fixed64,fixed64" begin test_encode(Dict{UInt64,UInt64}(1 => 1), 2, Codecs.LENGTH_DELIMITED, [0x12, 0x12, 0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Val{Tuple{:fixed,:fixed}}) end
         end
 
         @testset "message" begin
@@ -402,51 +403,107 @@ end
     #                                                                                                                  S    T   D     T    L    T   D      E
     @test _encoded_size([NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))], Val{:group}) == 1 + (1 + 5) + (1 + (1 + (1 + 5))) + 1
     #                                                  T   L   D     T   L   D
-    @test _encoded_size(Dict("K" => UInt8[0xff])) == ((1 + 1 + 1) + (1 + 1 + 1))
-    @test _encoded_size(Dict("K" => "S"))         == ((1 + 1 + 1) + (1 + 1 + 1))
-    @test _encoded_size(Dict("KEY" => "STR"))     == ((1 + 1 + 3) + (1 + 1 + 3))
+    @test _encoded_size(Dict("K" => UInt8[0xff]))    == ((1 + 1 + 1) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict("K" => UInt8[0xff]), 1) == ((1 + 1 + 1) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict("K" => "S"))            == ((1 + 1 + 1) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict("K" => "S"), 1)         == ((1 + 1 + 1) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict("KEY" => "STR"))        == ((1 + 1 + 3) + (1 + 1 + 3)) + 1
+    @test _encoded_size(Dict("KEY" => "STR"), 1)     == ((1 + 1 + 3) + (1 + 1 + 3)) + 2
+    @test _encoded_size(Dict("KEY1" => "STR1", "KEY2" => "STR2"))       == 2 * (((1 + 1 + 4) + (1 + 1 + 4)) + 1)
+    @test _encoded_size(Dict("KEY1" => "STR1", "KEY2" => "STR2"), 1)    == 2 * (((1 + 1 + 4) + (1 + 1 + 4)) + 2)
+    @test _encoded_size(Dict("KEY1" => "STR1", "KEY2" => "STR2"), 128)  == 2 * (((1 + 1 + 4) + (1 + 1 + 4)) + 3)
     #                                                      T   L   D     T    D
-    @test _encoded_size(Dict("K" => typemax(UInt32))) == ((1 + 1 + 1) + (1 +  5))
-    @test _encoded_size(Dict("K" => typemax(UInt64))) == ((1 + 1 + 1) + (1 + 10))
-    @test _encoded_size(Dict("K" => typemax(Int32)))  == ((1 + 1 + 1) + (1 +  5))
-    @test _encoded_size(Dict("K" => typemax(Int64)))  == ((1 + 1 + 1) + (1 +  9))
-    @test _encoded_size(Dict("K" => true))            == ((1 + 1 + 1) + (1 +  1))
-    @test _encoded_size(Dict("K" => typemax(Int32)), Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 +  5))
-    @test _encoded_size(Dict("K" => typemax(Int64)), Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 + 10))
-    @test _encoded_size(Dict("K" => typemin(Int32)), Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 +  5))
-    @test _encoded_size(Dict("K" => typemin(Int64)), Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 + 10))
-    @test _encoded_size(Dict("K" => TestEnum.OTHER))  == ((1 + 1 + 1) + (1 +  1))
+    @test _encoded_size(Dict("K" => typemax(UInt32)))    == ((1 + 1 + 1) + (1 +  5)) + 1
+    @test _encoded_size(Dict("K" => typemax(UInt32)), 1) == ((1 + 1 + 1) + (1 +  5)) + 2
+    @test _encoded_size(Dict("K" => typemax(UInt64)))    == ((1 + 1 + 1) + (1 + 10)) + 1
+    @test _encoded_size(Dict("K" => typemax(UInt64)), 1) == ((1 + 1 + 1) + (1 + 10)) + 2
+    @test _encoded_size(Dict("K" => typemax(Int32)))     == ((1 + 1 + 1) + (1 +  5)) + 1
+    @test _encoded_size(Dict("K" => typemax(Int32)), 1)  == ((1 + 1 + 1) + (1 +  5)) + 2
+    @test _encoded_size(Dict("K" => typemax(Int64)))     == ((1 + 1 + 1) + (1 +  9)) + 1
+    @test _encoded_size(Dict("K" => typemax(Int64)), 1)  == ((1 + 1 + 1) + (1 +  9)) + 2
+    @test _encoded_size(Dict("K" => true))               == ((1 + 1 + 1) + (1 +  1)) + 1
+    @test _encoded_size(Dict("K" => true), 1)            == ((1 + 1 + 1) + (1 +  1)) + 2
+    @test _encoded_size(Dict("K" => typemax(Int32)), Val{Tuple{Nothing,:zigzag}})    == ((1 + 1 + 1) + (1 +  5)) + 1
+    @test _encoded_size(Dict("K" => typemax(Int32)), 1, Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 +  5)) + 2
+    @test _encoded_size(Dict("K" => typemax(Int64)), Val{Tuple{Nothing,:zigzag}})    == ((1 + 1 + 1) + (1 + 10)) + 1
+    @test _encoded_size(Dict("K" => typemax(Int64)), 1, Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 + 10)) + 2
+    @test _encoded_size(Dict("K" => typemin(Int32)), Val{Tuple{Nothing,:zigzag}})    == ((1 + 1 + 1) + (1 +  5)) + 1
+    @test _encoded_size(Dict("K" => typemin(Int32)), 1, Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 +  5)) + 2
+    @test _encoded_size(Dict("K" => typemin(Int64)), Val{Tuple{Nothing,:zigzag}})    == ((1 + 1 + 1) + (1 + 10)) + 1
+    @test _encoded_size(Dict("K" => typemin(Int64)), 1, Val{Tuple{Nothing,:zigzag}}) == ((1 + 1 + 1) + (1 + 10)) + 2
+    @test _encoded_size(Dict("K" => TestEnum.OTHER))     == ((1 + 1 + 1) + (1 +  1)) + 1
+    @test _encoded_size(Dict("K" => TestEnum.OTHER), 1)  == ((1 + 1 + 1) + (1 +  1)) + 2
 
-    @test _encoded_size(Dict("K" => typemax(UInt32)), Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 4))
-    @test _encoded_size(Dict("K" => typemax(UInt64)), Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 8))
-    @test _encoded_size(Dict("K" => typemax(Int32)),  Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 4))
-    @test _encoded_size(Dict("K" => typemax(Int64)),  Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 8))
+    @test _encoded_size(Dict("K" => typemax(UInt32)), Val{Tuple{Nothing,:fixed}})    == ((1 + 1 + 1) + (1 + 4)) + 1
+    @test _encoded_size(Dict("K" => typemax(UInt32)), 1, Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 4)) + 2
+    @test _encoded_size(Dict("K" => typemax(UInt64)), Val{Tuple{Nothing,:fixed}})    == ((1 + 1 + 1) + (1 + 8)) + 1
+    @test _encoded_size(Dict("K" => typemax(UInt64)), 1, Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 8)) + 2
+    @test _encoded_size(Dict("K" => typemax(Int32)),  Val{Tuple{Nothing,:fixed}})    == ((1 + 1 + 1) + (1 + 4)) + 1
+    @test _encoded_size(Dict("K" => typemax(Int32)),  1, Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 4)) + 2
+    @test _encoded_size(Dict("K" => typemax(Int64)),  Val{Tuple{Nothing,:fixed}})    == ((1 + 1 + 1) + (1 + 8)) + 1
+    @test _encoded_size(Dict("K" => typemax(Int64)),  1, Val{Tuple{Nothing,:fixed}}) == ((1 + 1 + 1) + (1 + 8)) + 2
 
-    @test _encoded_size(Dict("K" => EmptyMessage())) == ((1 + 1 + 1) + (1 + 1 + 0))
-    #                                                                                                                 T   L   D      T   L     T   D    T    L    T   D
-    @test _encoded_size(Dict("K" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing)))) == ((1 + 1 + 1) + (1 + 1 + (1 + 5) + (1 + (1 + (1 + 5)))))
-    #                                                      T    D     T   L   D
-    @test _encoded_size(Dict(typemax(UInt32) => "V")) == ((1 +  5) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(UInt64) => "V")) == ((1 + 10) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(Int32) => "V"))  == ((1 +  5) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(Int64) => "V"))  == ((1 +  9) + (1 + 1 + 1))
-    @test _encoded_size(Dict(true => "V"))            == ((1 +  1) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(Int32) => "V"), Val{Tuple{:zigzag,Nothing}}) == ((1 +  5) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(Int64) => "V"), Val{Tuple{:zigzag,Nothing}}) == ((1 + 10) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemin(Int32) => "V"), Val{Tuple{:zigzag,Nothing}}) == ((1 +  5) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemin(Int64) => "V"), Val{Tuple{:zigzag,Nothing}}) == ((1 + 10) + (1 + 1 + 1))
-    @test _encoded_size(Dict(TestEnum.OTHER => "V"))  == ((1 +  1) + (1 + 1 + 1))
+    @test _encoded_size(Dict("K" => EmptyMessage()))    == ((1 + 1 + 1) + (1 + 1 + 0)) + 1
+    @test _encoded_size(Dict("K" => EmptyMessage()), 1) == ((1 + 1 + 1) + (1 + 1 + 0)) + 2
+    #                                                                                                                     T   L   D      T   L     T   D    T    L    T   D
+    @test _encoded_size(Dict("K" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))))    == ((1 + 1 + 1) + (1 + 1 + (1 + 5) + (1 + (1 + (1 + 5))))) + 1
+    @test _encoded_size(Dict("K" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))), 1) == ((1 + 1 + 1) + (1 + 1 + (1 + 5) + (1 + (1 + (1 + 5))))) + 2
+    #                                                      T    D     T   L   D    TH
+    @test _encoded_size(Dict(typemax(UInt32) => "V"))    == ((1 +  5) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(UInt32) => "V"), 1) == ((1 +  5) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(UInt64) => "V"))    == ((1 + 10) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(UInt64) => "V"), 1) == ((1 + 10) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(Int32) => "V"))     == ((1 +  5) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(Int32) => "V"), 1)  == ((1 +  5) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(Int64) => "V"))     == ((1 +  9) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(Int64) => "V"), 1)  == ((1 +  9) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(true => "V"))               == ((1 +  1) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(true => "V"), 1)            == ((1 +  1) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(Int32) => "V"), Val{Tuple{:zigzag,Nothing}})    == ((1 +  5) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(Int32) => "V"), 1, Val{Tuple{:zigzag,Nothing}}) == ((1 +  5) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(Int64) => "V"), Val{Tuple{:zigzag,Nothing}})    == ((1 + 10) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(Int64) => "V"), 1, Val{Tuple{:zigzag,Nothing}}) == ((1 + 10) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemin(Int32) => "V"), Val{Tuple{:zigzag,Nothing}})    == ((1 +  5) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemin(Int32) => "V"), 1, Val{Tuple{:zigzag,Nothing}}) == ((1 +  5) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemin(Int64) => "V"), Val{Tuple{:zigzag,Nothing}})    == ((1 + 10) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemin(Int64) => "V"), 1, Val{Tuple{:zigzag,Nothing}}) == ((1 + 10) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(TestEnum.OTHER => "V"))     == ((1 +  1) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(TestEnum.OTHER => "V"), 1)  == ((1 +  1) + (1 + 1 + 1)) + 2
 
-    @test _encoded_size(Dict(typemax(UInt32) => "V"), Val{Tuple{:fixed,Nothing}}) == ((1 + 4) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(UInt64) => "V"), Val{Tuple{:fixed,Nothing}}) == ((1 + 8) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(Int32) => "V"),  Val{Tuple{:fixed,Nothing}}) == ((1 + 4) + (1 + 1 + 1))
-    @test _encoded_size(Dict(typemax(Int64) => "V"),  Val{Tuple{:fixed,Nothing}}) == ((1 + 8) + (1 + 1 + 1))
+    @test _encoded_size(Dict(typemax(UInt32) => "V"), Val{Tuple{:fixed,Nothing}})    == ((1 + 4) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(UInt32) => "V"), 1, Val{Tuple{:fixed,Nothing}}) == ((1 + 4) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(UInt64) => "V"), Val{Tuple{:fixed,Nothing}})    == ((1 + 8) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(UInt64) => "V"), 1, Val{Tuple{:fixed,Nothing}}) == ((1 + 8) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(Int32) => "V"),  Val{Tuple{:fixed,Nothing}})    == ((1 + 4) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(Int32) => "V"), 1,  Val{Tuple{:fixed,Nothing}}) == ((1 + 4) + (1 + 1 + 1)) + 2
+    @test _encoded_size(Dict(typemax(Int64) => "V"),  Val{Tuple{:fixed,Nothing}})    == ((1 + 8) + (1 + 1 + 1)) + 1
+    @test _encoded_size(Dict(typemax(Int64) => "V"), 1,  Val{Tuple{:fixed,Nothing}}) == ((1 + 8) + (1 + 1 + 1)) + 2
+
+    @test _encoded_size(Dict(typemax(UInt32) => typemax(UInt32)), Val{Tuple{:fixed,:fixed}})    == ((1 + 4) + (1 + 4)) + 1
+    @test _encoded_size(Dict(typemax(UInt32) => typemax(UInt32)), 1, Val{Tuple{:fixed,:fixed}}) == ((1 + 4) + (1 + 4)) + 2
+    @test _encoded_size(Dict(typemax(UInt64) => typemax(UInt64)), Val{Tuple{:fixed,:fixed}})    == ((1 + 8) + (1 + 8)) + 1
+    @test _encoded_size(Dict(typemax(UInt64) => typemax(UInt64)), 1, Val{Tuple{:fixed,:fixed}}) == ((1 + 8) + (1 + 8)) + 2
+    @test _encoded_size(Dict(typemax(Int32) => typemax(Int32)),  Val{Tuple{:fixed,:fixed}})    == ((1 + 4) + (1 + 4)) + 1
+    @test _encoded_size(Dict(typemax(Int32) => typemax(Int32)),  1, Val{Tuple{:fixed,:fixed}}) == ((1 + 4) + (1 + 4)) + 2
+    @test _encoded_size(Dict(typemax(Int64) => typemax(Int64)),  Val{Tuple{:fixed,:fixed}})    == ((1 + 8) + (1 + 8)) + 1
+    @test _encoded_size(Dict(typemax(Int64) => typemax(Int64)),  1, Val{Tuple{:fixed,:fixed}}) == ((1 + 8) + (1 + 8)) + 2
+
+    @test _encoded_size(Dict(typemax(Int32) => typemax(Int32)), Val{Tuple{:zigzag,:zigzag}})    == ((1 +  5) + (1 +  5)) + 1
+    @test _encoded_size(Dict(typemax(Int32) => typemax(Int32)), 1, Val{Tuple{:zigzag,:zigzag}}) == ((1 +  5) + (1 +  5)) + 2
+    @test _encoded_size(Dict(typemax(Int64) => typemax(Int64)), Val{Tuple{:zigzag,:zigzag}})    == ((1 + 10) + (1 + 10)) + 1
+    @test _encoded_size(Dict(typemax(Int64) => typemax(Int64)), 1, Val{Tuple{:zigzag,:zigzag}}) == ((1 + 10) + (1 + 10)) + 2
+    @test _encoded_size(Dict(typemin(Int32) => typemax(Int32)), Val{Tuple{:zigzag,:zigzag}})    == ((1 +  5) + (1 +  5)) + 1
+    @test _encoded_size(Dict(typemin(Int32) => typemax(Int32)), 1, Val{Tuple{:zigzag,:zigzag}}) == ((1 +  5) + (1 +  5)) + 2
+    @test _encoded_size(Dict(typemin(Int64) => typemax(Int64)), Val{Tuple{:zigzag,:zigzag}})    == ((1 + 10) + (1 + 10)) + 1
+    @test _encoded_size(Dict(typemin(Int64) => typemax(Int64)), 1, Val{Tuple{:zigzag,:zigzag}}) == ((1 + 10) + (1 + 10)) + 2
 
     @test _encoded_size(typemax(Float32)) == 4
     @test _encoded_size(typemax(Float64)) == 8
     @test _encoded_size([typemax(Float32)]) == 4
     @test _encoded_size([typemax(Float64)]) == 8
-    @test _encoded_size(Dict("K" => typemax(Float32))) == ((1 + 1 + 1) + (1 + 4))
-    @test _encoded_size(Dict("K" => typemax(Float64))) == ((1 + 1 + 1) + (1 + 8))
+    @test _encoded_size(Dict("K" => typemax(Float32)))    == ((1 + 1 + 1) + (1 + 4)) + 1
+    @test _encoded_size(Dict("K" => typemax(Float32)), 1) == ((1 + 1 + 1) + (1 + 4)) + 2
+    @test _encoded_size(Dict("K" => typemax(Float64)))    == ((1 + 1 + 1) + (1 + 8)) + 1
+    @test _encoded_size(Dict("K" => typemax(Float64)), 1) == ((1 + 1 + 1) + (1 + 8)) + 2
 end
 end # module
