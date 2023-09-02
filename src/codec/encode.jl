@@ -7,26 +7,27 @@ encode_tag(e::ProtoEncoder, field_number, wire_type::WireType) = encode_tag(e.io
 maybe_ensure_room(io::IOBuffer, n) = Base.ensureroom(io, n)
 maybe_ensure_room(::IO, n) = nothing
 
-# When we don't know the lenght beforehand we
-# 1. Allocate 5 bytes for the length
-# 2. encode data
-# 3. come back to beginning and encode the length
-# 4. shift the encoded data in case we didn't use all 5 bytes allocated for length
+# When we don't know the length beforehand we
+# 1. encode data and learn its length
+# 2. make space for the length at the end of the buffer
+# 3. shift the data to the right, moving the space for the length to the beginning
+# 4. encode the length
 @inline function _with_size(f, io::IOBuffer, sink, x)
     if io.seekable
-        MAX_LENGTH_VARINT_BYTES = 5  # max size of a UInt32 as vbyte
         initpos = position(io)
-        truncate(io, initpos + MAX_LENGTH_VARINT_BYTES) # 1.
-        seek(io, initpos + MAX_LENGTH_VARINT_BYTES)
-        f(sink, x) # e.g. _encode(io, x) # 2.
+        f(sink, x) # e.g. _encode(io, x)                # 1.
         endpos = position(io)
-        data_len = endpos - initpos - MAX_LENGTH_VARINT_BYTES
-        seek(io, initpos)                  # 3.
-        vbyte_encode(io, UInt32(data_len)) # --||--
-        lenght_len = position(io) - initpos
-        unsafe_copyto!(io.data, initpos + lenght_len + 1, io.data, initpos + MAX_LENGTH_VARINT_BYTES + 1, data_len) # 4.
-        seek(io, initpos + lenght_len + data_len)
-        truncate(io, initpos + lenght_len + data_len)
+        data_len = endpos - initpos
+        data_len_len = _encoded_size(UInt32(data_len))
+        truncate(io, initpos + data_len_len + data_len) # 2.
+        unsafe_copyto!(                                 # 3.
+            io.data, initpos + data_len_len + 1,
+            io.data, initpos + 1,
+            data_len
+        )
+        seek(io, initpos)
+        vbyte_encode(io, UInt32(data_len))              # 4.
+        seek(io, initpos + data_len_len + data_len)
     else
         vbyte_encode(io, UInt32(_encoded_size(x)))
         f(sink, x)
@@ -36,19 +37,20 @@ end
 
 @inline function _with_size(f, io::IOBuffer, sink, x, V)
     if io.seekable
-        MAX_LENGTH_VARINT_BYTES = 5  # max size of a UInt32 as vbyte
         initpos = position(io)
-        truncate(io, initpos + MAX_LENGTH_VARINT_BYTES) # 1.
-        seek(io, initpos + MAX_LENGTH_VARINT_BYTES)
-        f(sink, x, V) # e.g. _encode(io, x, Val{:zigzag}) # 2.
+        f(sink, x, V) # e.g. _encode(io, x)             # 1.
         endpos = position(io)
-        data_len = endpos - initpos - MAX_LENGTH_VARINT_BYTES
-        seek(io, initpos)                  # 3.
-        vbyte_encode(io, UInt32(data_len)) # --||--
-        lenght_len = position(io) - initpos
-        unsafe_copyto!(io.data, initpos + lenght_len + 1, io.data, initpos + MAX_LENGTH_VARINT_BYTES + 1, data_len) # 4.
-        seek(io, initpos + lenght_len + data_len)
-        truncate(io, initpos + lenght_len + data_len)
+        data_len = endpos - initpos
+        data_len_len = _encoded_size(UInt32(data_len))
+        truncate(io, initpos + data_len_len + data_len) # 2.
+        unsafe_copyto!(                                 # 3.
+            io.data, initpos + data_len_len + 1,
+            io.data, initpos + 1,
+            data_len
+        )
+        seek(io, initpos)
+        vbyte_encode(io, UInt32(data_len))              # 4.
+        seek(io, initpos + data_len_len + data_len)
     else
         vbyte_encode(io, UInt32(_encoded_size(x, V)))
         f(sink, x, V)
