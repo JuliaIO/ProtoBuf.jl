@@ -349,6 +349,30 @@ end
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
     @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
 
+    io = IOBuffer(zeros(UInt8, 7), maxsize=7, read=false, write=true)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = IOBuffer(zeros(UInt8, 7), maxsize=7, read=false, write=true)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
+
+    io = IOBuffer(;maxsize=2^14 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = IOBuffer(;maxsize=2^14 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
+
+    io = IOBuffer(;maxsize=2^21 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = IOBuffer(;maxsize=2^21 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
+
     io = PipeBuffer()
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
     @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
