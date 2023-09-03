@@ -4,43 +4,42 @@ function encode_tag(io::IO, field_number, wire_type::WireType)
 end
 encode_tag(e::ProtoEncoder, field_number, wire_type::WireType) = encode_tag(e.io, field_number, wire_type)
 # TODO: audit usage and composability of maybe_ensure_room
-maybe_ensure_room(io::IOBuffer, n) = Base.ensureroom(io, n)
+maybe_ensure_room(io::IOBuffer, n) = Base.ensureroom(io, min(io.maxsize, n))
+
 maybe_ensure_room(::IO, n) = nothing
 
 @inline function _with_size(f, io::IOBuffer, sink, x, V...)
     if io.seekable
         initpos = position(io)
-        # We need to encode the encoded size of x before we know it. We first preallocate some space for the
-        # size. If the buffer has `maxsize` set, we use that to estimate the upper bound of the encoded size.
-        # Otherwise, we use 1 byte as that is the mininum size of the encoded size.
+        # We need to encode the encoded size of x before we know it. We first preallocate 1
+        # byte as that is the mininum size of the encoded size.
         # If our guess is right, it will save us a copy, but we never want to preallocate too much
         # space for the size, because then we risk outgrowing the buffer that was allocated with exact size
         # needed to contain the message.
-        ecoded_size_len_guess = io.maxsize < typemax(Int) ? min(5, _encoded_size(UInt32(io.maxsize - initpos))) : 1
-        truncate(io, initpos + ecoded_size_len_guess)
-        seek(io, initpos + ecoded_size_len_guess)
+        encoded_size_len_guess = 1
+        truncate(io, initpos + encoded_size_len_guess)
+        seek(io, initpos + encoded_size_len_guess)
         # Now we can encode the object itself
         f(sink, x, V...) # e.g. _encode(io, x) or _encode(io, x, Val{:zigzag})
         endpos = position(io)
-        ecoded_size = endpos - initpos - ecoded_size_len_guess
-        ecoded_size_len = _encoded_size(UInt32(ecoded_size))
+        encoded_size = endpos - initpos - encoded_size_len_guess
+        encoded_size_len = _encoded_size(UInt32(encoded_size))
         # If our initial guess on encoded size of the size was wrong, then we need to move the encoded data
-        if ecoded_size_len_guess != ecoded_size_len
-            # If we guessed too small, we need to move the data to make room for the correct size
-            ecoded_size_len_guess < ecoded_size_len && truncate(io, initpos + ecoded_size_len + ecoded_size)
+        if encoded_size_len_guess < encoded_size_len
+            encoded_size_len_guess < encoded_size_len && truncate(io, initpos + encoded_size_len + encoded_size)
             # Move the data right after the correct size
             unsafe_copyto!(
-                io.data, initpos + ecoded_size_len + 1,
-                io.data, initpos + ecoded_size_len_guess + 1,
-                ecoded_size
+                io.data,
+                initpos + encoded_size_len + 1,
+                io.data,
+                initpos + encoded_size_len_guess + 1,
+                encoded_size
             )
-            # If we guessed too large, we need to truncate the buffer to the correct size
-            ecoded_size_len_guess > ecoded_size_len && truncate(io, initpos + ecoded_size_len + ecoded_size)
         end
         # Now we can encode the size
         seek(io, initpos)
-        vbyte_encode(io, UInt32(ecoded_size))
-        seek(io, initpos + ecoded_size_len + ecoded_size)
+        vbyte_encode(io, UInt32(encoded_size))
+        seek(io, initpos + encoded_size_len + encoded_size)
     else
         # TODO: avoid quadratic behavior when estimating encoded size by providing a scratch buffer
         vbyte_encode(io, UInt32(_encoded_size(x, V...)))
