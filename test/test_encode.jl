@@ -349,6 +349,30 @@ end
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
     @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
 
+    io = IOBuffer(zeros(UInt8, 7), maxsize=7, read=false, write=true)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test io.data == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = IOBuffer(zeros(UInt8, 7), maxsize=7, read=false, write=true)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test io.data == UInt8[6, 2, 4, 6, 8, 10, 12]
+
+    io = IOBuffer(;maxsize=2^14 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = IOBuffer(;maxsize=2^14 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
+
+    io = IOBuffer(;maxsize=2^21 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
+
+    io = IOBuffer(;maxsize=2^21 + 1)
+    Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
+
     io = PipeBuffer()
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
     @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]
@@ -356,12 +380,46 @@ end
     io = PipeBuffer()
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
     @test take!(io) == UInt8[6, 2, 4, 6, 8, 10, 12]
+
+    io = IOBuffer()
+    Codecs._with_size(Codecs._encode, io, io, collect(1:128))
+    @test take!(io) == vcat(UInt8(129), UInt8(1), UInt8.(collect(1:127)), UInt8(128), UInt8(1))
+
+    io = IOBuffer()
+    Codecs._with_size(Codecs._encode, io, io, fill(2, 129), Val{:zigzag})
+    @test take!(io) == vcat(UInt8(129), UInt8(1), fill(UInt8(4), 129))
+
+    io = IOBuffer(;maxsize=2^14 + 1)
+    Codecs._with_size(Codecs._encode, io, io, collect(1:128))
+    @test take!(io) == vcat(UInt8(129), UInt8(1), UInt8.(collect(1:127)), UInt8(128), UInt8(1))
+
+    io = IOBuffer(;maxsize=2^14 + 1)
+    Codecs._with_size(Codecs._encode, io, io, fill(2, 129), Val{:zigzag})
+    @test take!(io) == vcat(UInt8(129), UInt8(1), fill(UInt8(4), 129))
+
+    io = IOBuffer(;maxsize=2^21 + 1)
+    Codecs._with_size(Codecs._encode, io, io, collect(1:128))
+    @test take!(io) == vcat(UInt8(129), UInt8(1), UInt8.(collect(1:127)), UInt8(128), UInt8(1))
+
+    io = IOBuffer(;maxsize=2^21 + 1)
+    Codecs._with_size(Codecs._encode, io, io, fill(2, 129), Val{:zigzag})
+    @test take!(io) == vcat(UInt8(129), UInt8(1), fill(UInt8(4), 129))
+
+    io = PipeBuffer()
+    Codecs._with_size(Codecs._encode, io, io, collect(1:128))
+    @test take!(io) == vcat(UInt8(129), UInt8(1), UInt8.(collect(1:127)), UInt8(128), UInt8(1))
+
+    io = PipeBuffer()
+    Codecs._with_size(Codecs._encode, io, io, fill(2, 129), Val{:zigzag})
+    @test take!(io) == vcat(UInt8(129), UInt8(1), fill(UInt8(4), 129))
 end
 
 @testset "_encoded_size" begin
     @test _encoded_size(nothing) == 0
     @test _encoded_size(UInt8[0xff]) == 1
+    @test _encoded_size(UInt8[]) == 0
     @test _encoded_size("S") == 1
+    @test _encoded_size("") == 0
     @test _encoded_size(typemax(UInt32)) == 5
     @test _encoded_size(typemax(UInt64)) == 10
     @test _encoded_size(typemax(Int32)) == 5
