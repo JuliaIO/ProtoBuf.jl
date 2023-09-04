@@ -385,7 +385,9 @@ end
 @testset "_encoded_size" begin
     @test _encoded_size(nothing) == 0
     @test _encoded_size(UInt8[0xff]) == 1
+    @test _encoded_size(UInt8[]) == 0
     @test _encoded_size("S") == 1
+    @test _encoded_size("") == 0
     @test _encoded_size(typemax(UInt32)) == 5
     @test _encoded_size(typemax(UInt64)) == 10
     @test _encoded_size(typemax(Int32)) == 5

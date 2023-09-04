@@ -24,9 +24,10 @@ maybe_ensure_room(::IO, n) = nothing
         endpos = position(io)
         encoded_size = endpos - initpos - encoded_size_len_guess
         encoded_size_len = _encoded_size(UInt32(encoded_size))
+        @assert (initpos + encoded_size_len + encoded_size) <= io.maxsize
         # If our initial guess on encoded size of the size was wrong, then we need to move the encoded data
         if encoded_size_len_guess < encoded_size_len
-            encoded_size_len_guess < encoded_size_len && truncate(io, initpos + encoded_size_len + encoded_size)
+            truncate(io, initpos + encoded_size_len + encoded_size)
             # Move the data right after the correct size
             unsafe_copyto!(
                 io.data,
