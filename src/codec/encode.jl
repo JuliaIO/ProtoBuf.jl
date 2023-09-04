@@ -16,6 +16,7 @@ maybe_ensure_room(::IO, n) = nothing
         # If our guess is right, it will save us a copy, but we never want to preallocate too much
         # space for the size, because then we risk outgrowing the buffer that was allocated with exact size
         # needed to contain the message.
+        # TODO: make the guess better (e.g. by incorporating maxsize)
         encoded_size_len_guess = 1
         truncate(io, initpos + encoded_size_len_guess)
         seek(io, initpos + encoded_size_len_guess)
