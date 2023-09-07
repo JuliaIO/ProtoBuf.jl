@@ -1,5 +1,10 @@
 # https://discourse.julialang.org/t/allocation-due-to-noinline-for-unsafe-read-and-unsafe-write-in-io-jl/69421
-@inline function _unsafe_write(io::S, ref::Ref{T}, nb::Integer) where {T,S<:Union{IOBuffer,TranscodingStream,BufferedOutputStream, BufferedInputStream}}
+@inline function _unsafe_write(io::S, ref::Ref{T}, nb::Integer) where {T,S<:Union{TranscodingStream,BufferedOutputStream,BufferedInputStream}}
+    GC.@preserve ref unsafe_write(io, Base.unsafe_convert(Ref{T}, ref)::Ptr, nb)
+end
+@noinline _reached_maxsize_error(io::IOBuffer, nb) = throw(ArgumentError("Cannot write $nb bytes to IOBuffer at position $(position(io)) with maxsize $(io.maxsize)"))
+@inline function _unsafe_write(io::IOBuffer, ref::Ref{T}, nb::Integer) where {T}
+    io.ptr - 1 + nb > io.maxsize && _reached_maxsize_error(io, nb)
     GC.@preserve ref unsafe_write(io, Base.unsafe_convert(Ref{T}, ref)::Ptr, nb)
 end
 @inline function _unsafe_write(io::IO, ref::Ref{T}, nb::Integer) where T
@@ -76,7 +81,7 @@ end
 
 @inline function vbyte_encode(io::IO, x::UInt32)
     if (x < (one(UInt32) << 7))
-        write(io, UInt8(x & 0x7F))
+        _unsafe_write(io, Ref(UInt8(x & 0x7F)), 1)
     elseif (x < (one(UInt32) << 14))
         _unsafe_write(io,
             Ref((
@@ -121,7 +126,7 @@ end
 
 @inline function vbyte_encode(io::IO, x::UInt64)
     if (x < (one(UInt64) << 7))
-        write(io, UInt8(x & 0x7F))
+        _unsafe_write(io, Ref(UInt8(x & 0x7F)), 1)
     elseif (x < (one(UInt64) << 14))
         _unsafe_write(io,
             Ref((

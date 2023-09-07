@@ -318,15 +318,19 @@ end # module
 
 module TestEncodedSize
 using Test
-using ProtoBuf: _encoded_size
+using ProtoBuf: Codecs, ProtoEncoder, _encoded_size
 import ProtoBuf as PB
-using ProtoBuf: Codecs
 
 using EnumX
 @enumx TestEnum DEFAULT=0 OTHER=1
 
 struct EmptyMessage end
 PB._encoded_size(x::EmptyMessage) = 0
+function PB.encode(e::PB.AbstractProtoEncoder, x::EmptyMessage)
+    initpos = position(e.io)
+    return position(e.io) - initpos
+end
+
 
 abstract type var"##AbstractNonEmptyMessage" end
 struct NonEmptyMessage <: var"##AbstractNonEmptyMessage"
@@ -339,6 +343,13 @@ function PB._encoded_size(x::NonEmptyMessage)
     !isnothing(x.self_referential_field) && (encoded_size += PB._encoded_size(x.self_referential_field, 2))
     return encoded_size
 end
+function PB.encode(e::PB.AbstractProtoEncoder, x::NonEmptyMessage)
+    initpos = position(e.io)
+    x.x != zero(UInt32) && PB.encode(e, 1, x.x)
+    !isnothing(x.self_referential_field) && PB.encode(e, 2, x.self_referential_field)
+    return position(e.io) - initpos
+end
+
 
 @testset "_with_size" begin
     io = IOBuffer()
@@ -351,10 +362,12 @@ end
 
     io = IOBuffer(zeros(UInt8, 7), maxsize=7, read=false, write=true)
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
+    @test Codecs._with_size(PB._encoded_size([1, 2, 3, 4, 5, 6])) == length(io.data)
     @test io.data == UInt8[6, 1, 2, 3, 4, 5, 6]
 
     io = IOBuffer(zeros(UInt8, 7), maxsize=7, read=false, write=true)
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6], Val{:zigzag})
+    @test Codecs._with_size(PB._encoded_size([1, 2, 3, 4, 5, 6], Val{:zigzag})) == length(io.data)
     @test io.data == UInt8[6, 2, 4, 6, 8, 10, 12]
 
     io = IOBuffer(;maxsize=2^14 + 1)
@@ -412,6 +425,26 @@ end
     io = PipeBuffer()
     Codecs._with_size(Codecs._encode, io, io, fill(2, 129), Val{:zigzag})
     @test take!(io) == vcat(UInt8(129), UInt8(1), fill(UInt8(4), 129))
+
+    empty_field_size = PB._encoded_size(EmptyMessage(), 1)
+    io = IOBuffer(zeros(UInt8, empty_field_size), maxsize=empty_field_size, read=false, write=true)
+    PB.encode(ProtoEncoder(io), 1, EmptyMessage())
+    @test empty_field_size == length(io.data)
+    @test io.data == UInt8[0x0a, 0x00]
+
+    non_empty_field = NonEmptyMessage(8, nothing)
+    non_empty_field_size = PB._encoded_size(non_empty_field, 1)
+    io = IOBuffer(zeros(UInt8, non_empty_field_size), maxsize=non_empty_field_size, read=false, write=true)
+    PB.encode(ProtoEncoder(io), 1, non_empty_field)
+    @test non_empty_field_size == length(io.data)
+    @test io.data == UInt8[0x0a, 0x02, 0x08, 0x08]
+
+    non_empty_field = NonEmptyMessage(5, NonEmptyMessage(10, nothing))
+    non_empty_field_size = PB._encoded_size(non_empty_field, 1)
+    io = IOBuffer(zeros(UInt8, non_empty_field_size), maxsize=non_empty_field_size, read=false, write=true)
+    PB.encode(ProtoEncoder(io), 1, non_empty_field)
+    @test non_empty_field_size == length(io.data)
+    @test io.data == UInt8[0x0a, 0x06, 0x08, 0x05, 0x12, 0x02, 0x08, 0x0a]
 end
 
 @testset "_encoded_size" begin
