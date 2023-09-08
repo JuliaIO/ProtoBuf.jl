@@ -8,6 +8,9 @@ maybe_ensure_room(io::IOBuffer, n) = Base.ensureroom(io, min(io.maxsize, n))
 
 maybe_ensure_room(::IO, n) = nothing
 
+@noinline _incomplete_encode_error(io::IOBuffer, nb, target) = throw(ArgumentError("Failed to write to IOBuffer, only written $nb bytes out of $target (maxsize: $(io.maxsize), positiom : $(position(io))"))
+@noinline _incomplete_encode_error(::IO, nb, target) = throw(ArgumentError("Failed to write to IO, only written $nb bytes out of $target"))
+
 @inline function _with_size(f, io::IOBuffer, sink, x, V...)
     if io.seekable
         initpos = position(io)
@@ -78,7 +81,8 @@ function _encode(io::IO, x::T) where {T<:Union{Enum{Int32},Enum{UInt32}}}
 end
 
 function _encode(io::IO, x::Vector{T}, ::Type{Val{:fixed}}) where {T<:Union{Int32,Int64,UInt32,UInt64}}
-    write(io, x)
+    nb = write(io, x)
+    nb == sizeof(x) || _incomplete_encode_error(io, nb, sizeof(x))
     return nothing
 end
 
@@ -101,7 +105,8 @@ function _encode(io::IO, x::Vector{T}, ::Type{Val{:zigzag}}) where {T<:Union{Int
 end
 
 function _encode(io::IO, x::String)
-    write(io, x)
+    nb = write(io, x)
+    nb == sizeof(x) || _incomplete_encode_error(io, nb, sizeof(x))
     return nothing
 end
 
@@ -111,12 +116,14 @@ function _encode(io::IO, x::T) where {T<:Union{Bool,Float32,Float64}}
 end
 
 function _encode(io::IO, x::Vector{T}) where {T<:Union{Bool,UInt8,Float32,Float64}}
-    write(io, x)
+    nb = write(io, x)
+    nb == sizeof(x) || _incomplete_encode_error(io, nb, sizeof(x))
     return nothing
 end
 
 function _encode(io::IO, x::Base.CodeUnits{UInt8, String})
-    write(io, x)
+    nb = write(io, x)
+    nb == sizeof(x) || _incomplete_encode_error(io, nb, sizeof(x))
     return nothing
 end
 

@@ -98,6 +98,22 @@ function roundtrip_iobuffer(input, f_in=identity, f_out=identity)
     return decode(d, OmniMessage)
 end
 
+function roundtrip_iobuffer_maxsize(input, f_in=identity, f_out=identity)
+    protosize = ProtoBuf._encoded_size(input)
+    buf = zeros(UInt8, protosize)
+
+    wio = IOBuffer(buf, read=false, write=true, maxsize=protosize)
+    e = ProtoEncoder(f_in(wio))
+
+    encoded = encode(e, input)
+
+    rio = IOBuffer(buf, read=true, write=false)
+    d = ProtoDecoder(f_out(rio))
+
+    @test encoded == protosize
+    return decode(d, OmniMessage)
+end
+
 function roundtrip_iostream(input, f_in=identity, f_out=identity)
     (path, io) = mktemp()
     e = ProtoEncoder(f_in(io))
@@ -215,6 +231,9 @@ end
 
     @testset "IOBuffer" begin
         test_by_field(roundtrip_iobuffer(msg), msg)
+    end
+    @testset "IOBuffer preallocated" begin
+        test_by_field(roundtrip_iobuffer_maxsize(msg), msg)
     end
     @testset "IOStream" begin
         test_by_field(roundtrip_iostream(msg), msg)
