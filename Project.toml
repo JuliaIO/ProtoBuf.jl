@@ -14,9 +14,14 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 TranscodingStreams = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 
 [compat]
+Aqua = "0.8"
 BufferedStreams = "1.2"
+Dates = "1"
 EnumX = "1"
-TranscodingStreams = "0.9"
+JET = "0.8"
+TranscodingStreams = "0.9, 0.10"
+TOML = "1"
+Test = "1"
 julia = "1.6"
 
 [extras]
