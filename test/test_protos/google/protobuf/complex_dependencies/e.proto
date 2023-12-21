@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package test2.e;
+
+message Ef{
+  float e = 1;
+}
