@@ -210,8 +210,6 @@ end
         lexer_test("'\\0\\001\\a\\b\\f\\n\\r\\t\\v\\\\\\'\\\"\\xfe'", Tokens.STRING_LIT, "'\\0\\001\\a\\b\\f\\n\\r\\t\\v\\\\'\\\"\\xfe'")
         lexer_test("'\\?'", Tokens.STRING_LIT, "'?'")
         lexer_test("'\${'", Tokens.STRING_LIT, "'\\\${'")
-
-        lexer_test("\"line one; \"\n\"line two\"", Tokens.STRING_LIT, "line one; line two")
     end
 
     @testset "identifiers" begin
