@@ -146,6 +146,26 @@ end
         @test p.definitions["A"].fields[1].type.reference_type == Parsers.MESSAGE
     end
 
+    @testset "Single nested non-empty message proto file with default value" begin
+        s, p, ctx = translate_simple_proto("message A { optional string a = 1 [ default = \"b\" ]; }")
+
+        @test haskey(p.definitions, "A")
+        @test p.definitions["A"] isa Parsers.MessageType
+        @test p.definitions["A"].fields[1].name == "a"
+        @test p.definitions["A"].fields[1].type isa Parsers.StringType
+        @test p.definitions["A"].fields[1].options["default"] == "\"b\""
+    end
+
+    @testset "Single nested non-empty message proto file with default value on several lines" begin
+        s, p, ctx = translate_simple_proto("message A { optional string a = 1 [ default = \"b;\"\n\t\"c\" ]; }")
+
+        @test haskey(p.definitions, "A")
+        @test p.definitions["A"] isa Parsers.MessageType
+        @test p.definitions["A"].fields[1].name == "a"
+        @test p.definitions["A"].fields[1].type isa Parsers.StringType
+        @test p.definitions["A"].fields[1].options["default"] == "\"b;c\""
+    end
+
     @testset "Single self-referential message proto file" begin
         s, p, ctx = translate_simple_proto("message A { optional A a = 1; }")
 
