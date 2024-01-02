@@ -5,48 +5,13 @@ using .Codecs: decode, decode!, ProtoDecoder, BufferedVector
 using Test
 using EnumX: @enumx
 
-@enumx TestEnum A B C
-struct TestInner
-    x::Int
-    r::Union{Nothing,TestInner}
-end
-TestInner(x::Int) = TestInner(x, nothing)
-struct TestStruct{T1<:Union{Nothing,PB.OneOf{<:Union{Vector{UInt8},TestEnum.T,TestInner}}}}
-    oneof::T1
-end
+const temp_dir = mktempdir()
+const test_dir = joinpath(pkgdir(PB), "test")
 
-function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:TestInner})
-    x = 0
-    r = Ref{Union{Nothing,TestInner}}(nothing)
-    while !PB.message_done(d)
-        field_number, wire_type = PB.decode_tag(d)
-        if field_number == 1
-            x = PB.decode(d, Int64)
-        elseif field_number == 2
-            PB.decode!(d, r)
-        else
-            PB.skip(d, wire_type)
-        end
-    end
-    return TestInner(x, r[])
-end
+PB.protojl("test_messages_for_codec.proto", joinpath(test_dir, "test_protos"), temp_dir, always_use_modules=false, parametrize_oneofs=true)
+include(joinpath(temp_dir, "test_messages_for_codec_pb.jl"))
 
-function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:TestStruct})
-    oneof = nothing
-    while !PB.message_done(d)
-        field_number, wire_type = PB.decode_tag(d)
-        if field_number == 1
-            oneof = PB.OneOf(:bytes, PB.decode(d, Vector{UInt8}))
-        elseif field_number == 2
-            oneof = PB.OneOf(:enum, PB.decode(d, TestEnum.T))
-        elseif field_number == 3
-            oneof = PB.OneOf(:struct, PB.decode(d, Ref{TestInner}))
-        else
-            PB.skip(d, wire_type)
-        end
-    end
-    return TestStruct(oneof)
-end
+TestInner(x::Int) = TestInner(x, nothing) # convenience constructor for a generated struct
 
 const _Varint = Union{UInt32,UInt64,Int64,Int32,Bool,Enum}
 
@@ -257,15 +222,15 @@ end
         @testset "message" begin
             test_decode_message([0x0a, 0x03, 0x31, 0x32, 0x33], TestStruct(PB.OneOf(:bytes, collect(b"123"))))
             test_decode_message([0x10, 0x02], TestStruct(PB.OneOf(:enum, TestEnum.C)))
-            test_decode_message([0x1a, 0x02, 0x08, 0x02], TestStruct(PB.OneOf(:struct, TestInner(2))))
-            test_decode_message([0x1a, 0x06, 0x08, 0x02, 0x12, 0x02, 0x08, 0x03], TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))))
+            test_decode_message([0x1a, 0x02, 0x08, 0x02], TestStruct(PB.OneOf(:var"#struct", TestInner(2))))
+            test_decode_message([0x1a, 0x06, 0x08, 0x02, 0x12, 0x02, 0x08, 0x03], TestStruct(PB.OneOf(:var"#struct", TestInner(2, TestInner(3)))))
         end
 
         @testset "group message" begin
             test_decode_message([0x03, 0x0a, 0x03, 0x31, 0x32, 0x33, 0x04], TestStruct(PB.OneOf(:bytes, collect(b"123"))), Val{:group})
             test_decode_message([0x03, 0x10, 0x02, 0x04], TestStruct(PB.OneOf(:enum, TestEnum.C)), Val{:group})
-            test_decode_message([0x03, 0x1a, 0x02, 0x08, 0x02, 0x04], TestStruct(PB.OneOf(:struct, TestInner(2))), Val{:group})
-            test_decode_message([0x03, 0x1a, 0x06, 0x08, 0x02, 0x12, 0x02, 0x08, 0x03, 0x04], TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))), Val{:group})
+            test_decode_message([0x03, 0x1a, 0x02, 0x08, 0x02, 0x04], TestStruct(PB.OneOf(:var"#struct", TestInner(2))), Val{:group})
+            test_decode_message([0x03, 0x1a, 0x06, 0x08, 0x02, 0x12, 0x02, 0x08, 0x03, 0x04], TestStruct(PB.OneOf(:var"#struct", TestInner(2, TestInner(3)))), Val{:group})
         end
     end
 

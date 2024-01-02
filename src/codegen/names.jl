@@ -5,7 +5,7 @@ const JULIA_RESERVED_KEYWORDS = Set{String}([
     "global", "module", "using", "import", "export", "const", "let",
     "bitstype", "do", "baremodule", "importall", "immutable",
     "Type", "Enum", "Any", "DataType", "Base", "Set", "Method",
-    "Array", "Vector", "Dict", "Union",
+    "Array", "Vector", "Dict", "Union", "struct",
     "OneOf",
 ])
 
