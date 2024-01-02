@@ -15,11 +15,13 @@ function _parse_option_value(ps) # TODO: proper value parsing with validation
     str_val = val(readtoken(ps))
     # C-style string literals spanning multiple lines
     if nk == Tokens.STRING_LIT && nnk == Tokens.STRING_LIT
+        iob = IOBuffer()
+        write(iob, str_val)
         while peekkind(ps) == Tokens.STRING_LIT
-            next_val = val(readtoken(ps))
-            next_val = ifelse(next_val[1] == '\"', next_val[begin+1:end], next_val)
-            str_val = string(@view(str_val[begin:end-1]), next_val)
+            seek(iob, position(iob) - 1)
+            write(iob, @view(val(readtoken(ps))[begin+1:end]))
         end
+        str_val = String(take!(iob))
     end
     return has_minus ? string("-", str_val) : str_val
 end

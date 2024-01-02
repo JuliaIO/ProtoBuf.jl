@@ -157,7 +157,7 @@ end
     end
 
     @testset "Single nested non-empty message proto file with default value on several lines" begin
-        s, p, ctx = translate_simple_proto("message A { optional string a = 1 [ default = \"b;\"\n\t\"c\" ]; }")
+        s, p, ctx = translate_simple_proto("message A { optional string a = 1 [ default = \"b;\"\n\t\"\"\n\t\"c\" ]; }")
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.MessageType
