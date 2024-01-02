@@ -134,7 +134,7 @@ end
 
 function _test_by_field(a, b, name=string(typeof(a)))
     N = fieldcount(typeof(a))
-    (N == 0 || a isa AbstractDict) && return (@testset "$name" begin @test a == b end)
+    (N == 0 || a isa AbstractDict || a isa AbstractVector) && return (@testset "$name" begin @test a == b end)
     for (i, n) in zip(1:N, fieldnames(typeof(a)))
         absname = string(name, ".", String(n))
         _test_by_field(getfield(a, i), getfield(b, i), absname)
