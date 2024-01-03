@@ -1,39 +1,17 @@
 module TestEncode
 using ProtoBuf: Codecs
 import ProtoBuf as PB
-using .Codecs: _with_size, encode, ProtoEncoder, WireType
+using .Codecs: encode, _encoded_size, ProtoEncoder, WireType
 using Test
 using EnumX: @enumx
 
-@enumx TestEnum A B C
-struct TestInner
-    x::Int
-    r::Union{Nothing,TestInner}
-end
-TestInner(x::Int) = TestInner(x, nothing)
-struct TestStruct{T<:Union{Nothing,PB.OneOf{<:Union{Vector{UInt8},TestEnum.T,TestInner}}}}
-    oneof::T
-end
+const temp_dir = mktempdir()
+const test_dir = joinpath(pkgdir(PB), "test")
 
-function PB.encode(e::PB.AbstractProtoEncoder, x::TestInner)
-    initpos = position(e.io)
-    x.x != 0 && PB.encode(e, 1, x.x)
-    !isnothing(x.r) && PB.encode(e, 2, x.r)
-    return position(e.io) - initpos
-end
+PB.protojl("test_messages_for_codec.proto", joinpath(test_dir, "test_protos"), temp_dir, always_use_modules=false, parametrize_oneofs=true)
+include(joinpath(temp_dir, "test_messages_for_codec_pb.jl"))
 
-function PB.encode(e::PB.AbstractProtoEncoder, x::TestStruct)
-    initpos = position(e.io)
-    if isnothing(x.oneof);
-    elseif x.oneof.name == :bytes
-        PB.encode(e, 1, x.oneof[])
-    elseif x.oneof.name == :enum
-        PB.encode(e, 2, x.oneof[])
-    elseif x.oneof.name == :struct
-        PB.encode(e, 3, x.oneof[])
-    end
-    return position(e.io) - initpos
-end
+TestInner(x::Int) = TestInner(x, nothing) # convenience constructor for a generated struct
 
 function test_encode_struct(input::TestStruct, i, expected, V=nothing)
     d = ProtoEncoder(IOBuffer())
@@ -74,11 +52,20 @@ end
 
 function test_encode(input, i, w::WireType, expected, V::Type=Nothing)
     d = ProtoEncoder(IOBuffer())
+    initpos = position(d.io)
     if V === Nothing
         encode(d, i, input)
+        exp_len = _encoded_size(input, i)
     else
         encode(d, i, input, V)
+        exp_len = _encoded_size(input, i, V)
+
     end
+    endpos = position(d.io)
+    @testset "encoded size" begin
+        @test endpos - initpos == exp_len
+    end
+
     bytes = take!(d.io)
     if (isa(input, AbstractVector) && eltype(input) <: Union{Vector{UInt8}, String, TestInner}) || isa(input, AbstractDict)
         j = 1
@@ -244,15 +231,15 @@ end
         @testset "message" begin
             test_encode_struct(TestStruct(PB.OneOf(:bytes, collect(b"123"))), 1, b"123")
             test_encode_struct(TestStruct(PB.OneOf(:enum, TestEnum.C)), 2, [0x02])
-            test_encode_struct(TestStruct(PB.OneOf(:struct, TestInner(2))), 3, [0x08, 0x02])
-            test_encode_struct(TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))), 3, [0x08, 0x02, 0x12, 0x02, 0x08, 0x03])
+            test_encode_struct(TestStruct(PB.OneOf(:var"#struct", TestInner(2))), 3, [0x08, 0x02])
+            test_encode_struct(TestStruct(PB.OneOf(:var"#struct", TestInner(2, TestInner(3)))), 3, [0x08, 0x02, 0x12, 0x02, 0x08, 0x03])
         end
 
         @testset "group message" begin
             test_encode_struct(TestStruct(PB.OneOf(:bytes, collect(b"123"))), 1, b"123", Val{:group})
             test_encode_struct(TestStruct(PB.OneOf(:enum, TestEnum.C)), 2, [0x02], Val{:group})
-            test_encode_struct(TestStruct(PB.OneOf(:struct, TestInner(2))), 3, [0x08, 0x02], Val{:group})
-            test_encode_struct(TestStruct(PB.OneOf(:struct, TestInner(2, TestInner(3)))), 3, [0x08, 0x02, 0x12, 0x02, 0x08, 0x03], Val{:group})
+            test_encode_struct(TestStruct(PB.OneOf(:var"#struct", TestInner(2))), 3, [0x08, 0x02], Val{:group})
+            test_encode_struct(TestStruct(PB.OneOf(:var"#struct", TestInner(2, TestInner(3)))), 3, [0x08, 0x02, 0x12, 0x02, 0x08, 0x03], Val{:group})
         end
     end
 
