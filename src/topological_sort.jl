@@ -15,7 +15,6 @@ function _topological_sort(definitions::Dict{K}, ignored_keys::Union{Nothing,Set
         empty!(upstreams)
         get_upstream_dependencies!(definition, upstreams)
         has_ignored_keys && setdiff!(upstreams, ignored_keys)
-        intersect!(upstreams,keys(definitions))
         if length(upstreams) == 0
             push!(queue, name)
         else
@@ -27,9 +26,6 @@ function _topological_sort(definitions::Dict{K}, ignored_keys::Union{Nothing,Set
             push!(get!(downstream_dependencies, u, K[]), name)
         end
     end
-
-
-
 
     while !isempty(queue)
         u = popfirst!(queue)
