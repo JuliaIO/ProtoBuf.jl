@@ -4,7 +4,7 @@ keywords = ["protobuf", "protoc"]
 license = "MIT"
 desc = "Julia protobuf implementation"
 authors = ["Tomáš Drvoštěp <tomas.drvostep@gmail.com>"]
-version = "1.0.14"
+version = "1.0.15"
 
 [deps]
 BufferedStreams = "e1450e63-4bb3-523b-b2a4-4ffa8c0fd77d"
