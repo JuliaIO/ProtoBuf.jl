@@ -77,6 +77,26 @@ mktempdir() do tmpdir
                         @test include(joinpath(tmpdir, "protobuf_unittest/protobuf_unittest.jl")) isa Module
                     end
                 end
+
+                @testset "google/protobuf/complex_dependencies/*" begin
+                    @testset "translate source" begin
+                        test_dir = "test_protos/google/protobuf/complex_dependencies"
+                        @test isnothing(protojl(
+                            ["da.proto","g.proto","c.proto","d.proto","e.proto"],
+                            joinpath(@__DIR__,test_dir),
+                            tmpdir;
+                            options...
+                         ))
+                    end
+                    @testset "include generated" begin
+                        @test include(joinpath(tmpdir, "test/test.jl")) isa Module
+                        @test test.da.A isa Type
+                        @test test.c.C isa Type
+                        @test test.d.D isa Type
+                        @test test.test2.e.Ef isa Type
+                        @test test.test2.g.G isa Type
+                    end
+                end
             end
         end
     end

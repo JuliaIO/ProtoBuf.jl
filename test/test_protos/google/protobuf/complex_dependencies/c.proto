@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package test.c;
+
+
+import "e.proto";
+import "g.proto";
+import "d.proto";
+
+message C{
+  d.D d = 1;
+  .test2.e.Ef e = 2;
+  .test2.g.G g = 4;
+}
+
+

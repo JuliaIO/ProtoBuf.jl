@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package test.da;
+
+import "c.proto";
+
+message A{
+  c.C c = 2;
+  float a = 3;
+}

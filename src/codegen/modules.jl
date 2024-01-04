@@ -40,7 +40,12 @@ struct ProtoModule
     namespace::Vector{String}
     proto_files::Vector{ResolvedProtoFile}
     submodules::Dict{Vector{String},ProtoModule}
+    # Dependencies on submodules within the same package, a vector of "namespaces".
+    # We are always importing the toplevel package and then using fully qualified names
+    # to refer to the imported definitions. But we need all the internal namespaces to
+    # topologically sort all internal submodules in order to generate them in correctly.
     internal_imports::Set{Vector{String}}
+    # Packages to import, including the leading dots.
     external_imports::Set{String}
     nonpkg_imports::Set{String}
 end
@@ -59,7 +64,7 @@ function Namespaces(files_in_order::Vector{ResolvedProtoFile}, root_path::String
             push!(t.non_namespaced_protos, file)
         else
             top_namespace = first(namespace(file))
-            p = get!(t.packages, top_namespace, empty_module(top_namespace, [top_namespace]))
+            p = get!(()->empty_module(top_namespace, [top_namespace]), t.packages, top_namespace)
             _add_file_to_package!(p, file, proto_files, root_path)
         end
     end
@@ -72,7 +77,8 @@ function _add_file_to_package!(root::ProtoModule, file::ResolvedProtoFile, proto
     for name in namespace(file)
         depth += 1
         name == node.name && continue
-        node = get!(node.submodules, namespace(file)[1:depth], empty_module(name, namespace(file)[1:depth]))
+        _ns = namespace(file)[1:depth]
+        node = get!(()->empty_module(name, _ns), node.submodules, _ns)
     end
     for ipath in import_paths(file)
         imported_file = proto_files[ipath]
@@ -86,9 +92,9 @@ function _add_file_to_package!(root::ProtoModule, file::ResolvedProtoFile, proto
         else
             file_pkg = proto_package_name(imported_file)
             if namespace(file) == namespace(imported_file)
-                continue # no need to import from the same package
-            elseif file_pkg == root.name
-                union!(node.internal_imports, (namespace(proto_files[import_path]) for import_path in import_paths(file)))
+                continue # no need to import from the same module of the same package
+            elseif file_pkg == root.name # same package, different submodule
+                push!(node.internal_imports, namespace(imported_file))
             else
                 depth != 1 && push!(node.external_imports, string("." ^ depth, proto_package_name(imported_file)))
                 push!(root.external_imports, rel_import_path(imported_file, root_path))
@@ -136,7 +142,8 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
         submodule_namespaces = collect(keys((m.submodules)))
     end
 
-    # This is where we import internal dependencies
+    # This is where we import internal dependencies. We only need to import the toplevel package
+    # and then use fully qualified names for the imported definitions.
     if !isempty(m.internal_imports)
         print(io, "import ", string("." ^ length(namespace(m)), first(namespace(m))))
         # We can't import the toplevel module to a leaf module if their names collide
