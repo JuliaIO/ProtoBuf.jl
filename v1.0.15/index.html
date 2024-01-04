@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Home · ProtoBuf.jl</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>ProtoBuf.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Home</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#Migrating-from-earlier-versions-of-ProtoBuf.jl"><span>Migrating from earlier versions of ProtoBuf.jl</span></a></li></ul></li><li><a class="tocitem" href="reference/">Reference</a></li><li><a class="tocitem" href="faq/">FAQ</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Home</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Home</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaIO/ProtoBuf.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="ProtoBuf.jl-Documentation"><a class="docs-heading-anchor" href="#ProtoBuf.jl-Documentation">ProtoBuf.jl Documentation</a><a id="ProtoBuf.jl-Documentation-1"></a><a class="docs-heading-anchor-permalink" href="#ProtoBuf.jl-Documentation" title="Permalink"></a></h1><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p><code>ProtoBuf.jl</code> provides a compiler and codec for Google&#39;s <a href="https://developers.google.com/protocol-buffers">Protocol Buffers</a> serialization format.</p><p>Use the <code>protojl</code> function to translate your <code>.proto</code> files to Julia, then you can encode and decode your messages with</p><pre><code class="language-julia hljs">encode(e::ProtoEncoder, x::YourMessage)
+decode(d::ProtoDecoder, ::Type{YourMessage})</code></pre><p>Where the <code>ProtoEncoder</code> and <code>ProtoDecoder</code> are simple types wrapping your <code>IO</code>.</p><h3 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h3><p>The package is not currently registered, to install it, use:</p><pre><code class="language-julia hljs">import Pkg; Pkg.add(&quot;ProtoBuf&quot;)</code></pre><h3 id="Quickstart"><a class="docs-heading-anchor" href="#Quickstart">Quickstart</a><a id="Quickstart-1"></a><a class="docs-heading-anchor-permalink" href="#Quickstart" title="Permalink"></a></h3><p>Given a <code>test.proto</code> file in your current working directory:</p><pre><code class="language-protobuf hljs">syntax = &quot;proto3&quot;;
+
+enum MyEnum {
+    DEFAULT = 0;
+    OTHER = 1;
+}
+
+message MyMessage {
+    sint32 a = 1;
+    repeated string b = 2;
+}</code></pre><p>You can generate Julia bindings with the <code>protojl</code> function:</p><pre><code class="language-julia-repl hljs">julia&gt; using ProtoBuf
+
+julia&gt; protojl(&quot;test.proto&quot;, &quot;.&quot;, &quot;output_dir&quot;)</code></pre><p>This will create a Julia file at <code>output_dir/test_pb.jl</code> which you can simply <code>include</code> and start using it to encode and decode messages:</p><pre><code class="language-julia-repl hljs">julia&gt; include(&quot;output_dir/test_pb.jl&quot;)
+Main.test_pb
+
+julia&gt; io = IOBuffer();
+
+julia&gt; e = ProtoEncoder(io);
+
+julia&gt; encode(e, test_pb.MyMessage(-1, [&quot;a&quot;, &quot;b&quot;]))
+8
+
+julia&gt; seekstart(io);
+
+julia&gt; d = ProtoDecoder(io);
+
+julia&gt; decode(d, test_pb.MyMessage)
+Main.test_pb.MyMessage(-1, [&quot;a&quot;, &quot;b&quot;])</code></pre><p>If you are curious, this is what the generated file looks like:</p><pre><code class="language-julia hljs"># Autogenerated using ProtoBuf.jl v0.1.0 on 2022-07-25T11:32:05.368
+# original file: /Users/tdrvostep/_proj/ProtoBuf.jl/test.proto (proto3 syntax)
+
+module test_pb
+
+import ProtoBuf as PB
+using ProtoBuf: OneOf
+using EnumX: @enumx
+
+export MyEnum, MyMessage
+
+@enumx MyEnum DEFAULT=0 OTHER=1
+
+struct MyMessage
+    a::Int32
+    b::Vector{String}
+end
+PB.default_values(::Type{MyMessage}) = (;a = zero(Int32), b = Vector{String}())
+PB.field_numbers(::Type{MyMessage}) = (;a = 1, b = 2)
+
+function PB.decode(d::PB.AbstractProtoDecoder, ::Type{&lt;:MyMessage})
+    a = zero(Int32)
+    b = PB.BufferedVector{String}()
+    while !PB.message_done(d)
+        field_number, wire_type = PB.decode_tag(d)
+        if field_number == 1
+            a = PB.decode(d, Int32, Val{:zigzag})
+        elseif field_number == 2
+            PB.decode!(d, b)
+        else
+            PB.skip(d, wire_type)
+        end
+    end
+    return MyMessage(a, b[])
+end
+
+function PB.encode(e::PB.AbstractProtoEncoder, x::MyMessage)
+    initpos = position(e.io)
+    x.a != zero(Int32) &amp;&amp; PB.encode(e, 1, x.a, Val{:zigzag})
+    !isempty(x.b) &amp;&amp; PB.encode(e, 2, x.b)
+    return position(e.io) - initpos
+end
+function PB._encoded_size(x::MyMessage)
+    encoded_size = 0
+    x.a != zero(Int32) &amp;&amp; (encoded_size += PB._encoded_size(x.a, 1, Val{:zigzag}))
+    !isempty(x.b) &amp;&amp; (encoded_size += PB._encoded_size(x.b, 2))
+    return encoded_size
+end
+end # module</code></pre><h2 id="Migrating-from-earlier-versions-of-ProtoBuf.jl"><a class="docs-heading-anchor" href="#Migrating-from-earlier-versions-of-ProtoBuf.jl">Migrating from earlier versions of ProtoBuf.jl</a><a id="Migrating-from-earlier-versions-of-ProtoBuf.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Migrating-from-earlier-versions-of-ProtoBuf.jl" title="Permalink"></a></h2><p>Below is a list of notable differences that were introduced in 1.0.</p><h3 id="Method-Names"><a class="docs-heading-anchor" href="#Method-Names">Method Names</a><a id="Method-Names-1"></a><a class="docs-heading-anchor-permalink" href="#Method-Names" title="Permalink"></a></h3><p>For translating proto files, use <code>protojl</code> function (previously <code>protoc</code>). To decode proto messages, use the <code>decode</code> method (previously <code>readproto</code>) and to encode Julia structs, use <code>encode</code> (previously <code>writeproto</code>). See <a href="#Quickstart">Quickstart</a> for an example.</p><h3 id="Mutability"><a class="docs-heading-anchor" href="#Mutability">Mutability</a><a id="Mutability-1"></a><a class="docs-heading-anchor-permalink" href="#Mutability" title="Permalink"></a></h3><p>Messages are now translated to immutable structs. This means that code that used the mutable structs to accumulate data will now have to prepare each field and construct the struct after all of them are ready.</p><h3 id="Common-abstract-type"><a class="docs-heading-anchor" href="#Common-abstract-type">Common abstract type</a><a id="Common-abstract-type-1"></a><a class="docs-heading-anchor-permalink" href="#Common-abstract-type" title="Permalink"></a></h3><p>By default, the generated structs don&#39;t share any common abstract type (well, except <code>Any</code>), when you set the <code>common_abstract_type</code> option to <code>true</code>, every struct definition will be a subtype of <code>ProtoBuf.AbstractProtoBufMessage</code>.</p><h3 id="Naming-Conventions"><a class="docs-heading-anchor" href="#Naming-Conventions">Naming Conventions</a><a id="Naming-Conventions-1"></a><a class="docs-heading-anchor-permalink" href="#Naming-Conventions" title="Permalink"></a></h3><p>The naming of nested messages and enums now generates names, that cannot collide with other definitions. For example:</p><pre><code class="language-protobuf hljs">message A {
+    message B {}
+}</code></pre><p>now generates structs named <code>A</code> and <code>var&quot;A.B&quot;</code>. In protobuf, it is legal to a define message called <code>A_B</code> but not <code>A.B</code>, which is a syntax to refer to these nested definitions.</p><p>Similarly, field names that coincide with Julia reserved keywords were previously prefixed with an underscore (e.g. <code>_function</code>), now we prefix them with a <code>#</code> (e.g. <code>var&quot;#function&quot;</code>).</p><h3 id="Enumerations"><a class="docs-heading-anchor" href="#Enumerations">Enumerations</a><a id="Enumerations-1"></a><a class="docs-heading-anchor-permalink" href="#Enumerations" title="Permalink"></a></h3><p><a href="https://github.com/fredrikekre/EnumX.jl">EnumX.jl</a> is used to define <code>enums</code> instead of <code>NamedTuple</code>s. This means that to get the type of the enum, one must use <code>MyEnum.T</code> as <code>MyEnum</code> is a <code>Module</code>. You can now dispatch on <code>Base.Enum</code> when working with <code>@enumx</code>-based enums.</p><h3 id="oneof-Fields"><a class="docs-heading-anchor" href="#oneof-Fields"><code>oneof</code> Fields</a><a id="oneof-Fields-1"></a><a class="docs-heading-anchor-permalink" href="#oneof-Fields" title="Permalink"></a></h3><p><code>oneof</code> fields are now explicitly represented in the generated struct. Specifically, for a message</p><pre><code class="language-protobuf hljs">message MyMessage {
+    oneof oneof_field {
+        int32 option1 = 1;
+        string option2 = 2;
+    }
+}</code></pre><p>a struct with a single field will be generated:</p><pre><code class="language-julia hljs">struct MyMessage
+   oneof_field::Union{Nothing,OneOf{&lt;:Union{Int32,String}}}
+end</code></pre><p>Once instantiated, it will contain a value like <code>OneOf{:option1, 42}</code> or <code>OneOf{:option2, &quot;The answer to life, the universe, and everything&quot;}</code>. One can access the name and the value of the field via the <code>:name</code> and <code>:value</code> properties, respectively. Dereferencing the field will return the value of the field (e.g. <code>my_message.oneof_field[] == 42</code>)</p><h3 id="Packages-and-Code-Structure"><a class="docs-heading-anchor" href="#Packages-and-Code-Structure">Packages and Code Structure</a><a id="Packages-and-Code-Structure-1"></a><a class="docs-heading-anchor-permalink" href="#Packages-and-Code-Structure" title="Permalink"></a></h3><p>For <code>.proto</code> files that are packages, a nested directory structure will be generated. For example, <code>{file_name}.proto</code> containing <code>package foo_bar.baz_grok</code>, the following directory structure is created:</p><pre><code class="language-bash hljs">root  # `output_directory` arg from from `protojl`
+└── foo_bar
+    ├── foo_bar.jl  # defines module `foo_bar`, imports `baz_grok`
+    └── baz_grok
+        ├── {file_name}_pb.jl
+        └── baz_grok.jl  # defines module `baz_grok`, includes `{file_name}_pb.jl`</code></pre><p>You should include the top-level module of a generated package, i.e. <code>foo_bar.jl</code> in this example. When reading <code>.proto</code> files that use <code>import</code> statements, the imported files have to be located at the respective import paths relative to <code>search_directories</code>.</p><p><code>.proto</code> files that don&#39;t have a <code>package</code> specifier will generate a single file containing a module. For example, <code>{file_name}.proto</code> will translate to a <code>{file_name}_pb.jl</code> file defining a <code>{file_name}_pb</code> module. You can generate a file without a module by providing <code>always_use_modules=false</code> options to <code>protojl</code>.</p><h3 id="Constructors"><a class="docs-heading-anchor" href="#Constructors">Constructors</a><a id="Constructors-1"></a><a class="docs-heading-anchor-permalink" href="#Constructors" title="Permalink"></a></h3><p>By default, there are no additional constructors generated for the Julia structs. You can use the <code>add_kwarg_contructors=true</code> option to <code>protojl</code> to create outer constructors that accept keyword arguments and provide default values where available.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 4 January 2024 10:02">Thursday 4 January 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
