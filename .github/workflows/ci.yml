@@ -55,11 +55,17 @@ jobs:
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        continue-on-error: ${{ matrix.version == 'nightly' }}
       - uses: julia-actions/julia-processcoverage@v1
+        if: matrix.version != 'nightly' # Only process coverage on non-nightly builds
       - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
+        if: matrix.version != 'nightly' # Only send coverage for non-nightly builds
+      - name: Allow failure for nightly
+        if: matrix.version == 'nightly'
+        run: echo "Nightly build failures are allowed."
           
   docs:
     name: Documentation
