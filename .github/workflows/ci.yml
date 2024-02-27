@@ -20,10 +20,23 @@ jobs:
           - 'nightly'
         os:
           - ubuntu-latest
-          - macOS-latest
           - windows-latest
+          - macOS-13
+          - macOS-14
         arch:
           - x64
+          - aarch64
+        exclude:
+          - os: ubuntu-latest
+            arch: aarch64
+          - os: windows-latest
+            arch: aarch64
+          - os: macOS-13
+            arch: aarch64
+          - os: macOS-14
+            arch: x64
+          - os: macOS-14
+            version: '1.6'
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
@@ -46,7 +59,8 @@ jobs:
       - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
-
+          token: ${{ secrets.CODECOV_TOKEN }}
+          
   docs:
     name: Documentation
     runs-on: ubuntu-latest
