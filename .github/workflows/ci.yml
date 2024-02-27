@@ -63,28 +63,7 @@ jobs:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
         if: matrix.version != 'nightly' # Only send coverage for non-nightly builds
-      - name: Check Nightly Build Status
-        id: check_nightly
-        if: matrix.version == 'nightly'
-        run: |
-          # Placeholder for actual test outcome checking logic
-          # This could involve checking test result files or exit codes
-          # For illustration, we're assuming the test step sets an environment variable or output
-          echo "nightly_status=failed" >> $GITHUB_ENV
-      - name: Comment on PR for Nightly Failure
-        if: env.nightly_status == 'failed' && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: 'Nightly build failed. This is an allowed failure and does not impact the overall success status of the commit.',
-            });
 
-          
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -102,3 +81,41 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+
+  report-status:
+    runs-on: ubuntu-latest
+    needs: [test, docs]
+    if: always()
+    steps:
+      - name: Report CI Status
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const context = github.context;
+            // Fetch the workflow run to get the conclusion of all jobs
+            const workflowRun = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+
+            // Check if any non-nightly jobs failed
+            let state = 'success'; // Default state
+            for (const job of workflowRun.data.jobs) {
+              if (job.conclusion !== 'success' && job.name.indexOf('nightly') === -1) {
+                state = 'failure';
+                break;
+              }
+            }
+
+            // Create a commit status based on the job results
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha, 
+              state: state, // 'success' or 'failure'
+              target_url: `${context.payload.repository.html_url}/actions/runs/${context.runId}`,
+              description: 'CI workflow concluded',
+              context: 'CI Workflow Status'
+            });
+
