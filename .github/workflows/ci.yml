@@ -85,25 +85,25 @@ jobs:
     if: always()
     steps:
       - name: Report CI Status
-        uses: actions/github-script@v5
+        uses: actions/github-script@v7
         with:
           script: |
-            // Fetch the workflow run to get the conclusion of all jobs
-            const workflowRun = await github.rest.actions.getWorkflowRun({
+            // Fetch the jobs for the workflow run
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
               owner: context.repo.owner,
               repo: context.repo.repo,
               run_id: context.runId,
             });
-
+  
             // Check if any non-nightly jobs failed
             let state = 'success'; // Default state
-            for (const job of workflowRun.data.jobs) {
-              if (job.conclusion !== 'success' && job.name.indexOf('nightly') === -1) {
+            for (const job of jobs.data.jobs) {
+              if (job.conclusion !== 'success' && !job.name.includes('nightly')) {
                 state = 'failure';
                 break;
               }
             }
-
+  
             // Create a commit status based on the job results
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
