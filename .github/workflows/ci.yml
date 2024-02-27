@@ -20,8 +20,6 @@ jobs:
           - 'nightly'
         os:
           - ubuntu-latest
-          - windows-latest
-          - macOS-13
           - macOS-14
         arch:
           - x64
@@ -90,7 +88,6 @@ jobs:
         uses: actions/github-script@v5
         with:
           script: |
-            const context = github.context;
             // Fetch the workflow run to get the conclusion of all jobs
             const workflowRun = await github.rest.actions.getWorkflowRun({
               owner: context.repo.owner,
