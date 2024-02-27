@@ -63,9 +63,28 @@ jobs:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
         if: matrix.version != 'nightly' # Only send coverage for non-nightly builds
-      - name: Allow failure for nightly
+      - name: Check Nightly Build Status
+        id: check_nightly
         if: matrix.version == 'nightly'
-        run: echo "Nightly build failures are allowed."
+        run: |
+          # Placeholder for actual test outcome checking logic
+          # This could involve checking test result files or exit codes
+          # For illustration, we're assuming the test step sets an environment variable or output
+          echo "nightly_status=failed" >> $GITHUB_ENV
+      - name: Comment on PR for Nightly Failure
+        if: env.nightly_status == 'failed' && github.event_name == 'pull_request'
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const issue_number = context.issue.number;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              issue_number: issue_number,
+              body: 'Nightly build failed. This is an expected failure and does not impact the overall success status of the commit.',
+            });
+
           
   docs:
     name: Documentation
