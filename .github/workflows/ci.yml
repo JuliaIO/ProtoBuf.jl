@@ -73,7 +73,7 @@ jobs:
           echo "nightly_status=failed" >> $GITHUB_ENV
       - name: Comment on PR for Nightly Failure
         if: env.nightly_status == 'failed' && github.event_name == 'pull_request'
-        uses: actions/github-script@v5
+        uses: actions/github-script@v7
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
