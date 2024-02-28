@@ -76,12 +76,26 @@ jobs:
           script: |
             const logUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const commentBody = `:warning: **Nightly Build Failure** :warning:\n\nThe nightly build has failed, but don't worry! :smile: This is an allowed failure and does not impact the overall success status of the commit.\n\n:eyes: For more details, check the [workflow run logs](${logUrl}).\n\n:rocket: Keep up the great work, and let's make our next build even better!`;
-            await github.rest.issues.createComment({
+            
+            // Fetch existing comments on the PR
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: commentBody,
             });
+
+            // Check if the comment already exists
+            const commentExists = comments.data.some(comment => comment.body === commentBody);
+
+            // Only create a new comment if it does not already exist
+            if (!commentExists) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody,
+              });
+            }
 
           
   docs:
