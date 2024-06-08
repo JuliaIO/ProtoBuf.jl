@@ -26,6 +26,17 @@ function _parse_option_value(ps) # TODO: proper value parsing with validation
     return has_minus ? string("-", str_val) : str_val
 end
 
+function _parse_julia_package(ps)
+    val = _parse_option_value(ps)
+    if startswith(val, "\"") && endswith(val, "\"") || startswith(val, "'") && endswith(val, "'")
+        val = val[begin+1:end-1]
+        if all(Lexers.is_fully_qualified_ident_char, val)
+            return val
+        end
+    end
+    error("Invalid value for julia_package option: $(val)")
+end
+
 function _parse_option_name(ps)
     buf = IOBuffer()
     option_name = ""
@@ -91,11 +102,15 @@ function _parse_option!(ps::ParserState, options::Dict{String,Union{String,Dict{
     option_name = _parse_option_name(ps)
     accept(ps, Tokens.COLON)
     expectnext(ps, Tokens.EQ)  # =
-    if accept(ps, Tokens.LBRACE) # {key: val, ...}
-        options[option_name] = _parse_aggregate_option(ps)
-        # accept(ps, Tokens.SEMICOLON)
+    if option_name == "julia_package"
+        options[option_name] = _parse_julia_package(ps)
     else
-        options[option_name] = _parse_option_value(ps)
+        if accept(ps, Tokens.LBRACE) # {key: val, ...}
+            options[option_name] = _parse_aggregate_option(ps)
+            # accept(ps, Tokens.SEMICOLON)
+        else
+            options[option_name] = _parse_option_value(ps)
+        end
     end
     return nothing
 end

@@ -126,6 +126,12 @@ end
         end # module"""
     end
 
+    @testset "Minimal proto file with julia_package option" begin
+        s, p, ctx = translate_simple_proto("""syntax = "proto3"; option julia_package = "Foo.Bar.Baz";""", Options(always_use_modules=false))
+        @test "Foo.Bar.Baz" == p.preamble.options["julia_package"]
+        @test ["Foo", "Bar", "Baz"] == namespace(p)
+    end
+
     @testset "`force_required` option makes optional fields required" begin
         s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(force_required=Dict("main" => Set(["B.a"]))))
         ctx._toplevel_name[] = "B"
