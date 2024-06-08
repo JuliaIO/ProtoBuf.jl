@@ -130,6 +130,10 @@ end
         s, p, ctx = translate_simple_proto("""syntax = "proto3"; option julia_package = "Foo.Bar.Baz";""", Options(always_use_modules=false))
         @test "Foo.Bar.Baz" == p.preamble.options["julia_package"]
         @test ["Foo", "Bar", "Baz"] == namespace(p)
+
+        @test_throws ErrorException begin
+            translate_simple_proto("""syntax = "proto3"; option julia_package = "Foo/Bar/Baz";""", Options(always_use_modules=false))
+        end
     end
 
     @testset "`force_required` option makes optional fields required" begin
