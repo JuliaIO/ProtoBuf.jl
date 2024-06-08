@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+option julia_package = "Foo.Bar.Baz";
+
+message Message {
+    string message = 1;
+};
