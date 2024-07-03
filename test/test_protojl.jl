@@ -106,7 +106,6 @@ end
 module TestComplexMessage
 using Test
 using ProtoBuf
-using TranscodingStreams
 using BufferedStreams
 
 function roundtrip_iobuffer(input, f_in=identity, f_out=identity)

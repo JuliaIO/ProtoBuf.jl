@@ -1,7 +1,6 @@
 module Lexers
 
 import ..Tokens
-import ..TranscodingStreams
 
 const EOF_CHAR = typemax(Char)
 
@@ -45,7 +44,6 @@ end
 
 filepath(l::Lexer) = l.filepath
 filepath(io::IOStream) = abspath(io.name[7:end-1])
-filepath(io::TranscodingStreams.TranscodingStream) = filepath(io.stream)
 filepath(io::IO) = ""
 # TODO: print nicer, clickable token locations with this function, esp for errors.
 # How to get the Lexers' IO to the tokens' show method?

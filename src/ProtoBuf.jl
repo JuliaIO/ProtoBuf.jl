@@ -1,6 +1,5 @@
 module ProtoBuf
 import EnumX
-import TranscodingStreams
 import BufferedStreams
 using TOML
 
