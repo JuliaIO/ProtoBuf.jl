@@ -1,5 +1,5 @@
 # https://discourse.julialang.org/t/allocation-due-to-noinline-for-unsafe-read-and-unsafe-write-in-io-jl/69421
-@inline function _unsafe_write(io::S, ref::Ref{T}, nb::Integer) where {T,S<:Union{TranscodingStream,BufferedOutputStream,BufferedInputStream}}
+@inline function _unsafe_write(io::S, ref::Ref{T}, nb::Integer) where {T,S<:Union{BufferedOutputStream,BufferedInputStream}}
     GC.@preserve ref unsafe_write(io, Base.unsafe_convert(Ref{T}, ref)::Ptr, nb)
 end
 @noinline _reached_maxsize_error(io::IOBuffer, nb) = throw(ArgumentError("Cannot write $nb bytes to IOBuffer at position $(position(io)) with maxsize $(io.maxsize)"))

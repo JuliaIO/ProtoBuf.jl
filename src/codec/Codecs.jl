@@ -1,7 +1,6 @@
 module Codecs
 
 using BufferedStreams: BufferedOutputStream, BufferedInputStream
-using TranscodingStreams: TranscodingStream
 
 @enum(WireType::UInt32, VARINT=0, FIXED64=1, LENGTH_DELIMITED=2, START_GROUP=3, END_GROUP=4, FIXED32=5)
 
