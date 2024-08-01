@@ -205,6 +205,7 @@ function parse_proto_file(ps::ParserState)
             definitions[type.name] = type
         end
     end
+    package_identifier = get(options, "julia_package", package_identifier)
     package_parts = split(package_identifier, '.', keepempty=false)
     preamble = ProtoFilePreamble(
         ps.is_proto3,
