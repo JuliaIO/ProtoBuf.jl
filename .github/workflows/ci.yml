@@ -55,11 +55,48 @@ jobs:
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        continue-on-error: ${{ matrix.version == 'nightly' }}
       - uses: julia-actions/julia-processcoverage@v1
+        if: matrix.version != 'nightly' # Only process coverage on non-nightly builds
       - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
+        if: matrix.version != 'nightly' # Only send coverage for non-nightly builds
+      - name: Check Nightly Build Status
+        id: check_nightly
+        if: matrix.version == 'nightly'
+        run: |
+          echo "nightly_status=failed" >> $GITHUB_ENV
+      - name: Comment on PR for Nightly Failure
+        if: env.nightly_status == 'failed' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const logUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const commentBody = `:warning: **Nightly Build Failure** :warning:\n\nThe nightly build has failed, but don't worry! :smile: This is an allowed failure and does not impact the overall success status of the commit.\n\n:eyes: For more details, check the [workflow run logs](${logUrl}).\n\n:rocket: Keep up the great work, and let's make our next build even better!`;
+            
+            // Fetch existing comments on the PR
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            // Check if the comment already exists
+            const commentExists = comments.data.some(comment => comment.body === commentBody);
+
+            // Only create a new comment if it does not already exist
+            if (!commentExists) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody,
+              });
+            }
+
           
   docs:
     name: Documentation
