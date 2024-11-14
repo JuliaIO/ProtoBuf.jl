@@ -152,7 +152,8 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "# original file: ", p.filepath," (proto", p.preamble.isproto3 ? '3' : '2', " syntax)")
     println(io)
 
-    # TODO: cleanup here, we probably don't need a reference to rp.transitive_imports in ctx?
+    included_files = Set{String}()
+
     ctx = Context(p, rp.import_path, file_map, copy(p.cyclic_definitions), Ref{String}(), rp.transitive_imports, options)
     if !is_namespaced(p)
         options.always_use_modules && println(io, "module $(replace(proto_script_name(p), ".jl" => ""))")
@@ -162,17 +163,22 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
         for path in import_paths(p)
             dependency = file_map[path]
             if !is_namespaced(dependency)
-                # if the dependency is also not namespaced, we can just include it
-                println(io, "include(", repr(proto_script_name(dependency)), ")")
-                options.always_use_modules && println(io, "import $(replace(proto_script_name(dependency), ".jl" => ""))")
+                if !(proto_script_name(dependency) in included_files)
+                    println(io, "include(", repr(proto_script_name(dependency)), ")")
+                    options.always_use_modules && println(io, "import $(replace(proto_script_name(dependency), ".jl" => ""))")
+                    push!(included_files, proto_script_name(dependency))
+                end
             else
                 # otherwise we need to import it trough a module
                 import_pkg_name = namespaced_top_import(dependency)
-                println(io, "include(", repr(namespaced_top_include(dependency)), ")")
-                println(io, "import $(import_pkg_name)")
+                if !(import_pkg_name in included_files)
+                    println(io, "include(", repr(namespaced_top_include(dependency)), ")")
+                    println(io, "import $(import_pkg_name)")
+                    push!(included_files, import_pkg_name)
+                end
             end
         end
-    end # Otherwise all includes will happen in the enclosing module
+    end
     println(io, "import ProtoBuf as PB")
     options.common_abstract_type && println(io, "using ProtoBuf: AbstractProtoBufMessage")
     println(io, "using ProtoBuf: OneOf")

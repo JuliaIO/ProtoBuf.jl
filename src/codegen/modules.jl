@@ -108,6 +108,9 @@ end
 function generate_module_file(io::IO, m::ProtoModule, output_directory::AbstractString, parsed_files::Dict, options::Options, depth::Int)
     println(io, "module $(m.name)")
     println(io)
+
+    included_files = Set{String}()
+
     has_deps = !isempty(m.internal_imports) || !isempty(m.external_imports) || !isempty(m.nonpkg_imports)
     if depth == 1
         # This is where we include external packages so they are available downstream
@@ -118,13 +121,14 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
         # We wrap them in a module to make sure that multiple downstream dependencies
         # can import them safely.
         for nonpkg_import in m.nonpkg_imports
-            !options.always_use_modules && print(io, "module $(nonpkg_import)\n    ")
-            println(io, "include(", repr(joinpath("..", string(nonpkg_import, ".jl"))), ')')
-            !options.always_use_modules && println(io, "end")
+            if !(nonpkg_import in included_files)
+                !options.always_use_modules && print(io, "module $(nonpkg_import)\n    ")
+                println(io, "include(", repr(joinpath("..", string(nonpkg_import, ".jl"))), ')')
+                !options.always_use_modules && println(io, "end")
+                push!(included_files, nonpkg_import)
+            end
         end
-    else # depth > 1
-        # We're not a top package module, we can import external dependencies
-        # from the top package module.
+    else
         for external_import in m.external_imports
             println(io, "import ", external_import)
         end
@@ -155,9 +159,7 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
         end
     end
     has_deps && println(io)
-    # Load in imported proto files that are defined in this package (the files ending with `_pb.jl`)
-    # In case there is a dependency of some of these files on a submodule, we include that submodule
-    # first.
+
     seen = Set{String}()
     for file in m.proto_files
         for i in import_paths(file)
@@ -169,10 +171,11 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
                 end
             end
         end
-        println(io, "include(", repr(proto_script_name(file)), ")")
+        if !(proto_script_name(file) in included_files)
+            println(io, "include(", repr(proto_script_name(file)), ")")
+            push!(included_files, proto_script_name(file))
+        end
     end
-    # Load in submodules nested in this namespace (the modules ending with `PB`),
-    # that is, if we didn't include them above.
     for submodule_namespace in submodule_namespaces
         submodule = m.submodules[submodule_namespace]
         get!(seen.dict, submodule.name) do
