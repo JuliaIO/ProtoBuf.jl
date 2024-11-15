@@ -50,7 +50,7 @@ struct ProtoModule
     nonpkg_imports::Set{String}
 end
 namespace(m::ProtoModule) = m.namespace
-empty_module(name::AbstractString, namespace_vec) = ProtoModule(name, namespace_vec, [], Dict(),  Set(), Set(), Set())
+empty_module(name::AbstractString, namespace_vec) = ProtoModule(name, namespace_vec, [], Dict(), Set(), Set(), Set())
 
 struct Namespaces
     non_namespaced_protos::Vector{ResolvedProtoFile}
@@ -64,7 +64,7 @@ function Namespaces(files_in_order::Vector{ResolvedProtoFile}, root_path::String
             push!(t.non_namespaced_protos, file)
         else
             top_namespace = first(namespace(file))
-            p = get!(()->empty_module(top_namespace, [top_namespace]), t.packages, top_namespace)
+            p = get!(() -> empty_module(top_namespace, [top_namespace]), t.packages, top_namespace)
             _add_file_to_package!(p, file, proto_files, root_path)
         end
     end
@@ -78,7 +78,7 @@ function _add_file_to_package!(root::ProtoModule, file::ResolvedProtoFile, proto
         depth += 1
         name == node.name && continue
         _ns = namespace(file)[1:depth]
-        node = get!(()->empty_module(name, _ns), node.submodules, _ns)
+        node = get!(() -> empty_module(name, _ns), node.submodules, _ns)
     end
     for ipath in import_paths(file)
         imported_file = proto_files[ipath]
@@ -87,7 +87,7 @@ function _add_file_to_package!(root::ProtoModule, file::ResolvedProtoFile, proto
             # Sometimes they are forced to be namespaced with `always_use_modules`
             # but it is the responsibility of the root module to make sure there
             # is a importable module in to topmost scope
-            depth != 1 && push!(node.external_imports, string("." ^ depth, replace(proto_script_name(imported_file), ".jl" => "")))
+            depth != 1 && push!(node.external_imports, string("."^depth, replace(proto_script_name(imported_file), ".jl" => "")))
             push!(root.nonpkg_imports, replace(proto_script_name(imported_file), ".jl" => ""))
         else
             file_pkg = proto_package_name(imported_file)
@@ -96,7 +96,7 @@ function _add_file_to_package!(root::ProtoModule, file::ResolvedProtoFile, proto
             elseif file_pkg == root.name # same package, different submodule
                 push!(node.internal_imports, namespace(imported_file))
             else
-                depth != 1 && push!(node.external_imports, string("." ^ depth, proto_package_name(imported_file)))
+                depth != 1 && push!(node.external_imports, string("."^depth, proto_package_name(imported_file)))
                 push!(root.external_imports, rel_import_path(imported_file, root_path))
             end
         end
@@ -128,7 +128,9 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
                 push!(included_files, nonpkg_import)
             end
         end
-    else
+    else # depth > 1
+        # We're not a top package module, we can import external dependencies
+        # from the top package module.
         for external_import in m.external_imports
             println(io, "import ", external_import)
         end
@@ -149,16 +151,19 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
     # This is where we import internal dependencies. We only need to import the toplevel package
     # and then use fully qualified names for the imported definitions.
     if !isempty(m.internal_imports)
-        print(io, "import ", string("." ^ length(namespace(m)), first(namespace(m))))
+        print(io, "import ", string("."^length(namespace(m)), first(namespace(m))))
         # We can't import the toplevel module to a leaf module if their names collide
         # we also need to tweak the `package_namespace` field of each imported ReferencedType
         if first(namespace(m)) == last(namespace(m))
-            println(io,  " as var\"#", first(namespace(m)), '"')
+            println(io, " as var\"#", first(namespace(m)), '"')
         else
             println(io)
         end
     end
     has_deps && println(io)
+    # Load in imported proto files that are defined in this package (the files ending with `_pb.jl`)
+    # In case there is a dependency of some of these files on a submodule, we include that submodule
+    # first.
 
     seen = Set{String}()
     for file in m.proto_files
@@ -176,6 +181,8 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
             push!(included_files, proto_script_name(file))
         end
     end
+    # Load in submodules nested in this namespace (the modules ending with `PB`),
+    # that is, if we didn't include them above.
     for submodule_namespace in submodule_namespaces
         submodule = m.submodules[submodule_namespace]
         get!(seen.dict, submodule.name) do
@@ -197,14 +204,14 @@ function generate_package(node::ProtoModule, output_directory::AbstractString, p
         CodeGenerators.translate(dst_path, file, parsed_files, options)
     end
     for submodule in values(node.submodules)
-        generate_package(submodule, path, parsed_files, options, depth+1)
+        generate_package(submodule, path, parsed_files, options, depth + 1)
     end
     return nothing
 end
 
 function validate_search_directories!(search_directories::Vector{String}, include_vendored_wellknown_types::Bool)
     include_vendored_wellknown_types && push!(search_directories, VENDORED_WELLKNOWN_TYPES_PARENT_PATH)
-    unique!(map!(x->joinpath(abspath(x), ""), search_directories, search_directories))
+    unique!(map!(x -> joinpath(abspath(x), ""), search_directories, search_directories))
     bad_dirs = filter(!isdir, search_directories)
     !isempty(bad_dirs) && error("`search_directories` $bad_dirs don't exist")
     return nothing
