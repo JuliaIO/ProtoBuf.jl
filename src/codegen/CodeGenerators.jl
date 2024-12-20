@@ -26,6 +26,7 @@ end
 ResolvedProtoFile(rel_path, p) = ResolvedProtoFile(rel_path, p, Set{String}(), Set{String}())
 
 Base.@kwdef struct Options
+    with_mutable_structs::Bool = false
     include_vendored_wellknown_types::Bool = true
     always_use_modules::Bool = true
     force_required::Union{Nothing,Dict{String,Set{String}}} = nothing
@@ -59,6 +60,7 @@ include("utils.jl")
         relative_paths::Union{String,Vector{String}},
         search_directories::Union{String,Vector{String},Nothing}=nothing,
         output_directory::Union{String,Nothing}=nothing;
+        with_mutable_structs::Bool=false,
         include_vendored_wellknown_types::Bool=true,
         always_use_modules::Bool=true,
         force_required::Union{Nothing,Dict{String,Set{String}}}=nothing,
@@ -88,6 +90,7 @@ All imported `.proto` files are compiled as well; an error is thrown if they can
 - `output_directory::Union{String,Nothing}=nothing`: Path to store the generated Julia source code. When omitted, the translated code is saved to temp directory, the path is shown as a @info log.
 
 # Keywords
+- `with_mutable_structs::Bool=false`: If set to `true`, generate structs that are mutable in nature. 
 - `include_vendored_wellknown_types::Bool=true`: Append `ProtoBuf.VENDORED_WELLKNOWN_TYPES_PARENT_PATH` to `search_directories`, making the "well-known" message definitions available.
 - `always_use_modules::Bool=true`: Generate julia code in a module even if the `.proto` file doesn't contain a `package` specifier. The module name of `{file_name}.proto` file is `{file_name}_pb`.
 - `force_required::Union{Nothing,Dict{String,Set{String}}}=nothing`: Assume `message` and `oneof` fields to be aleways send over the wire -- then we woudln't need to `Union` their respective types with `Nothing`. E.g:
@@ -127,6 +130,7 @@ function protojl(
     relative_paths::Union{<:AbstractString,<:AbstractVector{<:AbstractString}},
     search_directories::Union{<:AbstractString,<:AbstractVector{<:AbstractString},Nothing}=nothing,
     output_directory::Union{<:AbstractString,Nothing}=nothing;
+    with_mutable_structs::Bool=false,
     include_vendored_wellknown_types::Bool=true,
     always_use_modules::Bool=true,
     force_required::Union{Nothing,<:Dict{<:AbstractString,<:Set{<:AbstractString}}}=nothing,
@@ -134,7 +138,7 @@ function protojl(
     parametrize_oneofs::Bool=false,
     common_abstract_type::Bool = false,
 )
-    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type)
+    options = Options(with_mutable_structs, include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type)
     return _protojl(relative_paths, search_directories, output_directory, options)
 end
 
@@ -176,7 +180,7 @@ function _protojl(
     foreach(p->get_all_transitive_imports!(p, parsed_files), values(parsed_files))
     # Files within the same package could use definitions from different files
     # without fully qualifying their name -- on Julia side, we need to make sure
-    # the files are read in order that respect these implicit dependencies.
+    # the files are read in order that respect these implicit dependencies.codegen
     resolve_inter_package_references!(parsed_files, options)
     sorted_files, cyclical_imports = _topological_sort(parsed_files)
     !isempty(cyclical_imports) && throw(error(string(

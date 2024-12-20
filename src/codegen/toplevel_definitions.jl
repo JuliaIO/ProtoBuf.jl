@@ -85,8 +85,9 @@ function generate_struct(io, t::MessageType, ctx::Context)
     abstract_base_name = pop!(ctx._curr_cyclic_defs, t.name, "")
     type_params = get_type_params(t, ctx)
     params_string = get_type_param_string(type_params)
+    struct_definition = ctx.options.with_mutable_structs ? "mutable struct " : "struct "
 
-    print(io, "struct ", struct_name, length(t.fields) > 0 ? params_string : ' ', _maybe_subtype(abstract_base_name, ctx.options))
+    print(io, struct_definition, struct_name, length(t.fields) > 0 ? params_string : ' ', _maybe_subtype(abstract_base_name, ctx.options))
     # new line if there are fields, otherwise ensure that we have space before `end`
     length(t.fields) > 0 ? println(io) : print(io, ' ')
     for field in t.fields

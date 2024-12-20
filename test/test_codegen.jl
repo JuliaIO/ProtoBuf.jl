@@ -148,6 +148,28 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
     end
 
+    @testset "`with_mutable_structs` option makes the generated struct mutable" begin
+        s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(with_mutable_structs=true))
+        ctx._toplevel_name[] = "B"
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        mutable struct B
+            a::Union{Nothing,A}
+        end
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
+
+        s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(with_mutable_structs=true))
+        ctx._toplevel_name[] = "B"
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        mutable struct B
+            a::Union{Nothing,A}
+        end
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
+    end
+
     @testset "Struct fields are optional when not marked required" begin
         s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A {} message B { A a = 1; }")
         ctx._toplevel_name[] = "B"
@@ -173,6 +195,16 @@ end
         ctx._toplevel_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B
+            a::A
+        end
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === nothing
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
+
+        s, p, ctx = translate_simple_proto("message A {} message B { required A a = 1; }", Options(with_mutable_structs=true))
+        ctx._toplevel_name[] = "B"
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        mutable struct B
             a::A
         end
         """
