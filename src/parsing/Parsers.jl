@@ -202,7 +202,12 @@ function parse_proto_file(ps::ParserState)
             push!(extends, parse_extend_type(ps, definitions))
         else
             type = parse_type(ps, definitions)
-            definitions[type.name] = type
+            # Condition added to ensure that only types that can be values of the definitions
+            # can be set as values. There are some types that can be returned from parse_type
+            # that don't have the `name` field, like `ExtendType`, and this condition filters them out.
+            if isa(type, MessageType) || isa(type, EnumType) || isa(type, ServiceType)
+                definitions[type.name] = type
+            end
         end
     end
     package_parts = split(package_identifier, '.', keepempty=false)
