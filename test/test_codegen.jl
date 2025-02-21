@@ -128,7 +128,7 @@ end
 
     @testset "`force_required` option makes optional fields required" begin
         s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(force_required=Dict("main" => Set(["B.a"]))))
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B
             a::A
@@ -138,7 +138,7 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
 
         s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(force_required=Dict("main" => Set(["B.a"]))))
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B
             a::A
@@ -150,7 +150,7 @@ end
 
     @testset "Struct fields are optional when not marked required" begin
         s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A {} message B { A a = 1; }")
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B
             a::Union{Nothing,A}
@@ -160,7 +160,7 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
 
         s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }")
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B
             a::Union{Nothing,A}
@@ -170,7 +170,7 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
 
         s, p, ctx = translate_simple_proto("message A {} message B { required A a = 1; }")
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B
             a::A
@@ -220,7 +220,7 @@ end
 
     @testset "Struct fields are optional when the type mutually recusrive dependency" begin
         s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { B b = 1; } message B { A a = 1; }")
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
             a::T1
@@ -229,7 +229,7 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
 
-        ctx._toplevel_name[] = "A"
+        ctx._toplevel_raw_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
         struct A <: var"##AbstractA"
             b::Union{Nothing,B}
@@ -239,7 +239,7 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
 
         s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { B b = 1; } message B { A a = 1; }", Options(force_required=Dict("main" => Set(["B.a"]))))
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
             a::T1
@@ -247,7 +247,7 @@ end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
-        ctx._toplevel_name[] = "A"
+        ctx._toplevel_raw_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
         struct A <: var"##AbstractA"
             b::Union{Nothing,B}
@@ -257,7 +257,7 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
 
         s, p, ctx = translate_simple_proto("message A { optional B b = 1; } message B { required A a = 1; }")
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
             a::T1
@@ -265,7 +265,7 @@ end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
-        ctx._toplevel_name[] = "A"
+        ctx._toplevel_raw_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
         struct A <: var"##AbstractA"
             b::Union{Nothing,B}
@@ -275,7 +275,7 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
 
         s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { B b = 1; } message B { optional A a = 1; }")
-        ctx._toplevel_name[] = "B"
+        ctx._toplevel_raw_name[] = "B"
         @test generate_struct_str(p.definitions["B"], ctx) == """
         struct B{T1<:Union{Nothing,var"##AbstractA"}} <: var"##AbstractB"
             a::T1
@@ -283,7 +283,7 @@ end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
-        ctx._toplevel_name[] = "A"
+        ctx._toplevel_raw_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
         struct A <: var"##AbstractA"
             b::Union{Nothing,B}
@@ -333,7 +333,7 @@ end
         end""", s)
 
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; } }", Options(parametrize_oneofs=true))
-        ctx._toplevel_name[] = "A"
+        ctx._toplevel_raw_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
         struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32}}}}
             a::T1
@@ -347,7 +347,7 @@ end
         end""", s)
 
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; } }", Options(parametrize_oneofs=false))
-        ctx._toplevel_name[] = "A"
+        ctx._toplevel_raw_name[] = "A"
         @test generate_struct_str(p.definitions["A"], ctx) == """
         struct A
             a::Union{Nothing,OneOf{<:Union{Int32,UInt32}}}

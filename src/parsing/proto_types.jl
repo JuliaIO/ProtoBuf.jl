@@ -70,7 +70,7 @@ _dot_join(prefix, s) = isempty(prefix) ? s : string(prefix, '.', s)
 # OneOf fields don't use the label field
 struct FieldType{T<:AbstractProtoType} <: AbstractProtoFieldType
     label::FieldLabel
-    type::AbstractProtoType
+    type::AbstractProtoType # T
     name::String
     number::Int
     options::Dict{String,Union{String,Dict{String}}}
@@ -482,4 +482,3 @@ function parse_type(ps::ParserState, definitions::Dict{String,Union{MessageType,
         return parse_type(ps)
     end
 end
-

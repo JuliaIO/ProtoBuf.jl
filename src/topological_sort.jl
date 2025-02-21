@@ -44,10 +44,12 @@ function _topological_sort(definitions::Dict{K}, ignored_keys::Union{Nothing,Set
     empty!(cyclic_definitions)
     if !isempty(number_of_upstream_dependencies)
         @debug "The input is not a DAG."
-        for cyclic_definition in first.(collect(number_of_upstream_dependencies))
+        for cyclic_definition in first.(sort!(collect(number_of_upstream_dependencies), by=p->(last(p), first(p))))
             push!(cyclic_definitions, cyclic_definition)
+            push!(topologically_sorted, cyclic_definition)
         end
-        append!(topologically_sorted, cyclic_definitions)
     end
+
+
     return topologically_sorted, cyclic_definitions
 end

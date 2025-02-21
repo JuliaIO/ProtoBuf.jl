@@ -15,8 +15,8 @@ function jl_default_value(@nospecialize(field::FieldType), ctx::Context)
 end
 
 function _is_optional_referenced_message(field::Union{FieldType{ReferencedType},GroupType}, ctx::Context)
-    struct_name = ctx._toplevel_name[]
-    (field.type.name == struct_name || field.type.name in ctx._curr_cyclic_defs) && return true
+    struct_name = ctx._toplevel_raw_name[]
+    (field.type.name == struct_name || field.type.name in ctx._remaining_cyclic_defs) && return true
     if field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT
         return !_should_force_required(string(struct_name, ".", jl_fieldname(field)), ctx)
     end

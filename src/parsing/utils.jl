@@ -115,7 +115,7 @@ function postprocess_types!(definitions::Dict{String, Union{MessageType, EnumTyp
 end
 
 get_type_name(::AbstractProtoNumericType) = nothing
-get_type_name(t::ExtendType)     = string(t.type.name)  # TODO: handle Extensions
+get_type_name(t::ExtendType)     = string(t.type.name)  # TODO: handle Extensions, remove string?
 get_type_name(t::FieldType)      = get_type_name(t.type)
 get_type_name(t::GroupType)      = t.name
 get_type_name(t::ReferencedType) = t.name
@@ -124,7 +124,7 @@ get_type_name(t::EnumType)       = t.name
 get_type_name(t::ServiceType)    = t.name
 get_type_name(::StringType)      = nothing
 get_type_name(::BytesType)       = nothing
-get_type_name(t::MapType)        = get_type_name(t.valuetype)
+get_type_name(t::MapType)        = get_type_name(t.valuetype) # messages and enums can't be keys
 
 function get_upstream_dependencies!(t::ServiceType, out)
     for rpc in t.rpcs
@@ -138,7 +138,7 @@ function get_upstream_dependencies!(::EnumType, out)
 end
 function get_upstream_dependencies!(t::MessageType, out)
     for field in t.fields
-        _get_upstream_dependencies!(field, out)
+        _get_upstream_dependencies!(field, out, t.name)
     end
     return nothing
 end
@@ -148,28 +148,30 @@ function get_upstream_dependencies!(t::ExtendType, out) # TODO: handle Extension
     return nothing
 end
 
-function _get_upstream_dependencies!(t::ReferencedType, out)
-    push!(out, t.name)
+function _get_upstream_dependencies!(t::ReferencedType, out, self_name=nothing)
+    self_name != t.name && push!(out, t.name)
     return nothing
 end
-function _get_upstream_dependencies!(t::OneOfType, out)
+function _get_upstream_dependencies!(t::OneOfType, out, self_name=nothing)
     for field in t.fields
-        _get_upstream_dependencies!(field, out)
+        _get_upstream_dependencies!(field, out, self_name)
     end
     return nothing
 end
-function _get_upstream_dependencies!(t::FieldType, out)
+function _get_upstream_dependencies!(t::FieldType, out, self_name=nothing)
     name = get_type_name(t.type)
-    name === nothing || push!(out, name)
+    if name !== nothing && name != self_name
+        push!(out, name)
+    end
     return nothing
 end
-function _get_upstream_dependencies!(t::GroupType, out)
-    push!(out, t.name)
+function _get_upstream_dependencies!(t::GroupType, out, self_name=nothing)
+    self_name != t.name && push!(out, t.name)
     get_upstream_dependencies!(t.type, out)
     return nothing
 end
-function _get_upstream_dependencies!(t::MessageType, out)
-    push!(out, t.name) # TODO: Is this needed?
+function _get_upstream_dependencies!(t::MessageType, out, self_name=nothing)
+    self_name != t.name && push!(out, t.name) # TODO: Is this needed?
     for field in t.fields
         _get_upstream_dependencies!(field, out)
     end
