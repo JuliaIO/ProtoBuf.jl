@@ -91,13 +91,11 @@ function types_needing_params(cyclical_names::AbstractVector{String}, proto_file
     _cyclical_set = Set{String}(cyclical_names)
     for c in cyclical_names
         deps = Tuple{Bool,String}[]
-        @warn c field_types_requiring_type_params _cyclical_set
         _types_needing_params!(deps, field_types_requiring_type_params, proto_file.definitions[c], _cyclical_set, options, c, _seen)
         empty!(_seen)
         pop!(_cyclical_set, c) # remove the current name from the set since it will be defined for all remaining cyclic definitions
         field_types_requiring_type_params[c] = deps
     end
-    @warn field_types_requiring_type_params
     return field_types_requiring_type_params
 end
 
@@ -108,7 +106,7 @@ _types_needing_params!(out, lookup, t::GroupType,                 _cyclical_set,
 _types_needing_params!(out, lookup, t::FieldType{MapType},        _cyclical_set, options, self_name, _seen) = _types_needing_params!(out, lookup, t.type.valuetype, _cyclical_set, options, self_name, _seen)
 function _types_needing_params!(out, lookup, t::OneOfType, _cyclical_set, options, self_name, _seen)
     if options.parametrize_oneofs
-        get!(_seen.dict, (true, t.name)) do # Note that we're using the field name here, for references we use the Type name
+        get!(_seen.dict, (true, t.name)) do
             push!(out, (true, t.name))
             return nothing
         end
@@ -135,18 +133,32 @@ end
 _get_type_bound(f::FieldType{ReferencedType}, ::Context) = abstract_type_name(f.type.name)
 _get_type_bound(f::GroupType,                 ::Context) = abstract_type_name(f.type.name)
 _get_type_bound(f::FieldType{MapType},        ::Context) = abstract_type_name(f.type.valuetype.name) # enums and messages cannot be keys
-function _get_type_bound(f::OneOfType, ctx::Context, stubbed=false)
+function _get_type_bound(f::OneOfType, ctx::Context)
     seen = Set{String}()
-    struct_name = ctx._toplevel_raw_name[]
     union_types = String[]
+    struct_name = ctx._toplevel_raw_name[]
     for o in f.fields
-        name = jl_typename(o.type, ctx)
-        get!(seen.dict, name) do
-            push!(union_types, _is_cyclic_reference(o.type, ctx) ? abstract_type_name(_get_name(o.type)) : stubbed ? stub_name(name) : name)
+        type_name = jl_typename(o.type, ctx)
+        get!(seen.dict, type_name) do
+            if o.type isa ReferencedType
+                _raw_name = o.type.name
+                is_cyclic = _raw_name in keys(ctx._field_types_requiring_type_params)
+                is_self_ref = _raw_name == struct_name
+                needs_abstract = _raw_name in ctx._remaining_cyclic_defs ||
+                    ctx.options.parametrize_oneofs && (is_cyclic || is_self_ref)
+
+                name_in_oneof_union = needs_abstract ?
+                    abstract_type_name(_raw_name) :
+                    is_cyclic ?
+                        stub_name(_raw_name) :
+                        type_name
+            else
+                name_in_oneof_union = type_name
+            end
+            push!(union_types, name_in_oneof_union)
             return nothing
         end
     end
-    should_force_required = _should_force_required(string(struct_name, ".", f.name), ctx)
     if length(union_types) == 1
         type = string("OneOf{", only(union_types), '}')
     else
@@ -167,35 +179,26 @@ end
 struct TypeParams
     references::Dict{String,ParamMetadata}
     oneofs::Dict{String,ParamMetadata}
-    # _all_oneof_refs::Dict{String,OneOfType}
 end
 const EMPTY_TYPE_PARAMS = TypeParams(Dict{String,ParamMetadata}(), Dict{String,ParamMetadata}())
 
-# function get_type_params(t::MessageType, ctx::Context)
-#     i = 0
-#     type_params = TypeParams(Dict{String,ParamMetadata}(), Dict{String,ParamMetadata}())
-#     for field in t.fields
-#         if !_needs_type_params(field, ctx)
-#             if ctx._field_types_requiring_type_params[t.name] == [field.name]
-#                 type_params.references[field.type.name] = ParamMetadata("T", i)
-#             end
-#             continue
-#         end
-#         i += 1
-#         param_meta = ParamMetadata(
-#             string("T", i),
-#             _get_type_bound(field, ctx),
-#         )
-#         if field isa OneOfType
-#             type_params.oneofs[field.name] = param_meta
-#         else
-#             type_params.references[field.type.name] = param_meta
-#         end
-#     end
-#     return type_params
-# end
+function get_type_params_for_non_cyclic(t::MessageType, ctx::Context)
+    i = 0
+    type_params = TypeParams(EMPTY_TYPE_PARAMS.references, Dict{String,ParamMetadata}())
+    !(ctx.options.parametrize_oneofs || t.has_oneof_field) && return type_params
+    for field in t.fields
+        !(field isa OneOfType) && continue
+        i += 1
+        param_meta = ParamMetadata(
+            string("T", i),
+            _get_type_bound(field, ctx),
+        )
+        type_params.oneofs[field.name] = param_meta
+    end
+    return type_params
+end
 
-function get_type_params(t::MessageType, ctx::Context)
+function get_type_params_for_cyclic(t::MessageType, ctx::Context)
     i = 0
     type_params = TypeParams(Dict{String,ParamMetadata}(), Dict{String,ParamMetadata}())
     deps = get(ctx._field_types_requiring_type_params, t.name, Tuple{Bool,String}[])
@@ -206,7 +209,7 @@ function get_type_params(t::MessageType, ctx::Context)
         if isoneof
             for field in t.fields
                 if field.name == dep
-                    bound = _get_type_bound(field, ctx, true)
+                    bound = _get_type_bound(field, ctx)
                     type_param = ParamMetadata(param, bound)
                     type_params.oneofs[dep] = type_param
                     break

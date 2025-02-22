@@ -96,6 +96,7 @@ struct MessageType <: AbstractProtoType
     extensions::Vector{Union{Int,UnitRange{Int}}}
     extends::Vector{ExtendType}
     has_oneof_field::Bool
+    is_self_referential::Base.RefValue{Bool}
 end
 
 struct GroupType <: AbstractProtoFieldType
@@ -341,6 +342,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
     extensions = Vector{Union{Int,UnitRange{Int}}}()
     extends = Vector{ExtendType}()
     has_oneof_field = false
+    is_self_referential = Ref{Bool}(false) # set during topological sort
 
     name = _dot_join(name_prefix, name)
     expectnext(ps, Tokens.LBRACE)
@@ -377,7 +379,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
         end
     end
     # TODO: validate field_numbers vs reserved and extensions
-    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field)
+    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, is_self_referential)
 end
 
 # We consumed RPC

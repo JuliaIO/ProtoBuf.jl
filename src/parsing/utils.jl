@@ -126,6 +126,16 @@ get_type_name(::StringType)      = nothing
 get_type_name(::BytesType)       = nothing
 get_type_name(t::MapType)        = get_type_name(t.valuetype) # messages and enums can't be keys
 
+_is_self_reference!(::Nothing, field_type_name::Union{Nothing,String}) = true # don't push as dependency
+function _is_self_reference!(t::MessageType, field_type_name::Union{Nothing,String})
+    isnothing(field_type_name) && return true  # don't push as dependency
+    if t.name == field_type_name
+        t.is_self_referential[] = true
+        return true  # don't push as dependency
+    end
+    return false # push as dependency
+end
+
 function get_upstream_dependencies!(t::ServiceType, out)
     for rpc in t.rpcs
         push!(out, rpc.request_type.name)
@@ -138,7 +148,7 @@ function get_upstream_dependencies!(::EnumType, out)
 end
 function get_upstream_dependencies!(t::MessageType, out)
     for field in t.fields
-        _get_upstream_dependencies!(field, out, t.name)
+        _get_upstream_dependencies!(field, out, t)
     end
     return nothing
 end
@@ -148,32 +158,30 @@ function get_upstream_dependencies!(t::ExtendType, out) # TODO: handle Extension
     return nothing
 end
 
-function _get_upstream_dependencies!(t::ReferencedType, out, self_name=nothing)
-    self_name != t.name && push!(out, t.name)
+function _get_upstream_dependencies!(t::ReferencedType, out, top_message::Union{Nothing,MessageType}=nothing)
+    !_is_self_reference!(top_message, t.name) && push!(out, t.name)
     return nothing
 end
-function _get_upstream_dependencies!(t::OneOfType, out, self_name=nothing)
+function _get_upstream_dependencies!(t::OneOfType, out, top_message::Union{Nothing,MessageType}=nothing)
     for field in t.fields
-        _get_upstream_dependencies!(field, out, self_name)
+        _get_upstream_dependencies!(field, out, top_message)
     end
     return nothing
 end
-function _get_upstream_dependencies!(t::FieldType, out, self_name=nothing)
+function _get_upstream_dependencies!(t::FieldType, out, top_message::Union{Nothing,MessageType}=nothing)
     name = get_type_name(t.type)
-    if name !== nothing && name != self_name
-        push!(out, name)
-    end
+    !_is_self_reference!(top_message, name) && push!(out, name)
     return nothing
 end
-function _get_upstream_dependencies!(t::GroupType, out, self_name=nothing)
-    self_name != t.name && push!(out, t.name)
+function _get_upstream_dependencies!(t::GroupType, out, top_message::Union{Nothing,MessageType}=nothing)
+    !_is_self_reference!(top_message, t.name) && push!(out, t.name)
     get_upstream_dependencies!(t.type, out)
     return nothing
 end
-function _get_upstream_dependencies!(t::MessageType, out, self_name=nothing)
-    self_name != t.name && push!(out, t.name) # TODO: Is this needed?
+function _get_upstream_dependencies!(t::MessageType, out, top_message::Union{Nothing,MessageType}=nothing)
+    !_is_self_reference!(top_message, t.name) && push!(out, t.name) # TODO: Is this needed?
     for field in t.fields
-        _get_upstream_dependencies!(field, out)
+        _get_upstream_dependencies!(field, out, top_message)
     end
     return nothing
 end

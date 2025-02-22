@@ -1,5 +1,6 @@
 const JULIA_RESERVED_KEYWORDS = Set{String}([
     "abstract",
+    "AbstractProtoBufMessage",
     "Any",
     "Array",
     "baremodule",

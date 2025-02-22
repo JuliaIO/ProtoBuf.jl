@@ -50,6 +50,5 @@ function _topological_sort(definitions::Dict{K}, ignored_keys::Union{Nothing,Set
         end
     end
 
-
     return topologically_sorted, cyclic_definitions
 end
