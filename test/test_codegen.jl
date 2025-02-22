@@ -256,6 +256,27 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
 
+        # A <-> B, A is repeated
+        s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { B b = 1; } message B { repeated A a = 1; }")
+        @assert p.sorted_definitions == ["A", "B"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["B", "A"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+            b::Union{Nothing,T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#B"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
+
+        @test generate_struct_str(p.definitions["B"], ctx, remaining=Set{String}(["B"])) == """
+        struct var"##Stub#B" <: var"##Abstract#B"
+            a::Vector{var"##Stub#A"{var"##Stub#B"}}
+        end
+        const B = var"##Stub#B"
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "Vector{A}()"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "PB.BufferedVector{A}()"
+
         # A <-> B, B is "required" by the user, but it still has to be optional to break the recursion
         s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { B b = 1; } message B { A a = 1; }", Options(force_required=Dict("main" => Set(["B.a"]))))
         @assert p.sorted_definitions == ["A", "B"]

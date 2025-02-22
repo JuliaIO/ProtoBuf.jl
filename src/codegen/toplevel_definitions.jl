@@ -42,13 +42,13 @@ function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Contex
             type_name = jl_typename(field.type, ctx)
         end
 
-        if needs_union
+        if is_repeated
+            maybe_subtype = _needs_subtyping_in_containers(field.type, ctx) ? "<:" : ""
+            type_name = string("Vector{", maybe_subtype, type_name, "}")
+        elseif needs_union
             if !should_force_required && _is_message(field.type, ctx)
                 type_name = string("Union{Nothing,", type_name,"}")
             end
-        elseif is_repeated
-            maybe_subtype = _needs_subtyping_in_containers(field.type, ctx) ? "<:" : ""
-            type_name = string("Vector{", maybe_subtype, type_name, "}")
         end
     end
 
