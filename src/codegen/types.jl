@@ -69,6 +69,7 @@ function _get_referenced_type(t::ReferencedType, ctx::Context)
     end
 end
 
+_is_message(t::MessageType, ctx::Context)    = true
 _is_message(t::ReferencedType, ctx::Context) = t.reference_type == Parsers.MESSAGE
 _is_enum(t::ReferencedType, ctx::Context)    = t.reference_type == Parsers.ENUM
 
@@ -159,10 +160,14 @@ function _get_type_bound(f::OneOfType, ctx::Context)
             return nothing
         end
     end
+    should_force_required = _should_force_required(string(struct_name, ".", f.name), ctx)
     if length(union_types) == 1
         type = string("OneOf{", only(union_types), '}')
     else
         type = string("OneOf{<:Union{", join(union_types, ','), "}}")
+    end
+    if !should_force_required
+        type = string("Union{Nothing,", type, '}')
     end
     return type
 end
@@ -270,7 +275,7 @@ function reconstruct_parametrized_type_name(t::Union{MessageType,ReferencedType}
         # elseif dep in keys(type_params.oneofs) # parametrization due to oneof
         #     print(io, type_params.oneofs[dep].param)
         else
-            print(io, "<:OneOf")
+            print(io, "<:Union{Nothing,<:OneOf}")
         end
         _first = false
     end
@@ -279,7 +284,7 @@ function reconstruct_parametrized_type_name(t::Union{MessageType,ReferencedType}
     return String(take!(io))
 end
 
-function _reconstruct_parametrized_type_name(io, name::String, _field_types_requiring_type_params, _remaining_cyclic_defs, type_params)
+function _reconstruct_parametrized_type_name(io, name::String, _field_types_requiring_type_params, _remaining_cyclic_defs, type_params=EMPTY_TYPE_PARAMS)
     @assert name in keys(_field_types_requiring_type_params)
     deps = _field_types_requiring_type_params[name]
     _first = true
@@ -299,7 +304,7 @@ function _reconstruct_parametrized_type_name(io, name::String, _field_types_requ
         # elseif dep in keys(type_params.oneofs)               # parametrization due to oneof
         #     print(io, type_params.oneofs[dep].param)
         else
-            print(io, "<:OneOf")
+            print(io, "<:Union{Nothing,<:OneOf}")
         end
         _first = false
     end

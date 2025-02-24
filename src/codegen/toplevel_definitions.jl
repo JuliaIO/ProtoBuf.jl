@@ -9,91 +9,71 @@ function generate_struct_field(io, @nospecialize(field), ctx::Context, type_para
     println(io, "    ", jl_fieldname(field)::String, "::", jl_typename(field, ctx)::String)
 end
 
-function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Context, type_params::TypeParams)
-    field_name = jl_fieldname(field)
+
+function _maybe_union_or_vector(type_name::String, field::Union{GroupType,FieldType{ReferencedType}}, ctx::Context)
     struct_name = ctx._toplevel_raw_name[] # must be set by the caller!
-    appears_in_cycle = field.type.name in keys(ctx._field_types_requiring_type_params)
-    should_force_required = !appears_in_cycle && _should_force_required(string(struct_name, ".", field.name), ctx)
     is_repeated = _is_repeated_field(field)
-    needs_union = field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT || appears_in_cycle
 
-    if struct_name == field.type.name
-        # self-referential field -> always needs Union{Nothing, ...} to break the recursion
-        # If the field parent appears in a cycle, concrete_self_type would be the stub name
-        # with all type parameters filled in. If it is a simple self-reference, it would be the
-        # name of the struct itself.
-        parametrized_name = reconstruct_parametrized_type_name(field.type, ctx, type_params)
-        if is_repeated
-            maybe_subtype = _needs_subtyping_in_containers(field.type, ctx) ? "<:" : ""
-            type_name = string("Vector{", maybe_subtype, parametrized_name, "}")
-        else
-            type_name = string("Union{Nothing,", parametrized_name, "}")
-        end
-    else
-        if field.type.name in ctx._remaining_cyclic_defs # Cyclic reference that has not yet been defined
-            # We need to specialize on the type of this field, either because the user requested
-            # specialization on a OneOf member, or because the field is part of a cyclic definition
-            type_name = type_params.references[field.type.name].param
-        elseif appears_in_cycle
-            # Cyclic reference that has been defined already
-            type_name = reconstruct_parametrized_type_name(field.type, ctx, type_params)
-        else
-            # Regular field
-            type_name = jl_typename(field.type, ctx)
-        end
-
-        if is_repeated
-            maybe_subtype = _needs_subtyping_in_containers(field.type, ctx) ? "<:" : ""
-            type_name = string("Vector{", maybe_subtype, type_name, "}")
-        elseif needs_union
-            if !should_force_required && _is_message(field.type, ctx)
-                type_name = string("Union{Nothing,", type_name,"}")
-            end
-        end
+    if is_repeated
+        maybe_subtype = _needs_subtyping_in_containers(field.type, ctx) ? "<:" : ""
+        return string("Vector{", maybe_subtype, type_name, "}")
     end
 
+    appears_in_cycle = field.type.name in keys(ctx._field_types_requiring_type_params)
+    is_self_referential = field.type.name == struct_name
+    should_force_required = _should_force_required(string(struct_name, ".", field.name), ctx)
+    optional_label = (field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT)
+
+    needs_union = (is_self_referential || appears_in_cycle) || (!should_force_required && optional_label)
+
+    if needs_union && _is_message(field.type, ctx)
+        type_name = string("Union{Nothing,", type_name,"}")
+    end
+    return type_name
+end
+
+# Type is MessageType if we got here from GroupType or ReferencedType if we got here from FieldType{ReferencedType} or a MapType
+function _ref_type_name_or_param(type::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams)
+    struct_name = ctx._toplevel_raw_name[] # must be set by the caller!
+    appears_in_cycle = type.name in keys(ctx._field_types_requiring_type_params)
+    is_self_referential = type.name == struct_name
+
+    if type.name in ctx._remaining_cyclic_defs # Cyclic reference that has not yet been defined
+        # We need to specialize on the type of this field, either because the user requested
+        # specialization on a OneOf member, or because the field is part of a cyclic definition
+        type_name = type_params.references[type.name].param
+    elseif appears_in_cycle || is_self_referential
+        # Cyclic reference that has been defined already
+        type_name = reconstruct_parametrized_type_name(type, ctx, type_params)
+    else
+        # Regular field
+        type_name = jl_typename(type, ctx)
+    end
+    return type_name
+end
+
+function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Context, type_params::TypeParams)
+    field_name = jl_fieldname(field)
+    type_name = _ref_type_name_or_param(field.type, ctx, type_params)
+    type_name = _maybe_union_or_vector(type_name, field, ctx)
     println(io, "    ", field_name, "::", type_name)
 end
 
 function generate_struct_field(io, field::GroupType, ctx::Context, type_params::TypeParams)
     field_name = jl_fieldname(field)
-    type_name = jl_typename(field.type, ctx)
-    struct_name = ctx._toplevel_raw_name[]
-    should_force_required = _should_force_required(string(struct_name, ".", field.name), ctx)
-
-    if struct_name == field.type.name
-        # self-referential field -> always needs Union{Nothing, ...} to break the recursion
-        type_name = string("Union{Nothing,", type_name,"}")
-    elseif type_name in keys(type_params.references)
-        # We need to specialize on the type of this field, either because the user requested
-        # specialization on a OneOf member, or because the field is part of a cyclic definition.
-        type_name = should_force_required ?
-            type_param.param :
-            string("Union{Nothing,", type_param.param, "}")
-    elseif field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT
-        if !should_force_required
-            type_name = string("Union{Nothing,", type_name,"}")
-        end
-    end
+    type_name = _ref_type_name_or_param(field.type, ctx, type_params)
+    type_name = _maybe_union_or_vector(type_name, field, ctx)
     println(io, "    ", field_name, "::", type_name)
 end
 
 function generate_struct_field(io, field::FieldType{MapType}, ctx::Context, type_params)
     field_name = jl_fieldname(field)
-    type_name = jl_typename(field, ctx)
 
     if field.type.valuetype isa ReferencedType
-        struct_name = ctx._toplevel_raw_name[]
-        maybe_subtype = _needs_subtyping_in_containers(field.type.valuetype, ctx) ? "<:" : ""
-        valuetype_name = field.type.valuetype.name
-
-        if valuetype_name == struct_name
-            parametrized_name = reconstruct_parametrized_type_name(field.type.valuetype, ctx, type_params)
-            type_name = string("Dict{", jl_typename(field.type.keytype, ctx), ",", maybe_subtype, parametrized_name, "}")
-        elseif valuetype_name in keys(type_params.references)
-            valuetype_param = type_params.references[valuetype_name]
-            type_name = string("Dict{", jl_typename(field.type.keytype, ctx), ",", maybe_subtype, valuetype_param, "}")
-        end
+        value_type_name = _ref_type_name_or_param(field.type.valuetype, ctx, type_params)
+        type_name = string("Dict{", jl_typename(field.type.keytype, ctx), ",", value_type_name, "}")
+    else
+        type_name = jl_typename(field, ctx)
     end
     println(io, "    ", field_name, "::", type_name)
 end
@@ -102,18 +82,13 @@ function generate_struct_field(io, field::OneOfType, ctx::Context, type_params)
     field_name = jl_fieldname(field)
     type_param = get(type_params.oneofs, field.name, nothing)
     struct_name = ctx._toplevel_raw_name[]
-    should_force_required = _should_force_required(string(struct_name, ".", field.name), ctx)
 
     if !isnothing(type_param)
         type_name = type_param.param
     else
         type_name = _get_type_bound(field, ctx)
     end
-    if should_force_required
-        println(io, "    ", field_name, "::", type_name)
-    else
-        println(io, "    ", field_name, "::Union{Nothing,", type_name, "}")
-    end
+    println(io, "    ", field_name, "::", type_name)
 end
 
 function generate_struct(io, t::MessageType, ctx::Context)
@@ -163,6 +138,7 @@ function generate_struct_alias(io, t::MessageType, ctx::Context)
     struct_name = safename(t)
     type = reconstruct_parametrized_type_name(t, ctx)
     println(io, "const ", struct_name, " = ", type)
+    maybe_generate_regular_constructor_for_type_alias(io, t, ctx)
 end
 
 codegen(t::AbstractProtoType, ctx::Context) = codegen(stdout, t, ctx::Context)

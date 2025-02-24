@@ -341,6 +341,59 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
     end
 
+    @testset "Mutually recursive dependency involving a group field" begin
+        s, p, ctx = translate_simple_proto("syntax = \"proto2\"; message A { optional B b = 1; } message B { optional group G = 1 { optional A a = 2; }; }")
+        @assert p.sorted_definitions == ["A", "B.G", "B"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["B.G", "B", "A"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+            b::Union{Nothing,T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#B"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
+
+        @test generate_struct_str(p.definitions["B.G"], ctx, remaining=Set{String}(["B.G", "B"])) == """
+        struct var"##Stub#B.G"{T1<:var"##Abstract#B"} <: var"##Abstract#B.G"
+            a::Union{Nothing,var"##Stub#A"{T1}}
+        end
+        const var"B.G" = var"##Stub#B.G"{var"##Stub#B"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B.G"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["B.G"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
+
+        @test generate_struct_str(p.definitions["B"], ctx, remaining=Set{String}(["B"])) == """
+        struct var"##Stub#B" <: var"##Abstract#B"
+            g::Union{Nothing,var"##Stub#B.G"{var"##Stub#B"}}
+        end
+        const B = var"##Stub#B"
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,var\"B.G\"}}(nothing)"
+    end
+
+    @testset "Mutually recursive dependency involving a map field" begin
+        s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { B b = 1; } message B { map<string, A> m = 1; }")
+        @assert p.sorted_definitions == ["A", "B"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["B", "A"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+            b::Union{Nothing,T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#B"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
+
+        @test generate_struct_str(p.definitions["B"], ctx, remaining=Set{String}(["B"])) == """
+        struct var"##Stub#B" <: var"##Abstract#B"
+            m::Dict{String,var"##Stub#A"{var"##Stub#B"}}
+        end
+        const B = var"##Stub#B"
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) == "Dict{String,A}()"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Dict{String,A}()"
+    end
+
     @testset "Simple type with a common abstract type" begin
         s, p, ctx = translate_simple_proto("message B { optional int32 b = 1; }", Options(always_use_modules=false, common_abstract_type=true))
         @test generate_struct_str(p.definitions["B"], ctx) == """
@@ -384,21 +437,21 @@ end
     @testset "OneOf field codegen" begin
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; } }", Options(parametrize_oneofs=true))
         @test occursin("""
-        struct A{T1<:OneOf{Int32}}
-            a::Union{Nothing,T1}
+        struct A{T1<:Union{Nothing,OneOf{Int32}}}
+            a::T1
         end""", s)
 
         # Self-referential parametrized OneOf and duplicate variant types
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; A e = 4; } }", Options(parametrize_oneofs=true))
         @test occursin("""
-        struct A{T1<:OneOf{<:Union{Int32,UInt32,var"##Abstract#A"}}} <: var"##Abstract#A"
-            a::Union{Nothing,T1}
+        struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32,var"##Abstract#A"}}}} <: var"##Abstract#A"
+            a::T1
         end""", s)
 
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; int32 c = 2; uint32 d = 3; } }", Options(parametrize_oneofs=true))
         @test generate_struct_str(p.definitions["A"], ctx) == """
-        struct A{T1<:OneOf{<:Union{Int32,UInt32}}}
-            a::Union{Nothing,T1}
+        struct A{T1<:Union{Nothing,OneOf{<:Union{Int32,UInt32}}}}
+            a::T1
         end
         """
 

@@ -102,7 +102,75 @@ function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx::Contex
         print(io, jl_fieldname(field), !isnothing(val) ? string(" = ", val) : "")
         i < n && print(io, ", ")
     end
-    print(io, ") = $(type_name)(")
+    if t.has_oneof_field && ctx.options.parametrize_oneofs
+        i = 1
+        # Since we're potentially mixing type params used to forward declare cyclic deps and type params for oneofs,
+        # and since all fields are optional, we must tell the constructor what is the type of the forward declared
+        # type even if we get a default value like 'nothing'. And since we're specializing on OneOfs, we'll make sure
+        # to use the concrete type of the OneOf union by calling `typeof` on the provided value (which is always
+        # named the same as the field itself).
+        if t.name in keys(ctx._field_types_requiring_type_params)
+            print(io, ") = ", stub_name(t.name), "{")
+            for (isoneof, name) in ctx._field_types_requiring_type_params[t.name]
+                i > 1 && print(io, ",")
+                isoneof ? print(io, "typeof(", _safename(name), ")") : print(io, _safename(name))
+                i += 1
+            end
+        else
+            print(io, ") = ", type_name, "{")
+            for field in t.fields
+                field isa OneOfType || continue
+                i > 1 && print(io, ",")
+                print(io, "typeof(", _safename(field.name), ")")
+                i += 1
+            end
+        end
+
+        print(io, "}(")
+    else
+        print(io, ") = $(type_name)(")
+    end
+    for (i, field) in enumerate(t.fields)
+        print(io, jl_fieldname(field))
+        i < n && print(io, ", ")
+    end
+    println(io, ')')
+end
+
+function maybe_generate_regular_constructor_for_type_alias(io, t::MessageType, ctx::Context)
+    (!ctx.options.add_kwarg_constructors && t.has_oneof_field) || return
+    n = length(t.fields)
+    type_name = safename(t)
+    print(io, "$(type_name)(")
+    for (i, field) in enumerate(t.fields)
+        print(io, jl_fieldname(field))
+        i < n && print(io, ", ")
+    end
+    i = 1
+    # Since we're potentially mixing type params used to forward declare cyclic deps and type params for oneofs,
+    # and since all fields are optional, we must tell the constructor what is the type of the forward declared
+    # type even if we get a default value like 'nothing'. And since we're specializing on OneOfs, we'll make sure
+    # to use the concrete type of the OneOf union by calling `typeof` on the provided value (which is always
+    # named the same as the field itself).
+    if t.name in keys(ctx._field_types_requiring_type_params)
+        print(io, ") = ", stub_name(t.name), "{")
+        for (isoneof, name) in ctx._field_types_requiring_type_params[t.name]
+            i > 1 && print(io, ",")
+            isoneof ? print(io, "typeof(", _safename(name), ")") : print(io, _safename(name))
+            i += 1
+        end
+    else
+        print(io, ") = ", type_name, "{")
+        for field in t.fields
+            field isa OneOfType || continue
+            i > 1 && print(io, ",")
+            print(io, "typeof(", _safename(field.name), ")")
+            i += 1
+        end
+    end
+
+    print(io, "}(")
+
     for (i, field) in enumerate(t.fields)
         print(io, jl_fieldname(field))
         i < n && print(io, ", ")
