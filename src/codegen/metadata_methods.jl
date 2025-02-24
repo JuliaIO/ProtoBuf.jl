@@ -138,7 +138,7 @@ function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx::Contex
 end
 
 function maybe_generate_regular_constructor_for_type_alias(io, t::MessageType, ctx::Context)
-    (!ctx.options.add_kwarg_constructors && t.has_oneof_field) || return
+    !(ctx.options.parametrize_oneofs && t.has_oneof_field) && return
     n = length(t.fields)
     type_name = safename(t)
     print(io, "$(type_name)(")
