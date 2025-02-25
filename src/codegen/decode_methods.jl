@@ -103,34 +103,9 @@ function generate_decode_method(io, t::MessageType, ctx::Context)
     println(io, "    " ^ (3 - !has_fields), "PB.skip(d, wire_type)")
     has_fields && println(io, "        end")
     println(io, "    end")
-    if t.has_oneof_field && ctx.options.parametrize_oneofs
-        i = 1
-        # Since we're potentially mixing type params used to forward declare cyclic deps and type params for oneofs,
-        # and since all fields are optional, we must tell the constructor what is the type of the forward declared
-        # type even if we get a default value like 'nothing'. And since we're specializing on OneOfs, we'll make sure
-        # to use the concrete type of the OneOf union by calling `typeof` on the provided value (which is always
-        # named the same as the field itself).
-        if t.name in keys(ctx._field_types_requiring_type_params)
-            print(io, "    return ", stub_name(t.name), "{")
-            for (isoneof, name) in ctx._field_types_requiring_type_params[t.name]
-                i > 1 && print(io, ",")
-                isoneof ? print(io, "typeof(", _safename(name), ")") : print(io, _safename(name))
-                i += 1
-            end
-        else
-            print(io, "    return ", jl_typename(t, ctx), "{")
-            for field in t.fields
-                field isa OneOfType || continue
-                i > 1 && print(io, ",")
-                print(io, "typeof(", _safename(field.name), ")")
-                i += 1
-            end
-        end
-
-        print(io, "}(")
-    else
-        print(io, "    return ", jl_typename(t, ctx), "(")
-    end
+    print(io, "    return ")
+    _maybe_parametrize_constructor_to_handle_oneofs(io, t, ctx)
+    print(io, "(")
     for (i, field) in enumerate(t.fields)
         print(io, jl_fieldname_deref(field, ctx))
         i < n && (print(io, ", "))
