@@ -38,7 +38,7 @@ struct Context
     proto_file::ProtoFile
     proto_file_path::String
     file_map::Dict{String,ResolvedProtoFile}
-    _field_types_requiring_type_params::Dict{String,Vector{Tuple{Bool,String}}}
+    _types_and_oneofs_requiring_type_params::Dict{String,Vector{Tuple{Bool,String}}}
     _remaining_cyclic_defs::Set{String}
     _toplevel_raw_name::Ref{String}
     transitive_imports::Set{String}

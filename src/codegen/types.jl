@@ -1,3 +1,5 @@
+# If we have a Dict or Vector of a message type that is parametrized on a OneOf, we cannot type
+# the container concretely. In this case we prepend a `<:` to the eltype.
 _needs_subtyping_in_containers(t::AbstractProtoType, ctx::Context) = false
 function _needs_subtyping_in_containers(t::ReferencedType, ctx::Context)
     !_is_message(t, ctx) && return false
@@ -36,6 +38,8 @@ jl_typename(::BoolType, ::Context)     = "Bool"
 jl_typename(::StringType, ::Context)   = "String"
 jl_typename(::BytesType, ::Context)    = "Vector{UInt8}"
 jl_typename(t::MessageType, ::Context) = safename(t)
+# Note that proper handling of references is done in _ref_type_name_or_param, which takes care
+# stub types and type parametrizations. It calls this method in the regular case.
 function jl_typename(t::ReferencedType, ctx::Context)
     # Assessing the type makes sure we search for the reference in imports
     # and populate the resolved_package field.
@@ -80,12 +84,14 @@ _needs_type_params(f::FieldType{ReferencedType}, ctx::Context) = __needs_type_pa
 _needs_type_params(::FieldType,                  ctx::Context) = false
 _needs_type_params(::OneOfType,                  ctx::Context) = ctx.options.parametrize_oneofs
 _needs_type_params(f::GroupType,                 ctx::Context) = f.name in ctx._remaining_cyclic_defs
-_needs_type_params(f::FieldType{MapType},        ctx::Context) = __needs_type_params(f.type.valuetype, ctx) # enums and messages cannot be keys
+_needs_type_params(f::FieldType{MapType},        ctx::Context) = __needs_type_params(f.type.valuetype, ctx) # toplevel definitions cannot be keys
 __needs_type_params(t::ReferencedType,           ctx::Context) = t.name in ctx._remaining_cyclic_defs && t.name != ctx._toplevel_raw_name[]
 __needs_type_params(t::AbstractProtoType,        ctx::Context) = false
 
-
+# Return a mapping from type names to a set of dependencies that require type params.
 function types_needing_params(cyclical_names::AbstractVector{String}, proto_file, options)
+    # The bool is indicator whether the string is a name of a oneof field that we need the type param for
+    # or a cyclical type reference if it's false.
     field_types_requiring_type_params = Dict{String,Vector{Tuple{Bool,String}}}()
     isempty(cyclical_names) && return field_types_requiring_type_params
     _seen = Set{Tuple{Bool,String}}()
@@ -111,15 +117,13 @@ function _types_needing_params!(out, lookup, t::OneOfType, _cyclical_set, option
             push!(out, (true, t.name))
             return nothing
         end
-    else
-        # foreach(f->_types_needing_params!(out, lookup, f.type, _cyclical_set, options, self_name, _seen), t.fields)
     end
 end
 function _types_needing_params!(out, lookup, t::ReferencedType, _cyclical_set, options, self_name, _seen)
     __types_needing_params!(out, lookup, t.name, _cyclical_set, options, self_name, _seen)
 end
 function __types_needing_params!(out, lookup, tname, _cyclical_set, options, self_name, _seen)
-    tname == self_name && return nothing
+    tname == self_name && return nothing # self-references do not need type params, they just work
     if tname in _cyclical_set
         get!(_seen.dict, (false, tname)) do
             push!(out, (false, tname))
@@ -131,9 +135,11 @@ function __types_needing_params!(out, lookup, tname, _cyclical_set, options, sel
     return nothing
 end
 
+# Type bounds used in parametrizations -- for OneOfs we're constructing the union type, for
+# the other cases we're only referring to predeclared abstract types.
 _get_type_bound(f::FieldType{ReferencedType}, ::Context) = abstract_type_name(f.type.name)
 _get_type_bound(f::GroupType,                 ::Context) = abstract_type_name(f.type.name)
-_get_type_bound(f::FieldType{MapType},        ::Context) = abstract_type_name(f.type.valuetype.name) # enums and messages cannot be keys
+_get_type_bound(f::FieldType{MapType},        ::Context) = abstract_type_name(f.type.valuetype.name) # toplevel definitions cannot be keys
 function _get_type_bound(f::OneOfType, ctx::Context)
     seen = Set{String}()
     union_types = String[]
@@ -143,15 +149,25 @@ function _get_type_bound(f::OneOfType, ctx::Context)
         get!(seen.dict, type_name) do
             if o.type isa ReferencedType
                 _raw_name = o.type.name
-                is_cyclic = _raw_name in keys(ctx._field_types_requiring_type_params)
+                is_cyclic = _raw_name in keys(ctx._types_and_oneofs_requiring_type_params)
                 is_self_ref = _raw_name == struct_name
+                # This is legal definition:
+                # struct A
+                #     x::Union{Nothing,A}
+                # end
+                # This isn't:
+                # struct A{T1<:Union{Nothing,A}}
+                #     x::T1
+                # end
+                # So we need to use the abstract type if we're specializing on OneOf that refer
+                # to struct itself.
                 needs_abstract = _raw_name in ctx._remaining_cyclic_defs ||
                     ctx.options.parametrize_oneofs && (is_cyclic || is_self_ref)
 
                 name_in_oneof_union = needs_abstract ?
                     abstract_type_name(_raw_name) :
                     is_cyclic ?
-                        stub_name(_raw_name) :
+                        stub_type_name(_raw_name) :
                         type_name
             else
                 name_in_oneof_union = type_name
@@ -178,19 +194,20 @@ function _maybe_subtype(name, options)
 end
 
 struct ParamMetadata
-    param::String
-    bound::String
+    param::String # like T1, T2, T3, ...
+    bound::String # like var"##Abstract#A", Union{Nothing,Int}, ...
 end
 struct TypeParams
-    references::Dict{String,ParamMetadata}
-    oneofs::Dict{String,ParamMetadata}
+    references::Dict{String,ParamMetadata} # breaking dependency cycles
+    oneofs::Dict{String,ParamMetadata}     # specializing on oneof fields, if requested
 end
 const EMPTY_TYPE_PARAMS = TypeParams(Dict{String,ParamMetadata}(), Dict{String,ParamMetadata}())
 
+# Parametrizing oneofs is the only way a non-cyclic definitions might need type params
 function get_type_params_for_non_cyclic(t::MessageType, ctx::Context)
     i = 0
+    !(ctx.options.parametrize_oneofs || t.has_oneof_field) && return EMPTY_TYPE_PARAMS
     type_params = TypeParams(EMPTY_TYPE_PARAMS.references, Dict{String,ParamMetadata}())
-    !(ctx.options.parametrize_oneofs || t.has_oneof_field) && return type_params
     for field in t.fields
         !(field isa OneOfType) && continue
         i += 1
@@ -206,17 +223,19 @@ end
 function get_type_params_for_cyclic(t::MessageType, ctx::Context)
     i = 0
     type_params = TypeParams(Dict{String,ParamMetadata}(), Dict{String,ParamMetadata}())
-    deps = get(ctx._field_types_requiring_type_params, t.name, Tuple{Bool,String}[])
+    deps = get(ctx._types_and_oneofs_requiring_type_params, t.name, Tuple{Bool,String}[]) # bool is true for oneofs
 
+    fields_scan_position = 1 # to only scan the fields once when looking for oneofs as the deps are ordered
     for (isoneof, dep) in deps
         i += 1
         param = string("T", i)
         if isoneof
-            for field in t.fields
+            for (offset, field) in enumerate(@view(t.fields[fields_scan_position:end]))
                 if field.name == dep
                     bound = _get_type_bound(field, ctx)
                     type_param = ParamMetadata(param, bound)
                     type_params.oneofs[dep] = type_param
+                    fields_scan_position += offset
                     break
                 end
             end
@@ -229,7 +248,7 @@ function get_type_params_for_cyclic(t::MessageType, ctx::Context)
     return type_params
 end
 
-function get_type_param_string(type_params)
+function get_type_param_string(type_params::TypeParams)
     isempty(type_params.references) && isempty(type_params.oneofs) && return ""
     io = IOBuffer()
     buf = String[]
@@ -246,66 +265,139 @@ function get_type_param_string(type_params)
     return String(take!(io))
 end
 
-function reconstruct_parametrized_type_name(t::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams=EMPTY_TYPE_PARAMS)
+# NOTE: In case of topologically sort-able types, parametrization due to oneof fields are handled
+# in the generate_struct method, here we only care about the type params for cyclic definitions, which
+# complicate things further by also parametrizing on stub types to resolve dependency cycles.
+function reconstruct_parametrized_stub_type_name(t::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams=EMPTY_TYPE_PARAMS)
     type_name = t.name
-    _field_types_requiring_type_params = ctx._field_types_requiring_type_params
+    _types_and_oneofs_requiring_type_params = ctx._types_and_oneofs_requiring_type_params
     _remaining_cyclic_defs = ctx._remaining_cyclic_defs
-    deps = get(_field_types_requiring_type_params, type_name, nothing)
+    deps = get(_types_and_oneofs_requiring_type_params, type_name, nothing)
+    # If there are no dependencies requiring type params, this means that the type is not cyclic
+    # and doesn't have a parametrized oneof fields.
     isnothing(deps) && return _safename(type_name)
-    isempty(deps) && return stub_name(type_name)
+    # If the set of dependencies exists but is empty, this means that all there were mutually recursive
+    # dependencies, but all corresponding stub definitions have already been generated at this point.
+    # This means that we're talking about a stub type that doesn't have to be parametrized.
+    isempty(deps) && return stub_type_name(type_name)
 
+    # Otherwise, we need to generate a parametrized stub type name
     io = IOBuffer()
-    print(io, stub_name(type_name))
+    print(io, stub_type_name(type_name))
     print(io, "{")
-    _first = true
-    # @info type_name _remaining_cyclic_defs type_params.references
-    for (isoneof, dep) in deps
-        !_first && print(io, ',')
-        if dep in _remaining_cyclic_defs                             # dep not defined yet -> use type param
-            print(io, type_params.references[dep].param)
-        elseif dep in keys(_field_types_requiring_type_params)       # dep is cyclic -> use stubbed name and recurse
-            dep_has_params = !isempty(_field_types_requiring_type_params[dep])
-            if dep_has_params
-                print(io, stub_name(dep), "{")
-                _reconstruct_parametrized_type_name(io, dep, _field_types_requiring_type_params, _remaining_cyclic_defs, type_params)
-                print(io, '}')
-            else
-                print(io, stub_name(dep))
-            end
-        # elseif dep in keys(type_params.oneofs) # parametrization due to oneof
-        #     print(io, type_params.oneofs[dep].param)
-        else
-            print(io, "<:Union{Nothing,<:OneOf}")
-        end
-        _first = false
-    end
+    _reconstruct_parametrized_stub_type_name(io, t.name, _types_and_oneofs_requiring_type_params, _remaining_cyclic_defs, type_params)
     print(io, "}")
 
     return String(take!(io))
 end
 
-function _reconstruct_parametrized_type_name(io, name::String, _field_types_requiring_type_params, _remaining_cyclic_defs, type_params=EMPTY_TYPE_PARAMS)
-    @assert name in keys(_field_types_requiring_type_params)
-    deps = _field_types_requiring_type_params[name]
+function _reconstruct_parametrized_stub_type_name(io, name::String, _types_and_oneofs_requiring_type_params, _remaining_cyclic_defs, type_params=EMPTY_TYPE_PARAMS)
+    @assert name in keys(_types_and_oneofs_requiring_type_params)
+    deps = _types_and_oneofs_requiring_type_params[name]
     _first = true
     for (isoneof, dep) in deps
         !_first && print(io, ',')
-        if dep in _remaining_cyclic_defs                       # dep not defined yet -> use type param
+        if dep in _remaining_cyclic_defs                            # dep not defined yet -> use type param
             print(io, type_params.references[dep].param)
-        elseif dep in keys(_field_types_requiring_type_params) # dep is cyclic -> use stubbed name and recurse
-            dep_has_params = !isempty(_field_types_requiring_type_params[dep])
+        elseif dep in keys(_types_and_oneofs_requiring_type_params) # dep is cyclic -> use stubbed name and recurse
+            dep_has_params = !isempty(_types_and_oneofs_requiring_type_params[dep])
             if dep_has_params
-                print(io, stub_name(dep), "{")
-                _reconstruct_parametrized_type_name(io, dep, _field_types_requiring_type_params, _remaining_cyclic_defs, type_params)
+                print(io, stub_type_name(dep), "{")
+                _reconstruct_parametrized_stub_type_name(io, dep, _types_and_oneofs_requiring_type_params, _remaining_cyclic_defs, type_params)
                 print(io, '}')
             else
-                print(io, stub_name(dep))
+                print(io, stub_type_name(dep))
             end
-        # elseif dep in keys(type_params.oneofs)               # parametrization due to oneof
-        #     print(io, type_params.oneofs[dep].param)
         else
             print(io, "<:Union{Nothing,<:OneOf}")
         end
         _first = false
     end
+end
+
+# Since we're potentially mixing type params used to forward declare cyclic deps and type params for oneofs,
+# and since all are potentially optional, we must tell the constructor what is the type of the forward declared
+# type even if we get a default value like 'nothing'. And since we're specializing on OneOfs, we'll make sure
+# to use the concrete type of the OneOf union by calling `typeof` on the provided value (which is always
+# named the same as the field itself).
+function _maybe_parametrize_constructor_to_handle_oneofs(io, t::MessageType, ctx::Context)
+    if t.has_oneof_field && ctx.options.parametrize_oneofs
+        i = 1
+        if t.name in keys(ctx._types_and_oneofs_requiring_type_params)
+            print(io, stub_type_name(t.name), "{")
+            for (isoneof, name) in ctx._types_and_oneofs_requiring_type_params[t.name]
+                i > 1 && print(io, ",")
+                isoneof ? print(io, "typeof(", _safename(name), ")") : print(io, _safename(name))
+                i += 1
+            end
+        else
+            print(io, jl_typename(t, ctx), "{")
+            for field in t.fields
+                field isa OneOfType || continue
+                i > 1 && print(io, ",")
+                print(io, "typeof(", _safename(field.name), ")")
+                i += 1
+            end
+        end
+
+        print(io, "}")
+    else
+        print(io, jl_typename(t, ctx))
+    end
+end
+
+# If T is is a type name as determined from the reference to a message type, then we need to
+# use the rest of the info from the field to know if this is a repeated field and if not,
+# we need to decide whether we need to make it optional or not. Usually fields are optional
+# unless they are specifically asked by the user as required or marked as required field in
+# proto2 syntax. Cyclical definitions are always optional.
+function _maybe_union_or_vector_a_type_name(type_name::String, field::Union{GroupType,FieldType{ReferencedType}}, ctx::Context)
+    struct_name = ctx._toplevel_raw_name[] # must be set by the caller!
+    is_repeated = _is_repeated_field(field)
+
+    if is_repeated
+        maybe_subtype = _needs_subtyping_in_containers(field.type, ctx) ? "<:" : ""
+        return string("Vector{", maybe_subtype, type_name, "}")
+    end
+
+    appears_in_cycle = field.type.name in keys(ctx._types_and_oneofs_requiring_type_params)
+    is_self_referential = field.type.name == struct_name
+    should_force_required = _should_force_required(string(struct_name, ".", field.name), ctx)
+    optional_label = (field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT)
+
+    needs_union = (is_self_referential || appears_in_cycle) || (!should_force_required && optional_label)
+
+    if needs_union && _is_message(field.type, ctx)
+        type_name = string("Union{Nothing,", type_name,"}")
+    end
+    return type_name
+end
+
+# Type is MessageType if we got here from GroupType or ReferencedType if we got here from FieldType{ReferencedType} or a MapType
+# This is where we decide where the field param would refer to a type param of the struct,
+# a stubbed type name, or the actual type name.
+function _ref_type_name_or_param(type::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams)
+    struct_name = ctx._toplevel_raw_name[] # must be set by the caller!
+    appears_in_cycle = type.name in keys(ctx._types_and_oneofs_requiring_type_params)
+    is_self_referential = type.name == struct_name
+
+    if type.name in ctx._remaining_cyclic_defs # Cyclic reference that has not yet been defined
+        # We need to specialize on the type of this field, either because the user requested
+        # specialization on a OneOf member, or because the field is part of a cyclic definition
+        type_name = type_params.references[type.name].param
+    elseif appears_in_cycle || is_self_referential
+        # Cyclic reference that has been defined already
+        type_name = reconstruct_parametrized_stub_type_name(type, ctx, type_params)
+    else
+        # Regular field
+        type_name = jl_typename(type, ctx)
+    end
+    return type_name
+end
+
+# The type alias pointing to the concretized stub definition, used to break out dependency cycles
+function _generate_struct_alias(io, t::MessageType, ctx::Context)
+    struct_name = safename(t)
+    type = reconstruct_parametrized_stub_type_name(t, ctx)
+    println(io, "const ", struct_name, " = ", type)
 end

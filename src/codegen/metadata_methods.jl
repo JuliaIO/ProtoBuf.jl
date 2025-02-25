@@ -104,6 +104,7 @@ function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx::Contex
     end
     print(io, ") = ")
     _maybe_parametrize_constructor_to_handle_oneofs(io, t, ctx)
+
     print(io, "(")
     for (i, field) in enumerate(t.fields)
         print(io, jl_fieldname(field))
@@ -112,7 +113,53 @@ function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx::Contex
     println(io, ')')
 end
 
-function maybe_generate_regular_constructor_for_type_alias(io, t::MessageType, ctx::Context)
+function maybe_generate_constructor_for_type_alias(io, t::MessageType, ctx::Context)
+    #=
+    Type aliases are supposed to point to _concretized_ stub definitions of the types which
+    we couldn't generate the normal way due to mutually recursive type dependencies. In case
+    the stub definition also contains oneof fields and we parametrize oneofs, the alias would
+    no longer be concretized and would would fail to type-match concrete OneOf instances
+    as valid inputs. Here we generate a constructor for the alias that that provides the
+    concrete types of all parameters to the stub definition. E.g:
+
+    ```proto
+    message A { B b = 1; }
+    message B { oneof x { int32 i = 1; A a = 2; } }
+    ```
+
+    would generate the following types, constructors and aliases:
+
+    ```julia
+    using ProtoBuf: OneOf
+    abstract type var"##Abstract#A" end
+    abstract type var"##Abstract#B" end
+
+    struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+        b::Union{Nothing,T1}
+    end
+    struct var"##Stub#B"{T1<:Union{Nothing,OneOf{<:Union{Int32,var"##Abstract#A"}}}} <: var"##Abstract#B"
+        x::T1
+    end
+
+    const A = var"##Stub#A"{var"##Stub#B"{<:Union{Nothing,<:OneOf}}}
+    const B = var"##Stub#B"{<:Union{Nothing,<:OneOf}}
+    B(x) = var"##Stub#B"{typeof(x)}(x) # <- This is what we generate in this method
+    ```
+    Without the last line, we wouldn't be able to call B on concrete OneOf instances:
+    ```julia
+    julia> B(OneOf(:i, Int32(1)))
+    ERROR: MethodError: no method matching (B)(::OneOf{Int32})
+    Stacktrace:
+    [1] top-level scope
+    @ REPL[9]:1
+
+    julia> B(x) = var"##Stub#B"{typeof(x)}(x)
+    B (alias for var"##Stub#B"{<:Union{Nothing, var"#s31"} where var"#s31"<:OneOf})
+
+    julia> B(OneOf(:i, Int32(1)))
+    B{OneOf{Int32}}(OneOf{Int32}(:i, 1))
+    ```
+    =#
     !(ctx.options.parametrize_oneofs && t.has_oneof_field) && return
     n = length(t.fields)
     type_name = safename(t)
@@ -123,8 +170,8 @@ function maybe_generate_regular_constructor_for_type_alias(io, t::MessageType, c
     end
     print(io, ") = ")
     _maybe_parametrize_constructor_to_handle_oneofs(io, t, ctx)
-    print(io, "(")
 
+    print(io, "(")
     for (i, field) in enumerate(t.fields)
         print(io, jl_fieldname(field))
         i < n && print(io, ", ")

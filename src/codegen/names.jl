@@ -73,4 +73,4 @@ jl_fieldname(f::GroupType) = _safename(f.field_name)
 
 _safe_namespace_string(ns::AbstractVector{<:AbstractString}) = string("var\"#$(first(ns))\"", '.', join(@view(ns[2:end]), '.'))
 
-stub_name(x) = string("var\"##Stub#", x, "\"")
+stub_type_name(x) = string("var\"##Stub#", x, "\"")

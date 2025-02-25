@@ -1,7 +1,7 @@
 using ProtoBuf
 using ProtoBuf.CodeGenerators: Options, ResolvedProtoFile, translate, namespace
 using ProtoBuf.CodeGenerators: import_paths, Context, codegen
-using ProtoBuf.CodeGenerators: generate_struct, generate_struct_stub, generate_struct_alias
+using ProtoBuf.CodeGenerators: generate_struct, codegen_cylic_stub, _generate_struct_alias
 using ProtoBuf.CodeGenerators: resolve_inter_package_references!, get_all_transitive_imports!
 using ProtoBuf.CodeGenerators: CodeGenerators, types_needing_params
 using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers
@@ -13,13 +13,13 @@ strify(f, args...) = (io = IOBuffer(); f(io, args...); String(take!(io)))
 codegen_str(args...) = strify(codegen, args...)
 function generate_struct_str(def, ctx, ; remaining=copy(ctx._remaining_cyclic_defs))
     ctx._toplevel_raw_name[] = def.name
-    if def.name in keys(ctx._field_types_requiring_type_params)
+    if def.name in keys(ctx._types_and_oneofs_requiring_type_params)
         original_remaining = copy(ctx._remaining_cyclic_defs)
         empty!(ctx._remaining_cyclic_defs)
         union!(ctx._remaining_cyclic_defs, remaining)
-        stub = strify(generate_struct_stub, def, ctx)
+        stub = strify(codegen_cylic_stub, def, ctx)
         empty!(ctx._remaining_cyclic_defs) # aliases are printed after all stubs, at which point the remaining defs are empty
-        alias = strify(generate_struct_alias, def, ctx)
+        alias = strify(_generate_struct_alias, def, ctx)
         union!(ctx._remaining_cyclic_defs, original_remaining)
         return stub * alias
     else

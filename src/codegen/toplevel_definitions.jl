@@ -9,60 +9,17 @@ function generate_struct_field(io, @nospecialize(field), ctx::Context, type_para
     println(io, "    ", jl_fieldname(field)::String, "::", jl_typename(field, ctx)::String)
 end
 
-
-function _maybe_union_or_vector(type_name::String, field::Union{GroupType,FieldType{ReferencedType}}, ctx::Context)
-    struct_name = ctx._toplevel_raw_name[] # must be set by the caller!
-    is_repeated = _is_repeated_field(field)
-
-    if is_repeated
-        maybe_subtype = _needs_subtyping_in_containers(field.type, ctx) ? "<:" : ""
-        return string("Vector{", maybe_subtype, type_name, "}")
-    end
-
-    appears_in_cycle = field.type.name in keys(ctx._field_types_requiring_type_params)
-    is_self_referential = field.type.name == struct_name
-    should_force_required = _should_force_required(string(struct_name, ".", field.name), ctx)
-    optional_label = (field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT)
-
-    needs_union = (is_self_referential || appears_in_cycle) || (!should_force_required && optional_label)
-
-    if needs_union && _is_message(field.type, ctx)
-        type_name = string("Union{Nothing,", type_name,"}")
-    end
-    return type_name
-end
-
-# Type is MessageType if we got here from GroupType or ReferencedType if we got here from FieldType{ReferencedType} or a MapType
-function _ref_type_name_or_param(type::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams)
-    struct_name = ctx._toplevel_raw_name[] # must be set by the caller!
-    appears_in_cycle = type.name in keys(ctx._field_types_requiring_type_params)
-    is_self_referential = type.name == struct_name
-
-    if type.name in ctx._remaining_cyclic_defs # Cyclic reference that has not yet been defined
-        # We need to specialize on the type of this field, either because the user requested
-        # specialization on a OneOf member, or because the field is part of a cyclic definition
-        type_name = type_params.references[type.name].param
-    elseif appears_in_cycle || is_self_referential
-        # Cyclic reference that has been defined already
-        type_name = reconstruct_parametrized_type_name(type, ctx, type_params)
-    else
-        # Regular field
-        type_name = jl_typename(type, ctx)
-    end
-    return type_name
-end
-
 function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Context, type_params::TypeParams)
     field_name = jl_fieldname(field)
     type_name = _ref_type_name_or_param(field.type, ctx, type_params)
-    type_name = _maybe_union_or_vector(type_name, field, ctx)
+    type_name = _maybe_union_or_vector_a_type_name(type_name, field, ctx)
     println(io, "    ", field_name, "::", type_name)
 end
 
 function generate_struct_field(io, field::GroupType, ctx::Context, type_params::TypeParams)
     field_name = jl_fieldname(field)
     type_name = _ref_type_name_or_param(field.type, ctx, type_params)
-    type_name = _maybe_union_or_vector(type_name, field, ctx)
+    type_name = _maybe_union_or_vector_a_type_name(type_name, field, ctx)
     println(io, "    ", field_name, "::", type_name)
 end
 
@@ -117,30 +74,6 @@ function generate_struct(io, t::MessageType, ctx::Context)
     println(io, "end")
 end
 
-function generate_struct_stub(io, t::MessageType, ctx::Context)
-    @assert t.name in keys(ctx._field_types_requiring_type_params)
-    # After we're done with this struct, all the subsequent definitions can use it
-    # so we pop it from the list of cyclic definitions.
-    abstract_base_name = pop!(ctx._remaining_cyclic_defs, t.name, "")
-    type_params = get_type_params_for_cyclic(t, ctx)
-    params_string = get_type_param_string(type_params)
-
-    print(io, "struct ", stub_name(t.name), length(t.fields) > 0 ? params_string : " ", _maybe_subtype(abstract_base_name, ctx.options))
-    # new line if there are fields, otherwise ensure that we have space before `end`
-    length(t.fields) > 0 ? println(io) : print(io, ' ')
-    for field in t.fields
-        generate_struct_field(io, field, ctx, type_params)
-    end
-    println(io, "end")
-end
-
-function generate_struct_alias(io, t::MessageType, ctx::Context)
-    struct_name = safename(t)
-    type = reconstruct_parametrized_type_name(t, ctx)
-    println(io, "const ", struct_name, " = ", type)
-    maybe_generate_regular_constructor_for_type_alias(io, t, ctx)
-end
-
 codegen(t::AbstractProtoType, ctx::Context) = codegen(stdout, t, ctx::Context)
 
 function codegen(io, t::MessageType, ctx::Context)
@@ -158,11 +91,57 @@ function codegen(io, t::MessageType, ctx::Context)
     generate_encode_method(io, t, ctx)
     generate__encoded_size_method(io, t, ctx)
 end
-function codegen_cylic_stub(io, t::MessageType, ctx::Context)
-    generate_struct_stub(io, t, ctx)
+# If a MessageType is not topologically sort-able, we forward-declare a "stub" version of it.
+# This stub is a struct that has a type param for each of its type dependencies, that were also
+# not topologically sort-able. Each non-topologically sort-able type also has a custom abstract
+# type defined for it, which is used as a type bound for the type param of the stub struct.
+# Each stub can refer to itself and all previous stubs, which allows us to break the dependency
+# cycles. After we're done with defining all the stubs, we generate type aliases that point to the
+# concretized stub definitions (i.e. definitions where all the type params are provided using the
+# the stubs). E.g.:
+#=
+```proto
+message A { B b = 1; }
+message B { A a = 1; }
+```
+would generate the following types and aliases:
+```julia
+abstract type var"##Abstract#A" end
+abstract type var"##Abstract#B" end
+
+struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+    b::T1
 end
+struct var"##Stub#B" <: var"##Abstract#B"
+    a::var"##Stub#A"{var"##Stub#B"}
+end
+const A = var"##Stub#A"{var"##Stub#B"} # <- This is fully concrete type
+const B = var"##Stub#B"                # <- This is fully concrete type
+```
+=#
+function codegen_cylic_stub(io, t::MessageType, ctx::Context)
+    @assert t.name in keys(ctx._types_and_oneofs_requiring_type_params)
+    # After we're done with this struct, all the subsequent definitions can use it
+    # so we pop it from the list of cyclic definitions.
+    abstract_base_name = pop!(ctx._remaining_cyclic_defs, t.name, "")
+    type_params = get_type_params_for_cyclic(t, ctx)
+    params_string = get_type_param_string(type_params)
+
+    print(io, "struct ", stub_type_name(t.name), length(t.fields) > 0 ? params_string : " ", _maybe_subtype(abstract_base_name, ctx.options))
+    # new line if there are fields, otherwise ensure that we have space before `end`
+    length(t.fields) > 0 ? println(io) : print(io, ' ')
+    for field in t.fields
+        generate_struct_field(io, field, ctx, type_params)
+    end
+    println(io, "end")
+end
+# After all the stubs are defined (see above), we generate a type alias to the concretized version
+# of the corresponding stub and then we proceed defining all the metadata and codec methods
+# as we do for non-cyclic types.
 function codegen_cylic_rest(io, t::MessageType, ctx::Context)
-    generate_struct_alias(io, t, ctx)
+    _generate_struct_alias(io, t, ctx)
+    # We must define the constructor after the const is set, otherwise we get an error
+    maybe_generate_constructor_for_type_alias(io, t, ctx)
     maybe_generate_kwarg_constructor_method(io, t, ctx)
     maybe_generate_deprecation(io, t)
     maybe_generate_reserved_fields_method(io, t )
