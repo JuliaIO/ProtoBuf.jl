@@ -11,14 +11,14 @@ end
 
 function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Context, type_params::TypeParams)
     field_name = jl_fieldname(field)
-    type_name = _ref_type_name_or_param(field.type, ctx, type_params)
+    type_name = _ref_type_or_concrete_stub_or_param(field.type, ctx, type_params)
     type_name = _maybe_union_or_vector_a_type_name(type_name, field, ctx)
     println(io, "    ", field_name, "::", type_name)
 end
 
 function generate_struct_field(io, field::GroupType, ctx::Context, type_params::TypeParams)
     field_name = jl_fieldname(field)
-    type_name = _ref_type_name_or_param(field.type, ctx, type_params)
+    type_name = _ref_type_or_concrete_stub_or_param(field.type, ctx, type_params)
     type_name = _maybe_union_or_vector_a_type_name(type_name, field, ctx)
     println(io, "    ", field_name, "::", type_name)
 end
@@ -27,7 +27,7 @@ function generate_struct_field(io, field::FieldType{MapType}, ctx::Context, type
     field_name = jl_fieldname(field)
 
     if field.type.valuetype isa ReferencedType
-        value_type_name = _ref_type_name_or_param(field.type.valuetype, ctx, type_params)
+        value_type_name = _ref_type_or_concrete_stub_or_param(field.type.valuetype, ctx, type_params)
         type_name = string("Dict{", jl_typename(field.type.keytype, ctx), ",", value_type_name, "}")
     else
         type_name = jl_typename(field, ctx)
@@ -42,7 +42,7 @@ function generate_struct_field(io, field::OneOfType, ctx::Context, type_params)
     if !isnothing(type_param)
         type_name = type_param.param
     else
-        type_name = _get_oneof_type_bound(field, ctx)
+        type_name = _get_oneof_type_bound(field, ctx, type_params)
     end
     println(io, "    ", field_name, "::", type_name)
 end

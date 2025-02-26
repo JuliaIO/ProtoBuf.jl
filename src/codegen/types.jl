@@ -8,7 +8,9 @@ function _needs_subtyping_in_containers(t::ReferencedType, ctx::Context)
     end
     return false
 end
-
+# jl_typename is used to get the name of a Julia type corresponding to to messages, its fields, enums...
+# BUT for types that require parametrization and "stub" types to get around cyclic dependencies, we need
+# go through a more complicated route that calls to _ref_type_or_concrete_stub_or_param.
 function jl_typename(f::AbstractProtoFieldType, ctx)
     type_name = jl_typename(f.type, ctx)
     if _is_repeated_field(f)
@@ -38,7 +40,7 @@ jl_typename(::BoolType, ::Context)     = "Bool"
 jl_typename(::StringType, ::Context)   = "String"
 jl_typename(::BytesType, ::Context)    = "Vector{UInt8}"
 jl_typename(t::MessageType, ::Context) = safename(t)
-# Note that proper handling of references is done in _ref_type_name_or_param, which takes care
+# Note that proper handling of references is done in _ref_type_or_concrete_stub_or_param, which takes care
 # stub types and type parametrizations. It calls this method in the regular case.
 function jl_typename(t::ReferencedType, ctx::Context)
     # Assessing the type makes sure we search for the reference in imports
@@ -124,9 +126,24 @@ function __types_needing_params!(out, lookup, tname, _cyclical_set, options, sel
     return nothing
 end
 
+function _maybe_subtype(name, options)
+    isempty(name) && return options.common_abstract_type ? " <: AbstractProtoBufMessage" : ""
+    return string(" <: ", abstract_type_name(name))
+end
+
+struct ParamMetadata
+    param::String # like T1, T2, T3, ...
+    bound::String # like var"##Abstract#A", Union{Nothing,Int}... used to bound the type param within struct parametrization
+end
+struct TypeParams
+    references::Dict{String,ParamMetadata} # breaking dependency cycles
+    oneofs::Dict{String,ParamMetadata}     # specializing on oneof fields, if requested
+end
+const EMPTY_TYPE_PARAMS = TypeParams(Dict{String,ParamMetadata}(), Dict{String,ParamMetadata}())
+
 # Type bounds used in parametrizations -- for OneOfs we're constructing the union type, for
 # the other cases we're only referring to predeclared abstract types.
-function _get_oneof_type_bound(f::OneOfType, ctx::Context)
+function _get_oneof_type_bound(f::OneOfType, ctx::Context, type_params::TypeParams=EMPTY_TYPE_PARAMS)
     seen = Set{String}()
     union_types = String[]
     struct_name = ctx._toplevel_raw_name[]
@@ -147,14 +164,11 @@ function _get_oneof_type_bound(f::OneOfType, ctx::Context)
                 # end
                 # So we need to use the abstract type if we're specializing on OneOf that refer
                 # to struct itself.
-                needs_abstract = _raw_name in ctx._remaining_cyclic_defs ||
-                    ctx.options.parametrize_oneofs && (is_cyclic || is_self_ref)
+                needs_abstract = ctx.options.parametrize_oneofs && (is_cyclic || is_self_ref)
 
                 name_in_oneof_union = needs_abstract ?
                     abstract_type_name(_raw_name) :
-                    is_cyclic ?
-                        stub_type_name(_raw_name) :
-                        type_name
+                    _ref_type_or_concrete_stub_or_param(o.type, ctx, type_params)
             else
                 name_in_oneof_union = type_name
             end
@@ -173,21 +187,6 @@ function _get_oneof_type_bound(f::OneOfType, ctx::Context)
     end
     return type
 end
-
-function _maybe_subtype(name, options)
-    isempty(name) && return options.common_abstract_type ? " <: AbstractProtoBufMessage" : ""
-    return string(" <: ", abstract_type_name(name))
-end
-
-struct ParamMetadata
-    param::String # like T1, T2, T3, ...
-    bound::String # like var"##Abstract#A", Union{Nothing,Int}, ...
-end
-struct TypeParams
-    references::Dict{String,ParamMetadata} # breaking dependency cycles
-    oneofs::Dict{String,ParamMetadata}     # specializing on oneof fields, if requested
-end
-const EMPTY_TYPE_PARAMS = TypeParams(Dict{String,ParamMetadata}(), Dict{String,ParamMetadata}())
 
 # Parametrizing oneofs is the only way a non-cyclic definitions might need type params
 function get_type_params_for_non_cyclic(t::MessageType, ctx::Context)
@@ -234,6 +233,7 @@ function get_type_params_for_cyclic(t::MessageType, ctx::Context)
     return type_params
 end
 
+# Struct parametrization with cycles and/or specialized oneof fields
 function get_type_param_string(type_params::TypeParams)
     isempty(type_params.references) && isempty(type_params.oneofs) && return ""
     io = IOBuffer()
@@ -362,7 +362,7 @@ end
 # Type is MessageType if we got here from GroupType or ReferencedType if we got here from FieldType{ReferencedType} or a MapType
 # This is where we decide where the field param would refer to a type param of the struct,
 # a stubbed type name, or the actual type name.
-function _ref_type_name_or_param(type::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams)
+function _ref_type_or_concrete_stub_or_param(type::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams)
     struct_name = ctx._toplevel_raw_name[] # must be set by the caller!
     appears_in_cycle = type.name in keys(ctx._types_and_oneofs_requiring_type_params)
     is_self_referential = type.name == struct_name

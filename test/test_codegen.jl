@@ -394,6 +394,183 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Dict{String,A}()"
     end
 
+    @testset "Mutually recursive dependency involving where type param is shared with a different dependency" begin
+        # Basic message dependencies
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { A a = 1; B b = 2; C c = 3; }
+        message B { A a = 1; }
+        message C { A a = 1; B b = 2; C c = 3; }
+        """)
+        @assert p.sorted_definitions == ["B", "A", "C"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "C"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#C"} <: var"##Abstract#A"
+            a::Union{Nothing,var"##Stub#A"{T1}}
+            b::Union{Nothing,var"##Stub#B"{var"##Stub#A"{T1}}}
+            c::Union{Nothing,T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#C"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Ref{Union{Nothing,B}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[3], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[3], ctx) == "Ref{Union{Nothing,C}}(nothing)"
+
+        # Dependencies through maps and parametrized oneofs
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { A a = 1; oneof o { A a = 2; B b = 3; C c = 4; }; map<string,A> d1 = 5; map<string,B> d2 = 6; map<string,C> d3 = 7;  }
+        message B { A a = 1; }
+        message C { A a = 1; B b = 2; C c = 3; }
+        """, Options(parametrize_oneofs=true))
+        @assert p.sorted_definitions == ["B", "A", "C"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "C"])) == """
+        struct var"##Stub#A"{T1<:Union{Nothing,OneOf{<:Union{var"##Abstract#A",var"##Abstract#B",var"##Abstract#C"}}},T2<:var"##Abstract#C"} <: var"##Abstract#A"
+            a::Union{Nothing,var"##Stub#A"{<:Union{Nothing,<:OneOf},T2}}
+            o::T1
+            d1::Dict{String,var"##Stub#A"{<:Union{Nothing,<:OneOf},T2}}
+            d2::Dict{String,var"##Stub#B"{var"##Stub#A"{<:Union{Nothing,<:OneOf},T2}}}
+            d3::Dict{String,T2}
+        end
+        const A = var"##Stub#A"{<:Union{Nothing,<:OneOf},var"##Stub#C"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "nothing"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[3], ctx) == "Dict{String,A}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[3], ctx) == "Dict{String,A}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
+
+        # Dependencies through maps and non-parametrized oneofs
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { A a = 1; oneof o { A a = 2; B b = 3; C c = 4; }; map<string,A> d1 = 5; map<string,B> d2 = 6; map<string,C> d3 = 7;  }
+        message B { A a = 1; }
+        message C { A a = 1; B b = 2; C c = 3; }
+        """)
+        @assert p.sorted_definitions == ["B", "A", "C"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "C"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#C"} <: var"##Abstract#A"
+            a::Union{Nothing,var"##Stub#A"{T1}}
+            o::Union{Nothing,OneOf{<:Union{var"##Stub#A"{T1},var"##Stub#B"{var"##Stub#A"{T1}},T1}}}
+            d1::Dict{String,var"##Stub#A"{T1}}
+            d2::Dict{String,var"##Stub#B"{var"##Stub#A"{T1}}}
+            d3::Dict{String,T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#C"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "nothing"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[3], ctx) == "Dict{String,A}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[3], ctx) == "Dict{String,A}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
+    end
+
+    @testset "Type params through transitive dependencies" begin
+        # A will get parametrized on C, but only depends on C through its dependencies, B and D
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { B b = 1; D d = 2; oneof o { B b = 3; D d = 4; }; map<string,B> d1 = 5; map<string,D> d2 = 6; }
+        message B { C c = 1; }
+        message D { C c = 1; }
+        message C { A a = 1; B b = 2; C c = 3; }
+        """)
+        @assert p.sorted_definitions == ["B", "D", "A", "C"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "C"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#C"} <: var"##Abstract#A"
+            b::Union{Nothing,var"##Stub#B"{T1}}
+            d::Union{Nothing,var"##Stub#D"{T1}}
+            o::Union{Nothing,OneOf{<:Union{var"##Stub#B"{T1},var"##Stub#D"{T1}}}}
+            d1::Dict{String,var"##Stub#B"{T1}}
+            d2::Dict{String,var"##Stub#D"{T1}}
+        end
+        const A = var"##Stub#A"{var"##Stub#C"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Ref{Union{Nothing,D}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[3], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[3], ctx) == "nothing"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[5], ctx) == "Dict{String,D}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,D}()"
+
+        # Parametrized oneof
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { B b = 1; D d = 2; oneof o { B b = 3; D d = 4; }; map<string,B> d1 = 5; map<string,D> d2 = 6; }
+        message B { C c = 1; }
+        message D { C c = 1; }
+        message C { A a = 1; B b = 2; C c = 3; }
+        """, Options(parametrize_oneofs=true))
+        @assert p.sorted_definitions == ["B", "D", "A", "C"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "C"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#C",T2<:Union{Nothing,OneOf{<:Union{var"##Abstract#B",var"##Abstract#D"}}}} <: var"##Abstract#A"
+            b::Union{Nothing,var"##Stub#B"{T1}}
+            d::Union{Nothing,var"##Stub#D"{T1}}
+            o::T2
+            d1::Dict{String,var"##Stub#B"{T1}}
+            d2::Dict{String,var"##Stub#D"{T1}}
+        end
+        const A = var"##Stub#A"{var"##Stub#C",<:Union{Nothing,<:OneOf}}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "Ref{Union{Nothing,B}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Ref{Union{Nothing,D}}(nothing)"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[3], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[3], ctx) == "nothing"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[5], ctx) == "Dict{String,D}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,D}()"
+    end
+
+    @testset "Different oneof fields shouldn't share type param even their schemas are identical" begin
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { oneof o1 { string s1 = 1; sint32 i1 = 2; }; oneof o2 { string s2 = 3; sint32 i2 = 4; }; }
+        """, Options(parametrize_oneofs=true))
+        @test generate_struct_str(p.definitions["A"], ctx) == """
+        struct A{T1<:Union{Nothing,OneOf{<:Union{String,Int32}}},T2<:Union{Nothing,OneOf{<:Union{String,Int32}}}}
+            o1::T1
+            o2::T2
+        end
+        """
+    end
+
+    @testset "Constructors are adding necessary type params to stub definitions" begin
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { oneof o1 { int32 a = 1; }; B b = 2; oneof o2 { uint32 u = 3; }; }
+        message B { A a = 1; }
+        """, Options(parametrize_oneofs=true, add_kwarg_constructors=true))
+        @assert p.sorted_definitions == ["A", "B"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "B"])) == """
+        struct var"##Stub#A"{T1<:Union{Nothing,OneOf{Int32}},T2<:var"##Abstract#B",T3<:Union{Nothing,OneOf{UInt32}}} <: var"##Abstract#A"
+            o1::T1
+            b::Union{Nothing,T2}
+            o2::T3
+        end
+        const A = var"##Stub#A"{<:Union{Nothing,<:OneOf},var"##Stub#B",<:Union{Nothing,<:OneOf}}
+        """
+        @test strify(CodeGenerators.maybe_generate_constructor_for_type_alias, p.definitions["A"], ctx) == "A(o1, b, o2) = var\"##Stub#A\"{typeof(o1),B,typeof(o2)}(o1, b, o2)\n"
+        @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method, p.definitions["A"], ctx) == "A(;o1 = nothing, b = nothing, o2 = nothing) = var\"##Stub#A\"{typeof(o1),B,typeof(o2)}(o1, b, o2)\n"
+    end
+
     @testset "Simple type with a common abstract type" begin
         s, p, ctx = translate_simple_proto("message B { optional int32 b = 1; }", Options(always_use_modules=false, common_abstract_type=true))
         @test generate_struct_str(p.definitions["B"], ctx) == """
