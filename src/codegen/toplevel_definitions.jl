@@ -28,7 +28,8 @@ function generate_struct_field(io, field::FieldType{MapType}, ctx::Context, type
 
     if field.type.valuetype isa ReferencedType
         value_type_name = _ref_type_or_concrete_stub_or_param(field.type.valuetype, ctx, type_params)
-        type_name = string("Dict{", jl_typename(field.type.keytype, ctx), ",", value_type_name, "}")
+        _maybe_subtype = _needs_subtyping_in_containers(field.type.valuetype, ctx) ? "<:" : ""
+        type_name = string("Dict{", jl_typename(field.type.keytype, ctx), ",", _maybe_subtype, value_type_name, "}")
     else
         type_name = jl_typename(field, ctx)
     end

@@ -430,7 +430,7 @@ end
         struct var"##Stub#A"{T1<:Union{Nothing,OneOf{<:Union{var"##Abstract#A",var"##Abstract#B",var"##Abstract#C"}}},T2<:var"##Abstract#C"} <: var"##Abstract#A"
             a::Union{Nothing,var"##Stub#A"{<:Union{Nothing,<:OneOf},T2}}
             o::T1
-            d1::Dict{String,var"##Stub#A"{<:Union{Nothing,<:OneOf},T2}}
+            d1::Dict{String,<:var"##Stub#A"{<:Union{Nothing,<:OneOf},T2}}
             d2::Dict{String,var"##Stub#B"{var"##Stub#A"{<:Union{Nothing,<:OneOf},T2}}}
             d3::Dict{String,T2}
         end
@@ -446,6 +446,23 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
+
+        # dependency only through oneofs
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { oneof o { B b = 3; C c = 4; }; }
+        message B { A a = 1; }
+        message C { A a = 1; B b = 2; C c = 3; }
+        """)
+        @assert p.sorted_definitions == ["B", "A", "C"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "C"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#C"} <: var"##Abstract#A"
+            o::Union{Nothing,OneOf{<:Union{var"##Stub#B"{var"##Stub#A"{T1}},T1}}}
+        end
+        const A = var"##Stub#A"{var"##Stub#C"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "nothing"
 
         # Dependencies through maps and non-parametrized oneofs
         s, p, ctx = translate_simple_proto("""
@@ -537,6 +554,94 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[4], ctx) == "Dict{String,B}()"
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[5], ctx) == "Dict{String,D}()"
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,D}()"
+    end
+
+    @testset "Parametrized OneOfs and subtyping in containers" begin
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { repeated B b = 1; map<string,B> m = 2; }
+        message B { oneof o { int32 i = 1; string s = 2; }; }
+        """)
+        @test generate_struct_str(p.definitions["A"], ctx) == """
+        struct A
+            b::Vector{B}
+            m::Dict{String,B}
+        end
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "PB.BufferedVector{B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+
+        # Dependencies with parametrized oneofs need to subtype in containers
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { repeated B b = 1; map<string,B> m = 2; }
+        message B { oneof o { int32 i = 1; string s = 2; }; }
+        """, Options(parametrize_oneofs=true))
+        @test generate_struct_str(p.definitions["A"], ctx) == """
+        struct A
+            b::Vector{<:B}
+            m::Dict{String,<:B}
+        end
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "PB.BufferedVector{B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { repeated B b = 1; map<string,B> m = 2; }
+        message B { A a = 1; }
+        """)
+        @test generate_struct_str(p.definitions["A"], ctx) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+            b::Vector{T1}
+            m::Dict{String,T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#B"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "PB.BufferedVector{B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { repeated B b = 1; map<string,B> m = 2; }
+        message B { A a = 1; oneof o { int32 i = 1; string s = 2; }; }
+        """)
+        @assert p.sorted_definitions == ["A", "B"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "B"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+            b::Vector{T1}
+            m::Dict{String,T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#B"}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "PB.BufferedVector{B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto3";
+        message A { repeated B b = 1; map<string,B> m = 2; }
+        message B { A a = 1; oneof o { int32 i = 1; string s = 2; }; }
+        """, Options(parametrize_oneofs=true))
+        @assert p.sorted_definitions == ["A", "B"]
+        @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "B"])) == """
+        struct var"##Stub#A"{T1<:var"##Abstract#B"} <: var"##Abstract#A"
+            b::Vector{<:T1}
+            m::Dict{String,<:T1}
+        end
+        const A = var"##Stub#A"{var"##Stub#B"{<:Union{Nothing,<:OneOf}}}
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[1], ctx) == "PB.BufferedVector{B}()"
+        @test CodeGenerators.jl_default_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
+        @test CodeGenerators.jl_init_value(p.definitions["A"].fields[2], ctx) == "Dict{String,B}()"
     end
 
     @testset "Different oneof fields shouldn't share type param even their schemas are identical" begin

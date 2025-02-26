@@ -108,6 +108,8 @@ function _types_needing_params!(out, lookup, t::OneOfType, _cyclical_set, option
             push!(out, (true, t.name))
             return nothing
         end
+    else
+        foreach(f->_types_needing_params!(out, lookup, f.type, _cyclical_set, options, self_name, _seen), t.fields)
     end
 end
 function _types_needing_params!(out, lookup, t::ReferencedType, _cyclical_set, options, self_name, _seen)
