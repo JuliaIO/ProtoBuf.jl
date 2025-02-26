@@ -38,12 +38,11 @@ end
 function generate_struct_field(io, field::OneOfType, ctx::Context, type_params)
     field_name = jl_fieldname(field)
     type_param = get(type_params.oneofs, field.name, nothing)
-    struct_name = ctx._toplevel_raw_name[]
 
     if !isnothing(type_param)
         type_name = type_param.param
     else
-        type_name = _get_type_bound(field, ctx)
+        type_name = _get_oneof_type_bound(field, ctx)
     end
     println(io, "    ", field_name, "::", type_name)
 end

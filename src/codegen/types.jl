@@ -77,17 +77,6 @@ _is_message(t::MessageType, ctx::Context)    = true
 _is_message(t::ReferencedType, ctx::Context) = t.reference_type == Parsers.MESSAGE
 _is_enum(t::ReferencedType, ctx::Context)    = t.reference_type == Parsers.ENUM
 
-_is_cyclic_reference(t, ::Context) = false
-_is_cyclic_reference(t::ReferencedType, ctx::Context) = t.name in ctx.proto_file.cyclic_definitions && t.name != ctx._toplevel_raw_name[]
-
-_needs_type_params(f::FieldType{ReferencedType}, ctx::Context) = __needs_type_params(f.type, ctx)
-_needs_type_params(::FieldType,                  ctx::Context) = false
-_needs_type_params(::OneOfType,                  ctx::Context) = ctx.options.parametrize_oneofs
-_needs_type_params(f::GroupType,                 ctx::Context) = f.name in ctx._remaining_cyclic_defs
-_needs_type_params(f::FieldType{MapType},        ctx::Context) = __needs_type_params(f.type.valuetype, ctx) # toplevel definitions cannot be keys
-__needs_type_params(t::ReferencedType,           ctx::Context) = t.name in ctx._remaining_cyclic_defs && t.name != ctx._toplevel_raw_name[]
-__needs_type_params(t::AbstractProtoType,        ctx::Context) = false
-
 # Return a mapping from type names to a set of dependencies that require type params.
 function types_needing_params(cyclical_names::AbstractVector{String}, proto_file, options)
     # The bool is indicator whether the string is a name of a oneof field that we need the type param for
@@ -137,10 +126,7 @@ end
 
 # Type bounds used in parametrizations -- for OneOfs we're constructing the union type, for
 # the other cases we're only referring to predeclared abstract types.
-_get_type_bound(f::FieldType{ReferencedType}, ::Context) = abstract_type_name(f.type.name)
-_get_type_bound(f::GroupType,                 ::Context) = abstract_type_name(f.type.name)
-_get_type_bound(f::FieldType{MapType},        ::Context) = abstract_type_name(f.type.valuetype.name) # toplevel definitions cannot be keys
-function _get_type_bound(f::OneOfType, ctx::Context)
+function _get_oneof_type_bound(f::OneOfType, ctx::Context)
     seen = Set{String}()
     union_types = String[]
     struct_name = ctx._toplevel_raw_name[]
@@ -213,7 +199,7 @@ function get_type_params_for_non_cyclic(t::MessageType, ctx::Context)
         i += 1
         param_meta = ParamMetadata(
             string("T", i),
-            _get_type_bound(field, ctx),
+            _get_oneof_type_bound(field, ctx),
         )
         type_params.oneofs[field.name] = param_meta
     end
@@ -232,7 +218,7 @@ function get_type_params_for_cyclic(t::MessageType, ctx::Context)
         if isoneof
             for (offset, field) in enumerate(@view(t.fields[fields_scan_position:end]))
                 if field.name == dep
-                    bound = _get_type_bound(field, ctx)
+                    bound = _get_oneof_type_bound(field, ctx)
                     type_param = ParamMetadata(param, bound)
                     type_params.oneofs[dep] = type_param
                     fields_scan_position += offset

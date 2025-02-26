@@ -6,8 +6,8 @@ import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
 const MAX_FIELD_NUMBER = Int(typemax(UInt32) >> 3)
 
-mutable struct ParserState
-    l::Lexer
+mutable struct ParserState{IO_t<:IO}
+    l::Lexer{IO_t}
     isdone::Bool
     t::Tokens.Token
     nt::Tokens.Token
