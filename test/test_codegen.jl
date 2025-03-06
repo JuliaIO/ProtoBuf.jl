@@ -418,13 +418,25 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[3], ctx) == "nothing"
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[3], ctx) == "Ref{Union{Nothing,C}}(nothing)"
 
+        @testset "generated fieldtypes are concrete" begin
+            let mod = Module()
+                Core.eval(mod, Meta.parse(s))
+                A = mod.main_pb.A
+                for fieldtype in fieldtypes(A)
+                    @assert fieldtype >: Nothing # is a Union{Nothing, ...}
+                    non_optional_fieldtype = fieldtype.b === Nothing ? fieldtype.a : fieldtype.b
+                    @test isconcretetype(non_optional_fieldtype)
+                end
+            end
+        end
+
         # Dependencies through maps and parametrized oneofs
         s, p, ctx = translate_simple_proto("""
         syntax = "proto3";
-        message A { A a = 1; oneof o { A a = 2; B b = 3; C c = 4; }; map<string,A> d1 = 5; map<string,B> d2 = 6; map<string,C> d3 = 7;  }
+        message A { A a = 1; oneof o { A aa = 2; B b = 3; C c = 4; }; map<string,A> d1 = 5; map<string,B> d2 = 6; map<string,C> d3 = 7; }
         message B { A a = 1; }
         message C { A a = 1; B b = 2; C c = 3; }
-        """, Options(parametrize_oneofs=true))
+        """, Options(parametrize_oneofs=true, add_kwarg_constructors=true))
         @assert p.sorted_definitions == ["B", "A", "C"]
         @test generate_struct_str(p.definitions["A"], ctx, remaining=Set{String}(["A", "C"])) == """
         struct var"##Stub#A"{T1<:Union{Nothing,OneOf{<:Union{var"##Abstract#A",var"##Abstract#B",var"##Abstract#C"}}},T2<:var"##Abstract#C"} <: var"##Abstract#A"
@@ -447,6 +459,33 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
 
+        @testset "Containers inside oneof-specialized structs are not too narrowly typed" begin
+            let mod2 = Module()
+                Core.eval(mod2, Meta.parse(s))
+                A = mod2.main_pb.A
+                B = mod2.main_pb.B
+                C = mod2.main_pb.C
+                a = A()
+                try
+                    a.d1["a"] = A()
+                    a.d1["aa"] = A(o = OneOf(:a, A()))
+                    a.d1["ab"] = A(o = OneOf(:b, B()))
+                    a.d1["ac"] = A(o = OneOf(:c, C()))
+
+                    a.d2["baa"] = B(a = A(o = OneOf(:a, A())))
+                    a.d2["bab"] = B(a = A(o = OneOf(:b, B())))
+                    a.d2["bac"] = B(a = A(o = OneOf(:c, C())))
+
+                    a.d3["caa"] = C(a = A(o = OneOf(:a, A())))
+                    a.d3["cab"] = C(a = A(o = OneOf(:b, B())))
+                    a.d3["cac"] = C(a = A(o = OneOf(:c, C())))
+                    @test true
+                catch e
+                    @test false
+                end
+            end
+        end
+
         # dependency only through oneofs
         s, p, ctx = translate_simple_proto("""
         syntax = "proto3";
@@ -467,7 +506,7 @@ end
         # Dependencies through maps and non-parametrized oneofs
         s, p, ctx = translate_simple_proto("""
         syntax = "proto3";
-        message A { A a = 1; oneof o { A a = 2; B b = 3; C c = 4; }; map<string,A> d1 = 5; map<string,B> d2 = 6; map<string,C> d3 = 7;  }
+        message A { A a = 1; oneof o { A aa = 2; B b = 3; C c = 4; }; map<string,A> d1 = 5; map<string,B> d2 = 6; map<string,C> d3 = 7; }
         message B { A a = 1; }
         message C { A a = 1; B b = 2; C c = 3; }
         """)
@@ -498,7 +537,7 @@ end
         # A will get parametrized on C, but only depends on C through its dependencies, B and D
         s, p, ctx = translate_simple_proto("""
         syntax = "proto3";
-        message A { B b = 1; D d = 2; oneof o { B b = 3; D d = 4; }; map<string,B> d1 = 5; map<string,D> d2 = 6; }
+        message A { B b = 1; D d = 2; oneof o { B bb = 3; D dd = 4; }; map<string,B> d1 = 5; map<string,D> d2 = 6; }
         message B { C c = 1; }
         message D { C c = 1; }
         message C { A a = 1; B b = 2; C c = 3; }
@@ -528,7 +567,7 @@ end
         # Parametrized oneof
         s, p, ctx = translate_simple_proto("""
         syntax = "proto3";
-        message A { B b = 1; D d = 2; oneof o { B b = 3; D d = 4; }; map<string,B> d1 = 5; map<string,D> d2 = 6; }
+        message A { B b = 1; D d = 2; oneof o { B bb = 3; D dd = 4; }; map<string,B> d1 = 5; map<string,D> d2 = 6; }
         message B { C c = 1; }
         message D { C c = 1; }
         message C { A a = 1; B b = 2; C c = 3; }
@@ -1107,7 +1146,7 @@ end
             enum Foo {
                 reserved 2, 15, 9 to 11, 40 to max;
                 reserved "FOO", "BAR";
-              }
+             }
             """)
             @test strify(CodeGenerators.maybe_generate_reserved_fields_method, p.definitions["Foo"]) =="PB.reserved_fields(::Type{Foo.T}) = (names = [\"FOO\", \"BAR\"], numbers = Union{Int,UnitRange{Int}}[2, 15, 9:11, 40:536870911])\n"
         end
@@ -1120,7 +1159,7 @@ end
             import \"main2\";
             message FromA {
                 optional FromB f = 1;
-            }
+           }
             """,
             Dict(
                 "main2" => """package A.B; message FromB {}""",
