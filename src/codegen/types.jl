@@ -8,9 +8,9 @@ function _needs_subtyping_in_containers(t::ReferencedType, ctx::Context)
     end
     return false
 end
-# jl_typename is used to get the name of a Julia type corresponding to to messages, its fields, enums...
+# jl_typename is used to get the name of a Julia type corresponding to messages, its fields, enums...
 # BUT for types that require parametrization and "stub" types to get around cyclic dependencies, we need
-# go through a more complicated route that calls to _ref_type_or_concrete_stub_or_param.
+# to go through a more complicated route that calls to _ref_type_or_concrete_stub_or_param.
 function jl_typename(f::AbstractProtoFieldType, ctx)
     type_name = jl_typename(f.type, ctx)
     if _is_repeated_field(f)
@@ -41,7 +41,7 @@ jl_typename(::StringType, ::Context)   = "String"
 jl_typename(::BytesType, ::Context)    = "Vector{UInt8}"
 jl_typename(t::MessageType, ::Context) = safename(t)
 # Note that proper handling of references is done in _ref_type_or_concrete_stub_or_param, which takes care
-# stub types and type parametrizations. It calls this method in the regular case.
+# of stub types and type parametrizations. It calls this method in the regular case.
 function jl_typename(t::ReferencedType, ctx::Context)
     # Assessing the type makes sure we search for the reference in imports
     # and populate the resolved_package field.
