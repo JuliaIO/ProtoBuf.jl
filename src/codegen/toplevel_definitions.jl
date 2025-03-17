@@ -50,7 +50,7 @@ end
 
 function generate_struct(io, t::MessageType, ctx::Context)
     struct_name = safename(t)
-    if t.has_oneof_field && ctx.options.parametrize_oneofs
+    if _needs_abstract_type_for_parametrized_oneofs(t, ctx)
         type_params = get_type_params_for_non_cyclic(t, ctx)
         params_string = get_type_param_string(type_params)
         maybe_subtype = t.is_self_referential[] ?
@@ -201,7 +201,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
         p,
         rp.import_path,
         file_map,
-        types_needing_params(@view(p.sorted_definitions[end-ncyclic+1:end]), p, options),
+        types_needing_params(_cyclic_defs(p), p, options),
         copy(p.cyclic_definitions),
         Ref{String}(),
         rp.transitive_imports,
@@ -251,7 +251,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     if options.parametrize_oneofs
         for name in @view(p.sorted_definitions[1:end-ncyclic])
             def = p.definitions[name]
-            if def isa MessageType && def.has_oneof_field && def.is_self_referential[]
+            if def isa MessageType && _needs_abstract_type_for_parametrized_oneofs(def, ctx)
                 println(io, "abstract type ", abstract_type_name(name), options.common_abstract_type ? " <: AbstractProtoBufMessage" : "", " end")
             end
         end
@@ -262,20 +262,20 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
 
     println(io)
 
-    for def_name in @view(p.sorted_definitions[1:end-ncyclic])
+    for def_name in _non_cyclic_defs(p)
         println(io)
         ctx._toplevel_raw_name[] = def_name
         codegen(io, p.definitions[def_name], ctx)
     end
 
     ncyclic > 0 && print(io, "\n# Stub definitions for cyclic types")
-    for def_name in @view(p.sorted_definitions[end-ncyclic+1:end])
+    for def_name in _cyclic_defs(p)
         println(io)
         ctx._toplevel_raw_name[] = def_name
         codegen_cylic_stub(io, p.definitions[def_name], ctx)
     end
 
-    for def_name in @view(p.sorted_definitions[end-ncyclic+1:end])
+    for def_name in _cyclic_defs(p)
         println(io)
         ctx._toplevel_raw_name[] = def_name
         codegen_cylic_rest(io, p.definitions[def_name], ctx)

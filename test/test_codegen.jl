@@ -755,6 +755,16 @@ end
         """
     end
 
+    @testset "Self referential parametrized OneOf with a common abstract type" begin
+        s, p, ctx = translate_simple_proto("message A { oneof o { A a = 1; int32 b = 2; } }", Options(always_use_modules=false, parametrize_oneofs=true, common_abstract_type=true))
+        @test contains(s, """
+        abstract type var"##Abstract#A" <: AbstractProtoBufMessage end
+        struct A{T1<:Union{Nothing,OneOf{<:Union{var"##Abstract#A",Int32}}}} <: var"##Abstract#A"
+            o::T1
+        end
+        """)
+    end
+
     @testset "OneOf field codegen" begin
         s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; } }", Options(parametrize_oneofs=true))
         @test occursin("""

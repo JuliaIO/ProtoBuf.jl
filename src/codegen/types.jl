@@ -8,6 +8,23 @@ function _needs_subtyping_in_containers(t::ReferencedType, ctx::Context)
     end
     return false
 end
+
+# If we parametrize oneofs and the message is self referential, we can't use the type name
+# in the type param constraint, i.e.:
+# This is legal definition:
+# struct A
+#     x::Union{Nothing,A}
+# end
+# This isn't:
+# struct A{T1<:Union{Nothing,A}}
+#     x::T1
+# end
+function _needs_abstract_type_for_parametrized_oneofs(t::MessageType, ctx::Context)
+    # Note that the abstract type might not be needed if the self-reference does not come
+    # from a oneof field, but this is okay.
+    return ctx.options.parametrize_oneofs && t.has_oneof_field
+end
+
 # jl_typename is used to get the name of a Julia type corresponding to messages, its fields, enums...
 # BUT for types that require parametrization and "stub" types to get around cyclic dependencies, we need
 # to go through a more complicated route that calls to _ref_type_or_concrete_stub_or_param.
@@ -79,10 +96,10 @@ _is_message(t::MessageType, ctx::Context)    = true
 _is_message(t::ReferencedType, ctx::Context) = t.reference_type == Parsers.MESSAGE
 _is_enum(t::ReferencedType, ctx::Context)    = t.reference_type == Parsers.ENUM
 
-# Return a mapping from type names to a set of dependencies that require type params.
+# Return a mapping from type names to a list of dependencies that require type params, each
+# having an indicator whether the string is a name of a oneof field that we need the type
+# param for, or a cyclical type reference if it's false.
 function types_needing_params(cyclical_names::AbstractVector{String}, proto_file, options)
-    # The bool is indicator whether the string is a name of a oneof field that we need the type param for
-    # or a cyclical type reference if it's false.
     field_types_requiring_type_params = Dict{String,Vector{Tuple{Bool,String}}}()
     isempty(cyclical_names) && return field_types_requiring_type_params
     _seen = Set{Tuple{Bool,String}}()

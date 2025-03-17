@@ -137,3 +137,12 @@ function _startswith(prefix, path)
     end
     return true
 end
+
+function _cyclic_defs(p::ProtoFile)
+    ncyclic = length(p.cyclic_definitions)
+    return @view(p.sorted_definitions[(end-ncyclic+1):end])
+end
+function _non_cyclic_defs(p::ProtoFile)
+    ncyclic = length(p.cyclic_definitions)
+    return @view(p.sorted_definitions[begin:(end-ncyclic)])
+end
