@@ -4,7 +4,7 @@ keywords = ["protobuf", "protoc"]
 license = "MIT"
 desc = "Julia protobuf implementation"
 authors = ["Tomáš Drvoštěp <tomas.drvostep@gmail.com>"]
-version = "1.0.16"
+version = "1.1.0"
 
 [deps]
 BufferedStreams = "e1450e63-4bb3-523b-b2a4-4ffa8c0fd77d"
@@ -17,7 +17,7 @@ Aqua = "0.8"
 BufferedStreams = "1.2"
 Dates = "1"
 EnumX = "1"
-JET = "0.4, 0.5, 0.6, 0.7, 0.8"
+JET = "0.4, 0.9"
 TOML = "1"
 Test = "1"
 julia = "1.6"

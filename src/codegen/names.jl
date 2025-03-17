@@ -1,5 +1,6 @@
 const JULIA_RESERVED_KEYWORDS = Set{String}([
     "abstract",
+    "AbstractProtoBufMessage",
     "Any",
     "Array",
     "baremodule",
@@ -19,6 +20,7 @@ const JULIA_RESERVED_KEYWORDS = Set{String}([
     "end",
     "Enum",
     "export",
+    "Expr",
     "false",
     "finally",
     "for",
@@ -64,9 +66,11 @@ function _safename(name::AbstractString)
     end
 end
 
-abstract_type_name(name::AbstractString) = string("var\"##Abstract", name, '"')
+abstract_type_name(name::AbstractString) = string("var\"##Abstract#", name, "\"")
 
 jl_fieldname(@nospecialize(f::AbstractProtoFieldType)) = _safename(f.name)
 jl_fieldname(f::GroupType) = _safename(f.field_name)
 
 _safe_namespace_string(ns::AbstractVector{<:AbstractString}) = string("var\"#$(first(ns))\"", '.', join(@view(ns[2:end]), '.'))
+
+stub_type_name(x) = string("var\"##Stub#", x, "\"")

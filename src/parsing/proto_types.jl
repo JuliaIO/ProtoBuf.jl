@@ -70,7 +70,7 @@ _dot_join(prefix, s) = isempty(prefix) ? s : string(prefix, '.', s)
 # OneOf fields don't use the label field
 struct FieldType{T<:AbstractProtoType} <: AbstractProtoFieldType
     label::FieldLabel
-    type::AbstractProtoType
+    type::AbstractProtoType # T
     name::String
     number::Int
     options::Dict{String,Union{String,Dict{String}}}
@@ -96,6 +96,7 @@ struct MessageType <: AbstractProtoType
     extensions::Vector{Union{Int,UnitRange{Int}}}
     extends::Vector{ExtendType}
     has_oneof_field::Bool
+    is_self_referential::Base.RefValue{Bool}
 end
 
 struct GroupType <: AbstractProtoFieldType
@@ -341,6 +342,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
     extensions = Vector{Union{Int,UnitRange{Int}}}()
     extends = Vector{ExtendType}()
     has_oneof_field = false
+    is_self_referential = Ref{Bool}(false) # set during topological sort
 
     name = _dot_join(name_prefix, name)
     expectnext(ps, Tokens.LBRACE)
@@ -377,7 +379,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
         end
     end
     # TODO: validate field_numbers vs reserved and extensions
-    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field)
+    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, is_self_referential)
 end
 
 # We consumed RPC
@@ -482,4 +484,3 @@ function parse_type(ps::ParserState, definitions::Dict{String,Union{MessageType,
         return parse_type(ps)
     end
 end
-

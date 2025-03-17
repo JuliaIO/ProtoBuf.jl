@@ -1,7 +1,7 @@
 using ProtoBuf
 using ProtoBuf.CodeGenerators: Options, ResolvedProtoFile, translate, namespace, jl_typename
 using ProtoBuf.CodeGenerators: import_paths, Context, get_all_transitive_imports!
-using ProtoBuf.CodeGenerators: resolve_inter_package_references!
+using ProtoBuf.CodeGenerators: resolve_inter_package_references!, types_needing_params
 using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers
 using ProtoBuf.Lexers: Lexer
 using Test
@@ -17,8 +17,10 @@ function translate_simple_proto(str::String, options=Options())
     translate(buf, r, d, options)
     s = String(take!(buf))
     s = join(filter!(!startswith(r"#|$^"), split(s, '\n')), '\n')
+    ncyclic = length(p.cyclic_definitions)
     ctx = Context(
         p, r.import_path, d,
+        types_needing_params(@view(p.sorted_definitions[end-ncyclic+1:end]), p, options),
         copy(p.cyclic_definitions),
         Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
         r.transitive_imports,
@@ -45,8 +47,10 @@ function translate_simple_proto(str::String, deps::Dict{String,String}, options=
     translate(buf, r, d, options)
     s = String(take!(buf))
     s = join(filter!(!startswith(r"#|$^"), split(s, '\n')), '\n')
+    ncyclic = length(p.cyclic_definitions)
     ctx = Context(
         p, r.import_path, d,
+        types_needing_params(@view(p.sorted_definitions[end-ncyclic+1:end]), p, options),
         copy(p.cyclic_definitions),
         Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
         r.transitive_imports,
@@ -171,7 +175,7 @@ end
 
         @test haskey(p.definitions, "A")
         @test p.definitions["A"] isa Parsers.MessageType
-        @test "A" in p.cyclic_definitions
+        @test isempty(p.cyclic_definitions) # self references are not considered cyclic, as they don't affect topological sort
         @test p.definitions["A"].fields[1].name == "a"
         @test p.definitions["A"].fields[1].type isa Parsers.ReferencedType
         @test p.definitions["A"].fields[1].type.name == "A"

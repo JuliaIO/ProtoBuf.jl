@@ -6,8 +6,8 @@ import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
 const MAX_FIELD_NUMBER = Int(typemax(UInt32) >> 3)
 
-mutable struct ParserState
-    l::Lexer
+mutable struct ParserState{IO_t<:IO}
+    l::Lexer{IO_t}
     isdone::Bool
     t::Tokens.Token
     nt::Tokens.Token
@@ -214,6 +214,7 @@ function parse_proto_file(ps::ParserState)
     )
     check_name_collisions(package_parts, definitions, filepath(ps.l), filepath(ps.l))
     external_references = postprocess_types!(definitions, package_identifier)
+    # TODO: handle Extensions before we sort, now extensions are completely ignored
     topologically_sorted, cyclic_definitions = _topological_sort(definitions, external_references)
     return ProtoFile(
         filepath(ps.l),

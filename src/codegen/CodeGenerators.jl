@@ -38,8 +38,9 @@ struct Context
     proto_file::ProtoFile
     proto_file_path::String
     file_map::Dict{String,ResolvedProtoFile}
-    _curr_cyclic_defs::Set{String}
-    _toplevel_name::Ref{String}
+    _types_and_oneofs_requiring_type_params::Dict{String,Vector{Tuple{Bool,String}}}
+    _remaining_cyclic_defs::Set{String}
+    _toplevel_raw_name::Ref{String}
     transitive_imports::Set{String}
     options::Options
 end
@@ -179,10 +180,10 @@ function _protojl(
     # the files are read in order that respect these implicit dependencies.
     resolve_inter_package_references!(parsed_files, options)
     sorted_files, cyclical_imports = _topological_sort(parsed_files)
-    !isempty(cyclical_imports) && throw(error(string(
+    !isempty(cyclical_imports) && error(string(
         "Detected cyclical dependency among following imports: $cyclical_imports, ",
         "possibly, the individual files are resolvable, but their `package`s are not."
-    )))
+    ))
     sorted_files = [parsed_files[sorted_file] for sorted_file in sorted_files]
     n = Namespaces(sorted_files, output_directory, parsed_files)
     for m in n.non_namespaced_protos
