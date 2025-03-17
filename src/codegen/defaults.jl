@@ -23,6 +23,8 @@ function _is_optional_referenced_message(field::Union{FieldType{ReferencedType},
     return false
 end
 
+_is_optional_field(field::Union{FieldType{ReferencedType},GroupType}, ctx::Context) = _is_optional_referenced_message(field, ctx)
+_is_optional_field(field::FieldType, _::Context) = field.label == Parsers.OPTIONAL || field.label == Parsers.DEFAULT
 
 jl_type_default_value(f::FieldType{StringType}, ::Context) = get(f.options, "default", "\"\"")
 jl_type_default_value(f::FieldType{BoolType}, ::Context)   = get(f.options, "default", "false")
