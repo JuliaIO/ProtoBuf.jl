@@ -316,3 +316,28 @@ using ProtoBuf
     @test pairs_message.map_field == decoded_pairs.map_field
 end
 end
+
+module TestJuliaPackage
+using Test
+using ProtoBuf
+
+@testset "Use julia_package option" begin
+    mktempdir() do tmpdir
+        @testset "translate source" begin
+            @test isnothing(protojl(
+                "test_julia_package.proto",
+                joinpath(@__DIR__, "test_protos/"),
+                tmpdir;
+                always_use_modules=false,
+                parametrize_oneofs=false
+            ))
+        end
+        @testset "include generated" begin
+            @test include(joinpath(tmpdir, "Foo/Foo.jl")) isa Module
+            @test Foo.Bar.Baz.Message isa Type
+            @test :message == fieldnames(Foo.Bar.Baz.Message)[1]
+            @test String == fieldtypes(Foo.Bar.Baz.Message)[1]
+        end
+    end
+end
+end
