@@ -1177,4 +1177,12 @@ end
         );
         @test  d["main"].proto_file.definitions["FromA"].fields[1].type.package_namespace == "var\"#A\".B"
     end
+
+    @testset "Services are excluded from exports (as they are not currently supported)" begin
+        s, p, ctx = translate_simple_proto("""
+        message A {}
+        service S { rpc foo(A) returns (A); }
+        """)
+        @test contains(s, "export A\n")
+    end
 end

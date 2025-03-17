@@ -233,16 +233,18 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     println(io, "using ProtoBuf.EnumX: @enumx")
     if (is_namespaced(p) || options.always_use_modules) && !isempty(p.definitions)
         len = 93
-        for name in Iterators.map(_safename, p.sorted_definitions)
-            if len + length(name) + 2 >= 92
+        for name in p.sorted_definitions
+            p.definitions[name] isa ServiceType && continue # TODO: Services are not currently generated
+            safename = _safename(name)
+            if len + length(safename) + 2 >= 92
                 print(io, "\nexport ")
                 len = 7
             else
                 print(io, ", ")
                 len += 2
             end
-            print(io, name)
-            len += length(name)
+            print(io, safename)
+            len += length(safename)
         end
     end
 
