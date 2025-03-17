@@ -214,6 +214,7 @@ function parse_proto_file(ps::ParserState)
     )
     check_name_collisions(package_parts, definitions, filepath(ps.l), filepath(ps.l))
     external_references = postprocess_types!(definitions, package_identifier)
+    # TODO: handle Extensions before we sort, now extensions are completely ignored
     topologically_sorted, cyclic_definitions = _topological_sort(definitions, external_references)
     return ProtoFile(
         filepath(ps.l),
