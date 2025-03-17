@@ -11,7 +11,8 @@ end
 
 include("unittests.jl")
 
-if Base.VERSION > v"1.7.0"
+# Don't run JET on nightly in CI
+if Base.VERSION > v"1.7.0" && !(is_ci() && get(VERSION.prerelease, 1, "") == "DEV")
     @testset "JET" begin
         include("jet_test_utils.jl")
         is_ci() || jet_test_package(ProtoBuf)
