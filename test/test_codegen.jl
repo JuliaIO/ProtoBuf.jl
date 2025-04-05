@@ -935,10 +935,38 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Int32)"
         s, p, ctx = translate_simple_proto("message A { optional sfixed64 a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Int64)"
+
         s, p, ctx = translate_simple_proto("message A { optional float a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float32)"
+        # Test that we compare floats with tripple equals to always serialize negative zero
+        @test contains(s, """
+        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+            initpos = position(e.io)
+            x.a !== zero(Float32) && PB.encode(e, 1, x.a)
+            return position(e.io) - initpos
+        end
+        function PB._encoded_size(x::A)
+            encoded_size = 0
+            x.a !== zero(Float32) && (encoded_size += PB._encoded_size(x.a, 1))
+            return encoded_size
+        end
+        """)
         s, p, ctx = translate_simple_proto("message A { optional double a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float64)"
+        # Test that we compare floats with tripple equals to always serialize negative zero
+        @test contains(s, """
+        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+            initpos = position(e.io)
+            x.a !== zero(Float64) && PB.encode(e, 1, x.a)
+            return position(e.io) - initpos
+        end
+        function PB._encoded_size(x::A)
+            encoded_size = 0
+            x.a !== zero(Float64) && (encoded_size += PB._encoded_size(x.a, 1))
+            return encoded_size
+        end
+        """)
+
         s, p, ctx = translate_simple_proto("message A { optional string a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "\"\""
         s, p, ctx = translate_simple_proto("message A { optional bytes a = 1; }")
@@ -1014,7 +1042,6 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{A}()"
         s, p, ctx = translate_simple_proto("message A { optional group Aa = 1 { optional int32 b = 1; } }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
-
     end
 
     @testset "Initial values" begin
