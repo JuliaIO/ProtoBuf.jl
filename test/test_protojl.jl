@@ -246,6 +246,9 @@ end
 
         var"OmniMessage.Group"(Int32(42)),
         [var"OmniMessage.Repeated_group"(Int32(43))],
+
+        Float32(-0.0), # Checks that -0.0 is serialized and not confused with the 0.0 default value
+        Float64(-0.0),
     )
 
     @testset "IOBuffer" begin
