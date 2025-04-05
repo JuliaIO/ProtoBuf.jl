@@ -20,7 +20,7 @@ EnumX = "1"
 JET = "0.4, 0.9"
 TOML = "1"
 Test = "1"
-julia = "1.6"
+julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
