@@ -88,13 +88,13 @@ jl_fieldname_deref(f::GroupType, ::Context) = "$(jl_fieldname(f))[]"
 
 
 function generate_decode_method(io, t::MessageType, ctx::Context)
-    println(io, "function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:$(safename(t))})")
+    println(io, "function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:$(safename(t))}, _endpos::Int=0, _group::Bool=false)")
     n = length(t.fields)
     has_fields = n > 0
     for field in t.fields
         println(io, "    ", jl_fieldname(field)::String, " = ", jl_init_value(field, ctx)::String)
     end
-    println(io, "    while !PB.message_done(d)")
+    println(io, "    while !PB.message_done(d, _endpos, _group)")
     println(io, "        field_number, wire_type = PB.decode_tag(d)")
     for (i, field) in enumerate(t.fields)
         field_decode_expr(io, field, i, ctx)
