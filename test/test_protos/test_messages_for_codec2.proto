@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+enum TestEnum {
+    DEFAULT = 0;
+    OTHER = 1;
+}
+
+message EmptyMessage { }
+
+message NonEmptyMessage {
+    uint32 x = 1;
+    NonEmptyMessage self_referential_field = 2;
+}

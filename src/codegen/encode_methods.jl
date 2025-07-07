@@ -59,7 +59,9 @@ function _field_encode_expr(f::FieldType{<:MapType}, ::Context)
 end
 
 function print_field_encode_expr(io, f::FieldType, ctx::Context)
-    println(io, "    ", encode_condition(f, ctx), " && ", field_encode_expr(f, ctx))
+    print(io, "    ")
+    _is_optional_field(f, ctx) && print(io, encode_condition(f, ctx), " && ")
+    println(io, field_encode_expr(f, ctx))
 end
 
 function print_field_encode_expr(io, f::GroupType, ctx::Context)
@@ -89,11 +91,15 @@ end
 
 
 function print_field_encoded_size_expr(io, f::FieldType, ctx::Context)
-    println(io, "    ", encode_condition(f, ctx)::String, " && (encoded_size += ", field_encoded_size_expr(f)::String, ')')
+    print(io, "    ")
+    is_optional = _is_optional_field(f, ctx)
+    is_optional && print(io, encode_condition(f, ctx), " && (")
+    print(io, "encoded_size += ", field_encoded_size_expr(f))
+    println(io, is_optional ? ")" : "")
 end
 
 function print_field_encoded_size_expr(io, f::GroupType, ::Context)
-    println(io, "    !isnothing(x.$(jl_fieldname(f))) && (encoded_size += ", field_encoded_size_expr(f), ')')
+    println(io, "    !isnothing(x.$(jl_fieldname(f))) && (encoded_size += ", field_encoded_size_expr(f), ")")
 end
 
 function print_field_encoded_size_expr(io, fs::OneOfType, ctx::Context)
