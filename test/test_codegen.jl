@@ -936,7 +936,7 @@ end
 
         s, p, ctx = translate_simple_proto("message A { optional float a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float32)"
-        # Test that we compare floats with tripple equals to always serialize negative zero
+        # Test that we compare floats with triple equals to always serialize negative zero
         @test contains(s, """
         function PB.encode(e::PB.AbstractProtoEncoder, x::A)
             initpos = position(e.io)
@@ -951,7 +951,7 @@ end
         """)
         s, p, ctx = translate_simple_proto("message A { optional double a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float64)"
-        # Test that we compare floats with tripple equals to always serialize negative zero
+        # Test that we compare floats with triple equals to always serialize negative zero
         @test contains(s, """
         function PB.encode(e::PB.AbstractProtoEncoder, x::A)
             initpos = position(e.io)
@@ -961,6 +961,26 @@ end
         function PB._encoded_size(x::A)
             encoded_size = 0
             x.a !== zero(Float64) && (encoded_size += PB._encoded_size(x.a, 1))
+            return encoded_size
+        end
+        """)
+
+        # Required fields are sent over the wire uncoditionally
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto2";
+        message A { required int32 a = 1; optional int32 b = 2; }
+        """)
+        @test contains(s, """
+        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+            initpos = position(e.io)
+            PB.encode(e, 1, x.a)
+            x.b != zero(Int32) && PB.encode(e, 2, x.b)
+            return position(e.io) - initpos
+        end
+        function PB._encoded_size(x::A)
+            encoded_size = 0
+            encoded_size += PB._encoded_size(x.a, 1)
+            x.b != zero(Int32) && (encoded_size += PB._encoded_size(x.b, 2))
             return encoded_size
         end
         """)
