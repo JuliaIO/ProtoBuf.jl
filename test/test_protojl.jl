@@ -131,7 +131,8 @@ function roundtrip_iobuffer_maxsize(input, f_in=identity, f_out=identity)
 
     encoded = encode(e, input)
 
-    rio = IOBuffer(buf, read=true, write=false)
+    @assert sizeof(wio.data) == sizeof(buf)
+    rio = IOBuffer(wio.data, read=true, write=false)
     d = ProtoDecoder(f_out(rio))
 
     @test encoded == protosize
@@ -166,10 +167,10 @@ function _test_by_field(a, b, name=string(typeof(a)))
 end
 
 @testset "Translate and roundtrip a complex message" begin
-    mktempdir() do tmpdir
-        protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
-        include(joinpath(tmpdir, "complex_message_pb.jl"))
-    end
+    tmpdir = mktempdir()
+    protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
+    include(joinpath(tmpdir, "complex_message_pb.jl"))
+
     msg = OmniMessage(
         UInt8[0xff],
         "S",

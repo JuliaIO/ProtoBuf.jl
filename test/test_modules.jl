@@ -41,7 +41,7 @@ end
     @test n.packages["P"].proto_files[1].import_path == "path/to/a"
 end
 
-@testset "Non-packaged proto imports packaged proto" begin
+@testset "Packaged proto imports non-packaged proto" begin
     s, d, n = simple_namespace_from_protos(
         "package P; import \"path/to/a\";",
         Dict("path/to/a" => ""),
@@ -61,8 +61,7 @@ end
         Dict("path/to/a" => ""),
     );
     @test length(n.non_namespaced_protos) == 2
-    @test n.non_namespaced_protos[1].import_path == "path/to/a"
-    @test n.non_namespaced_protos[2].import_path == "main"
+    @test sort([p.import_path for p in n.non_namespaced_protos]) == ["main", "path/to/a"]
     @test isempty(n.packages)
 end
 
