@@ -112,6 +112,9 @@ message OmniMessage {
     repeated group Repeated_group = 83 {
         optional int32 a = 1;
     }
+
+    optional float float_field_2 = 84;
+    optional double double_field_2 = 85;
 }
 
 message DuplicatedInnerMessage { optional uint32 x = 1; repeated uint32 y = 2; optional DuplicatedMessage r = 3; }
