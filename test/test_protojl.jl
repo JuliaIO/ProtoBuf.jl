@@ -1,6 +1,7 @@
 module TestCompelexProtoFile
 using Test
 using ProtoBuf
+@eval $(Symbol("@il")) = $(Symbol("@invokelatest")) # macro alias
 
 mktempdir() do tmpdir
     @testset "Translate and include complex proto files" begin
@@ -89,12 +90,16 @@ mktempdir() do tmpdir
                          ))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "test/test.jl")) isa Module
-                        @test test.da.A isa Type
-                        @test test.c.C isa Type
-                        @test test.d.D isa Type
-                        @test test.test2.e.Ef isa Type
-                        @test test.test2.g.G isa Type
+                        let _mod = Module(gensym())
+                            Base.include(_mod, joinpath(tmpdir, "test/test.jl"))
+                            test = @il(_mod.test)
+                            @test test isa Module
+                            @test @il(@il(test.da).A) isa Type
+                            @test @il(@il(test.c).C) isa Type
+                            @test @il(@il(test.d).D) isa Type
+                            @test @il(@il(@il(test.test2).e).Ef) isa Type
+                            @test @il(@il(@il(test.test2).g).G) isa Type
+                        end
                     end
                 end
             end
