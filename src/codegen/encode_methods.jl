@@ -60,9 +60,7 @@ end
 
 function print_field_encode_expr(io, f::FieldType, ctx::Context)
     print(io, "    ")
-    if _is_optional_field(f, ctx) && !haskey(f.options, "default")
-        print(io, encode_condition(f, ctx), " && ")
-    end
+    _is_optional_field(f, ctx) && print(io, encode_condition(f, ctx), " && ")
     println(io, field_encode_expr(f, ctx))
 end
 
@@ -94,10 +92,10 @@ end
 
 function print_field_encoded_size_expr(io, f::FieldType, ctx::Context)
     print(io, "    ")
-    is_conditional = _is_optional_field(f, ctx) && !haskey(f.options, "default")
-    is_conditional && print(io, encode_condition(f, ctx), " && (")
+    is_optional = _is_optional_field(f, ctx)
+    is_optional && print(io, encode_condition(f, ctx), " && (")
     print(io, "encoded_size += ", field_encoded_size_expr(f))
-    println(io, is_conditional ? ")" : "")
+    println(io, is_optional ? ")" : "")
 end
 
 function print_field_encoded_size_expr(io, f::GroupType, ::Context)
