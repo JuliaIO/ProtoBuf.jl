@@ -308,35 +308,11 @@ using Test
 using ProtoBuf: Codecs, ProtoEncoder, _encoded_size
 import ProtoBuf as PB
 
-using EnumX
-@enumx TestEnum DEFAULT=0 OTHER=1
+const temp_dir = mktempdir()
+const test_dir = joinpath(pkgdir(PB), "test")
 
-struct EmptyMessage end
-PB._encoded_size(x::EmptyMessage) = 0
-function PB.encode(e::PB.AbstractProtoEncoder, x::EmptyMessage)
-    initpos = position(e.io)
-    return position(e.io) - initpos
-end
-
-
-abstract type var"##AbstractNonEmptyMessage" end
-struct NonEmptyMessage <: var"##AbstractNonEmptyMessage"
-    x::UInt32
-    self_referential_field::Union{Nothing,NonEmptyMessage}
-end
-function PB._encoded_size(x::NonEmptyMessage)
-    encoded_size = 0
-    x.x != zero(UInt32) && (encoded_size += PB._encoded_size(x.x, 1))
-    !isnothing(x.self_referential_field) && (encoded_size += PB._encoded_size(x.self_referential_field, 2))
-    return encoded_size
-end
-function PB.encode(e::PB.AbstractProtoEncoder, x::NonEmptyMessage)
-    initpos = position(e.io)
-    x.x != zero(UInt32) && PB.encode(e, 1, x.x)
-    !isnothing(x.self_referential_field) && PB.encode(e, 2, x.self_referential_field)
-    return position(e.io) - initpos
-end
-
+PB.protojl("test_messages_for_codec2.proto", joinpath(test_dir, "test_protos"), temp_dir, always_use_modules=false, parametrize_oneofs=true)
+include(joinpath(temp_dir, "test_messages_for_codec2_pb.jl"))
 
 @testset "_with_size" begin
     io = IOBuffer()

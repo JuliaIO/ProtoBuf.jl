@@ -1,6 +1,7 @@
 module TestCompelexProtoFile
 using Test
 using ProtoBuf
+@eval $(Symbol("@il")) = $(Symbol("@invokelatest")) # macro alias
 
 mktempdir() do tmpdir
     @testset "Translate and include complex proto files" begin
@@ -89,12 +90,16 @@ mktempdir() do tmpdir
                          ))
                     end
                     @testset "include generated" begin
-                        @test include(joinpath(tmpdir, "test/test.jl")) isa Module
-                        @test test.da.A isa Type
-                        @test test.c.C isa Type
-                        @test test.d.D isa Type
-                        @test test.test2.e.Ef isa Type
-                        @test test.test2.g.G isa Type
+                        let _mod = Module(gensym())
+                            Base.include(_mod, joinpath(tmpdir, "test/test.jl"))
+                            test = @il(_mod.test)
+                            @test test isa Module
+                            @test @il(@il(test.da).A) isa Type
+                            @test @il(@il(test.c).C) isa Type
+                            @test @il(@il(test.d).D) isa Type
+                            @test @il(@il(@il(test.test2).e).Ef) isa Type
+                            @test @il(@il(@il(test.test2).g).G) isa Type
+                        end
                     end
                 end
             end
@@ -126,7 +131,8 @@ function roundtrip_iobuffer_maxsize(input, f_in=identity, f_out=identity)
 
     encoded = encode(e, input)
 
-    rio = IOBuffer(buf, read=true, write=false)
+    @assert sizeof(wio.data) == sizeof(buf)
+    rio = IOBuffer(wio.data, read=true, write=false)
     d = ProtoDecoder(f_out(rio))
 
     @test encoded == protosize
@@ -161,10 +167,10 @@ function _test_by_field(a, b, name=string(typeof(a)))
 end
 
 @testset "Translate and roundtrip a complex message" begin
-    mktempdir() do tmpdir
-        protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
-        include(joinpath(tmpdir, "complex_message_pb.jl"))
-    end
+    tmpdir = mktempdir()
+    protojl("complex_message.proto", joinpath(@__DIR__, "test_protos/"), tmpdir, always_use_modules=false, parametrize_oneofs=true);
+    include(joinpath(tmpdir, "complex_message_pb.jl"))
+
     msg = OmniMessage(
         UInt8[0xff],
         "S",
@@ -246,6 +252,9 @@ end
 
         var"OmniMessage.Group"(Int32(42)),
         [var"OmniMessage.Repeated_group"(Int32(43))],
+
+        Float32(-0.0), # Checks that -0.0 is serialized and not confused with the 0.0 default value
+        Float64(-0.0),
     )
 
     @testset "IOBuffer" begin

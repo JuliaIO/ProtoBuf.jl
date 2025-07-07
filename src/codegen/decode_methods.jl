@@ -100,7 +100,7 @@ function generate_decode_method(io, t::MessageType, ctx::Context)
         field_decode_expr(io, field, i, ctx)
     end
     has_fields && println(io, "        else")
-    println(io, "    " ^ (3 - !has_fields), "PB.skip(d, wire_type)")
+    println(io, "    " ^ (3 - !has_fields), "Base.skip(d, wire_type)")
     has_fields && println(io, "        end")
     println(io, "    end")
     print(io, "    return ")
