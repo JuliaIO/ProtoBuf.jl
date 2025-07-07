@@ -2,6 +2,16 @@ module Codecs
 
 using BufferedStreams: BufferedOutputStream, BufferedInputStream
 
+macro _const(ex)
+    ex = esc(ex)
+    if VERSION < v"1.8.0-DEV.1148"
+        return ex
+    else
+        return Expr(:const, ex)
+    end
+end
+const var"@const" = var"@_const"
+
 @enum(WireType::UInt32, VARINT=0, FIXED64=1, LENGTH_DELIMITED=2, START_GROUP=3, END_GROUP=4, FIXED32=5)
 
 abstract type AbstractProtoDecoder end
@@ -9,8 +19,8 @@ abstract type AbstractProtoEncoder end
 get_stream(d::AbstractProtoDecoder) = d.io
 
 mutable struct ProtoDecoder{I<:IO,F<:Function} <: AbstractProtoDecoder
-    const io::I
-    const message_done::F
+    @const io::I
+    @const message_done::F
 end
 function message_done(d::AbstractProtoDecoder, endpos::Int, group::Bool)
     io = get_stream(d)
