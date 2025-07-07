@@ -419,9 +419,8 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[3], ctx) == "Ref{Union{Nothing,C}}(nothing)"
 
         @testset "generated fieldtypes are concrete" begin
-            let mod = Module()
-                Core.eval(mod, Meta.parse(s))
-                A = mod.main_pb.A
+            let _mod = Core.eval(Module(gensym()), Meta.parse(s)).main_pb
+                A = Base.@invokelatest _mod.A
                 for fieldtype in fieldtypes(A)
                     @assert fieldtype >: Nothing # is a Union{Nothing, ...}
                     non_optional_fieldtype = fieldtype.b === Nothing ? fieldtype.a : fieldtype.b
@@ -460,25 +459,24 @@ end
         @test CodeGenerators.jl_init_value(p.definitions["A"].fields[5], ctx) == "Dict{String,C}()"
 
         @testset "Containers inside oneof-specialized structs are not too narrowly typed" begin
-            let mod2 = Module()
-                Core.eval(mod2, Meta.parse(s))
-                A = mod2.main_pb.A
-                B = mod2.main_pb.B
-                C = mod2.main_pb.C
-                a = A()
+            let _mod = Core.eval(Module(gensym()), Meta.parse(s)).main_pb
+                A = Base.@invokelatest _mod.A
+                B = Base.@invokelatest _mod.B
+                C = Base.@invokelatest _mod.C
+                a = invokelatest(A)
                 try
-                    a.d1["a"] = A()
-                    a.d1["aa"] = A(o = OneOf(:a, A()))
-                    a.d1["ab"] = A(o = OneOf(:b, B()))
-                    a.d1["ac"] = A(o = OneOf(:c, C()))
+                    a.d1["a"] = invokelatest(A)
+                    a.d1["aa"] = invokelatest(A; o = OneOf(:a, invokelatest(A)))
+                    a.d1["ab"] = invokelatest(A; o = OneOf(:b, invokelatest(B)))
+                    a.d1["ac"] = invokelatest(A; o = OneOf(:c, invokelatest(C)))
 
-                    a.d2["baa"] = B(a = A(o = OneOf(:a, A())))
-                    a.d2["bab"] = B(a = A(o = OneOf(:b, B())))
-                    a.d2["bac"] = B(a = A(o = OneOf(:c, C())))
+                    a.d2["baa"] = invokelatest(B; a = invokelatest(A; o = OneOf(:a, invokelatest(A))))
+                    a.d2["bab"] = invokelatest(B; a = invokelatest(A; o = OneOf(:b, invokelatest(B))))
+                    a.d2["bac"] = invokelatest(B; a = invokelatest(A; o = OneOf(:c, invokelatest(C))))
 
-                    a.d3["caa"] = C(a = A(o = OneOf(:a, A())))
-                    a.d3["cab"] = C(a = A(o = OneOf(:b, B())))
-                    a.d3["cac"] = C(a = A(o = OneOf(:c, C())))
+                    a.d3["caa"] = invokelatest(C; a = invokelatest(A; o = OneOf(:a, invokelatest(A))))
+                    a.d3["cab"] = invokelatest(C; a = invokelatest(A; o = OneOf(:b, invokelatest(B))))
+                    a.d3["cac"] = invokelatest(C; a = invokelatest(A; o = OneOf(:c, invokelatest(C))))
                     @test true
                 catch e
                     @test false
@@ -935,10 +933,38 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Int32)"
         s, p, ctx = translate_simple_proto("message A { optional sfixed64 a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Int64)"
+
         s, p, ctx = translate_simple_proto("message A { optional float a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float32)"
+        # Test that we compare floats with tripple equals to always serialize negative zero
+        @test contains(s, """
+        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+            initpos = position(e.io)
+            x.a !== zero(Float32) && PB.encode(e, 1, x.a)
+            return position(e.io) - initpos
+        end
+        function PB._encoded_size(x::A)
+            encoded_size = 0
+            x.a !== zero(Float32) && (encoded_size += PB._encoded_size(x.a, 1))
+            return encoded_size
+        end
+        """)
         s, p, ctx = translate_simple_proto("message A { optional double a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float64)"
+        # Test that we compare floats with tripple equals to always serialize negative zero
+        @test contains(s, """
+        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+            initpos = position(e.io)
+            x.a !== zero(Float64) && PB.encode(e, 1, x.a)
+            return position(e.io) - initpos
+        end
+        function PB._encoded_size(x::A)
+            encoded_size = 0
+            x.a !== zero(Float64) && (encoded_size += PB._encoded_size(x.a, 1))
+            return encoded_size
+        end
+        """)
+
         s, p, ctx = translate_simple_proto("message A { optional string a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "\"\""
         s, p, ctx = translate_simple_proto("message A { optional bytes a = 1; }")
@@ -1014,7 +1040,6 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "Vector{A}()"
         s, p, ctx = translate_simple_proto("message A { optional group Aa = 1 { optional int32 b = 1; } }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
-
     end
 
     @testset "Initial values" begin
@@ -1131,14 +1156,16 @@ end
             @test strify(CodeGenerators.maybe_generate_oneof_field_types_method, p.definitions["A"], ctx) == ""
             @test strify(CodeGenerators.maybe_generate_field_numbers_method, p.definitions["A"]) == ""
 
-            mod = Module()
-            Core.eval(mod, Meta.parse(s))
-            @test reserved_fields(mod.main_pb.A) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
-            @test reserved_fields(mod.main_pb.Foo.T) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
-            @test extendable_field_numbers(mod.main_pb.A) == Union{Int,UnitRange{Int}}[]
-            @test default_values(mod.main_pb.A) == (;)
-            @test oneof_field_types(mod.main_pb.A) == (;)
-            @test field_numbers(mod.main_pb.A) == (;)
+            let _mod = Core.eval(Module(gensym()), Meta.parse(s)).main_pb
+                A = Base.@invokelatest(_mod.A)
+                Foo_T = Base.@invokelatest(Base.@invokelatest(_mod.Foo).T)
+                @test reserved_fields(A) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
+                @test reserved_fields(Foo_T) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
+                @test extendable_field_numbers(A) == Union{Int,UnitRange{Int}}[]
+                @test default_values(A) == (;)
+                @test oneof_field_types(A) == (;)
+                @test field_numbers(A) == (;)
+            end
         end
 
         @testset "metadata_methods are generated when needed" begin
