@@ -60,7 +60,7 @@ end
 
 function print_field_encode_expr(io, f::FieldType, ctx::Context)
     print(io, "    ")
-    _is_optional_field(f, ctx) && print(io, encode_condition(f, ctx), " && ")
+    _needs_encoding_condition(f, ctx) && print(io, encode_condition(f, ctx), " && ")
     println(io, field_encode_expr(f, ctx))
 end
 
@@ -92,7 +92,7 @@ end
 
 function print_field_encoded_size_expr(io, f::FieldType, ctx::Context)
     print(io, "    ")
-    is_optional = _is_optional_field(f, ctx)
+    is_optional = _needs_encoding_condition(f, ctx)
     is_optional && print(io, encode_condition(f, ctx), " && (")
     print(io, "encoded_size += ", field_encoded_size_expr(f))
     println(io, is_optional ? ")" : "")
