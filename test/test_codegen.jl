@@ -157,14 +157,18 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === nothing
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
 
-        s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(force_required=Dict("main" => Set(["B.a"]))))
-        @test generate_struct_str(p.definitions["B"], ctx) == """
-        struct B
-            a::A
+        @test contains(s, """
+        function PB.encode(e::PB.AbstractProtoEncoder, x::B)
+            initpos = position(e.io)
+            PB.encode(e, 1, x.a)
+            return position(e.io) - initpos
         end
-        """
-        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === nothing
-        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
+        function PB._encoded_size(x::B)
+            encoded_size = 0
+            encoded_size += PB._encoded_size(x.a, 1)
+            return encoded_size
+        end
+        """)
     end
 
     @testset "Struct fields are optional when not marked required" begin
@@ -965,25 +969,103 @@ end
         end
         """)
 
-        # Required fields are sent over the wire uncoditionally
-        s, p, ctx = translate_simple_proto("""
-        syntax = "proto2";
-        message A { required int32 a = 1; optional int32 b = 2; }
-        """)
-        @test contains(s, """
-        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
-            initpos = position(e.io)
-            PB.encode(e, 1, x.a)
-            x.b != zero(Int32) && PB.encode(e, 2, x.b)
-            return position(e.io) - initpos
+            s, p, ctx = translate_simple_proto("""
+            syntax = "proto2";
+            message A { repeated int32 c = 3; repeated B f = 6; }
+            message B {}
+            """)
+
+        @testset "Required fields are sent over the wire uncoditionally" begin
+            s, p, ctx = translate_simple_proto("""
+            syntax = "proto2";
+            message A {
+                required int32 req_int = 1;
+                optional int32 opt_int = 2;
+                repeated int32 rep_int = 3;
+                optional B     opt_msg = 4;
+                required B     req_msg = 5;
+                repeated B     rep_msg = 6;
+            }
+            message B {}
+            """)
+            @test contains(s, """
+            struct A
+                req_int::Int32
+                opt_int::Int32
+                rep_int::Vector{Int32}
+                opt_msg::Union{Nothing,B}
+                req_msg::B
+                rep_msg::Vector{B}
+            end
+            """)
+            @test contains(s, """
+            function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+                initpos = position(e.io)
+                PB.encode(e, 1, x.req_int)
+                x.opt_int != zero(Int32) && PB.encode(e, 2, x.opt_int)
+                !isempty(x.rep_int) && PB.encode(e, 3, x.rep_int)
+                !isnothing(x.opt_msg) && PB.encode(e, 4, x.opt_msg)
+                PB.encode(e, 5, x.req_msg)
+                !isempty(x.rep_msg) && PB.encode(e, 6, x.rep_msg)
+                return position(e.io) - initpos
+            end
+            function PB._encoded_size(x::A)
+                encoded_size = 0
+                encoded_size += PB._encoded_size(x.req_int, 1)
+                x.opt_int != zero(Int32) && (encoded_size += PB._encoded_size(x.opt_int, 2))
+                !isempty(x.rep_int) && (encoded_size += PB._encoded_size(x.rep_int, 3))
+                !isnothing(x.opt_msg) && (encoded_size += PB._encoded_size(x.opt_msg, 4))
+                encoded_size += PB._encoded_size(x.req_msg, 5)
+                !isempty(x.rep_msg) && (encoded_size += PB._encoded_size(x.rep_msg, 6))
+                return encoded_size
+            end
+            """)
+
+            s, p, ctx = translate_simple_proto("""
+            syntax = "proto3";
+            message A {
+                         int32 def_int = 1;
+                optional int32 opt_int = 2;
+                repeated int32 rep_int = 3;
+                         B     def_msg = 4;
+                optional B     opt_msg = 5;
+                repeated B     rep_msg = 6;
+            }
+            message B {}
+            """)
+            @test contains(s, """
+            struct A
+                def_int::Int32
+                opt_int::Int32
+                rep_int::Vector{Int32}
+                def_msg::Union{Nothing,B}
+                opt_msg::Union{Nothing,B}
+                rep_msg::Vector{B}
+            end
+            """)
+            @test contains(s, """
+            function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+                initpos = position(e.io)
+                x.def_int != zero(Int32) && PB.encode(e, 1, x.def_int)
+                x.opt_int != zero(Int32) && PB.encode(e, 2, x.opt_int)
+                !isempty(x.rep_int) && PB.encode(e, 3, x.rep_int)
+                !isnothing(x.def_msg) && PB.encode(e, 4, x.def_msg)
+                !isnothing(x.opt_msg) && PB.encode(e, 5, x.opt_msg)
+                !isempty(x.rep_msg) && PB.encode(e, 6, x.rep_msg)
+                return position(e.io) - initpos
+            end
+            function PB._encoded_size(x::A)
+                encoded_size = 0
+                x.def_int != zero(Int32) && (encoded_size += PB._encoded_size(x.def_int, 1))
+                x.opt_int != zero(Int32) && (encoded_size += PB._encoded_size(x.opt_int, 2))
+                !isempty(x.rep_int) && (encoded_size += PB._encoded_size(x.rep_int, 3))
+                !isnothing(x.def_msg) && (encoded_size += PB._encoded_size(x.def_msg, 4))
+                !isnothing(x.opt_msg) && (encoded_size += PB._encoded_size(x.opt_msg, 5))
+                !isempty(x.rep_msg) && (encoded_size += PB._encoded_size(x.rep_msg, 6))
+                return encoded_size
+            end
+            """)
         end
-        function PB._encoded_size(x::A)
-            encoded_size = 0
-            encoded_size += PB._encoded_size(x.a, 1)
-            x.b != zero(Int32) && (encoded_size += PB._encoded_size(x.b, 2))
-            return encoded_size
-        end
-        """)
 
         s, p, ctx = translate_simple_proto("message A { optional string a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "\"\""
