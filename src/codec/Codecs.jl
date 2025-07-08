@@ -67,6 +67,10 @@ include("encode.jl")
 
 export encode, decode
 
+
+# Backwards compatibility with old older decode methods
+
+message_done(d::ProtoDecoder) = d.message_done(d.io)
 struct LengthDelimitedProtoDecoder{I<:IO} <: AbstractProtoDecoder
     io::I
     endpos::Int
