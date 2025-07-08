@@ -322,5 +322,15 @@ end
 
         @test decode(d, TestInner) == TestInner(0)
     end
+
+    @testset "backwards compat" begin
+        OlderVersion = include(joinpath(test_dir, "test_protos", "test_decode_backwards_compat.jl"))
+        msg = OlderVersion.TestInner(0, OlderVersion.TestInner(1, OlderVersion.TestInner(2, nothing)))
+        io = IOBuffer()
+        e = PB.ProtoEncoder(io)
+        PB.encode(e, msg)
+        roundtripped = PB.decode(PB.ProtoDecoder(seekstart(io)), OlderVersion.TestInner)
+        @test roundtripped == msg
+    end
 end
 end # module
