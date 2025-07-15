@@ -189,7 +189,7 @@ end
 function decode(d::AbstractProtoDecoder, ::Type{Ref{T}}) where {T}
     bytelen = vbyte_decode(d.io, UInt32)
     endpos = bytelen + position(d.io)
-    endpos = convert(endpos, Int64)
+    endpos = convert(Int64, endpos)
     out = decode(LengthDelimitedProtoDecoder(d.io, endpos), T)
     @assert position(d.io) == endpos
     return out
