@@ -26,10 +26,10 @@ vbyte_decode(io, UInt64)
 
 @test_noalloc vbyte_encode(io, typemax(UInt32))
 seekstart(io)
-@test @allocated(vbyte_decode(io, UInt32)) == 16
+@test @allocated(vbyte_decode(io, UInt32)) <= 16 # 32 Bit systems require fewer allocations
 @test_noalloc vbyte_encode(io, typemax(UInt64))
 seekstart(io)
-@test @allocated(vbyte_decode(io, UInt64)) == 16
+@test @allocated(vbyte_decode(io, UInt64)) <= 16 # 32 Bit systems require fewer allocations
 
 @enumx TestEnum DEFAULT=0 OTHER=1
 
