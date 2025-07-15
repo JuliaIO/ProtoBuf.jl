@@ -15,7 +15,7 @@ ProtoDecoder(io::IO) = ProtoDecoder(io, eof)
 
 struct LengthDelimitedProtoDecoder{I<:IO} <: AbstractProtoDecoder
     io::I
-    endpos::Int
+    endpos::Int64
 end
 message_done(d::LengthDelimitedProtoDecoder) = d.endpos == position(d.io)
 
