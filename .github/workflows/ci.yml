@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - master
-      - samysweb/fix-32bit
     tags: '*'
 jobs:
   test:
