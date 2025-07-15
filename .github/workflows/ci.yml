@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - master
+      - samysweb/fix-32bit
     tags: '*'
 jobs:
   test:
@@ -25,6 +26,7 @@ jobs:
           - macOS-14
         arch:
           - x64
+          - x86
           - aarch64
         exclude:
           - os: ubuntu-latest
