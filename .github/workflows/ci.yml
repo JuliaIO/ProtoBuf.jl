@@ -26,7 +26,7 @@ jobs:
           - macOS-14
         arch:
           - x64
-          - x86
+          - x86 # Test
           - aarch64
         exclude:
           - os: ubuntu-latest
