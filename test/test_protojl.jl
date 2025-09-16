@@ -187,7 +187,7 @@ end
         typemax(UInt32),
         typemax(UInt64),
         EmptyMessage(),
-        NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 1), nothing), OneOf(:y, 2), nothing),
+        NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, Int64(1)), nothing), OneOf(:y, Int64(2)), nothing),
         OneOf(:oneof_uint32_field, typemax(UInt32)),
 
         [UInt8[0xff]],
@@ -206,8 +206,8 @@ end
         [typemax(UInt64)],
         [EmptyMessage()],
         [
-            NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 3), nothing), OneOf(:y, 4), nothing),
-            NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 3), nothing), OneOf(:y, 4), CoRecursiveMessage(nothing)),
+            NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, Int64(3)), nothing), OneOf(:y, Int64(4)), nothing),
+            NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, Int64(3)), nothing), OneOf(:y, Int64(4)), CoRecursiveMessage(nothing)),
         ],
 
         Dict("K" => UInt8[0xff]),
@@ -226,8 +226,8 @@ end
         Dict("K" => typemax(UInt64)),
         Dict("K" => EmptyMessage()),
         Dict(
-            "K1" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 5), nothing), OneOf(:y, 6), nothing),
-            "K2" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, 5), nothing), OneOf(:y, 6), CoRecursiveMessage(nothing)),
+            "K1" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, Int64(5)), nothing), OneOf(:y, Int64(6)), nothing),
+            "K2" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing, OneOf(:y, Int64(5)), nothing), OneOf(:y, Int64(6)), CoRecursiveMessage(nothing)),
 
         ),
 
@@ -302,9 +302,9 @@ using ProtoBuf
     end
 
     test_dictionary = Dict{String, Int64}(
-        "field1"=>1,
-        "field2"=>-5,
-        "field3"=>120,
+        "field1"=>Int64(1),
+        "field2"=>Int64(-5),
+        "field3"=>Int64(120),
     )
 
     dict_message = Map(test_dictionary)
