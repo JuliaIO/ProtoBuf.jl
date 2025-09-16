@@ -2,31 +2,37 @@ module Codecs
 
 using BufferedStreams: BufferedOutputStream, BufferedInputStream
 
+macro _const(ex)
+    ex = esc(ex)
+    if VERSION < v"1.8.0-DEV.1148"
+        return ex
+    else
+        return Expr(:const, ex)
+    end
+end
+const var"@const" = var"@_const"
+
 @enum(WireType::UInt32, VARINT=0, FIXED64=1, LENGTH_DELIMITED=2, START_GROUP=3, END_GROUP=4, FIXED32=5)
 
 abstract type AbstractProtoDecoder end
 abstract type AbstractProtoEncoder end
-struct ProtoDecoder{I<:IO,F<:Function} <: AbstractProtoDecoder
-    io::I
-    message_done::F
-end
-message_done(d::ProtoDecoder) = d.message_done(d.io)
-ProtoDecoder(io::IO) = ProtoDecoder(io, eof)
+get_stream(d::AbstractProtoDecoder) = d.io
 
-struct LengthDelimitedProtoDecoder{I<:IO} <: AbstractProtoDecoder
-    io::I
-    endpos::Int
+mutable struct ProtoDecoder{I<:IO,F<:Function} <: AbstractProtoDecoder
+    @const io::I
+    @const message_done::F
 end
-message_done(d::LengthDelimitedProtoDecoder) = d.endpos == position(d.io)
-
-struct GroupProtoDecoder{I<:IO} <: AbstractProtoDecoder
-    io::I
-end
-function message_done(d::GroupProtoDecoder)
-    done = peek(d.io) == UInt8(END_GROUP)
-    done && skip(d.io, 1)
+function message_done(d::AbstractProtoDecoder, endpos::Int, group::Bool)
+    io = get_stream(d)
+    if group
+        done = peek(io) == UInt8(END_GROUP)
+        done && skip(io, 1)
+    else
+        done = d.message_done(io) || (endpos > 0 && position(io) >= endpos)
+    end
     return done
 end
+ProtoDecoder(io::IO) = ProtoDecoder(io, eof)
 
 struct ProtoEncoder{I<:IO} <: AbstractProtoEncoder
     io::I
@@ -60,5 +66,24 @@ include("decode.jl")
 include("encode.jl")
 
 export encode, decode
+
+
+# Backwards compatibility with old older decode methods
+
+message_done(d::ProtoDecoder) = d.message_done(d.io)
+struct LengthDelimitedProtoDecoder{I<:IO} <: AbstractProtoDecoder
+    io::I
+    endpos::Int
+end
+message_done(d::LengthDelimitedProtoDecoder) = d.endpos == position(d.io)
+
+struct GroupProtoDecoder{I<:IO} <: AbstractProtoDecoder
+    io::I
+end
+function message_done(d::GroupProtoDecoder)
+    done = peek(d.io) == UInt8(END_GROUP)
+    done && skip(d.io, 1)
+    return done
+end
 
 end # module
