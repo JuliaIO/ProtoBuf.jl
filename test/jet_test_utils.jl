@@ -114,7 +114,11 @@ function jet_test_package(package; ignored_modules = nothing, jet_frames_to_skip
         JET.print_reports(
             stdout,
             reports,
-            JET.gen_postprocess(result.res.actual2virtual),
+@static if pkgversion(JET) < v"0.10.7"
+            JET.gen_postprocess(result.res.actual2virtual)
+else
+            JET.PostProcessor(result.res.actual2virtual)
+end
         )
         println()
         println("Remaining error reports and their `JETFrameFingerprint`s:")
@@ -139,7 +143,11 @@ function jet_test_file(file_path; ignored_modules = nothing, jet_frames_to_skip 
         JET.print_reports(
             stdout,
             reports,
-            JET.gen_postprocess(result.res.actual2virtual),
+@static if pkgversion(JET) < v"0.10.7"
+            JET.gen_postprocess(result.res.actual2virtual)
+else
+            JET.PostProcessor(result.res.actual2virtual)
+end
         )
         println()
         println("Remaining error reports and their `JETFrameFingerprint`s:")
