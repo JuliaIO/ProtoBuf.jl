@@ -22,7 +22,12 @@ const PACKAGE_VERSION = let
     VersionNumber(project["version"])
 end
 
-const VENDORED_WELLKNOWN_TYPES_PARENT_PATH = dirname(@__FILE__)
+const VENDORED_WELLKNOWN_TYPES_PARENT_PATH = Ref{String}()
+function __init__()
+    VENDORED_WELLKNOWN_TYPES_PARENT_PATH[] = dirname(@__FILE__)
+    return nothing
+end
+
 struct OneOf{T}
     name::Symbol
     value::T
