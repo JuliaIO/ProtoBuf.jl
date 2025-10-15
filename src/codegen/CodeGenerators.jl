@@ -196,6 +196,41 @@ function _protojl(
     return nothing
 end
 
+# Allows other packages to extend code generation
+struct ExternalCodeGenHandler
+    package_name::String
+    # Function(io, ::Context, ::Dict{String, Union{MessageType, ServiceType, EnumType}})
+    import_cb::Union{Function, Nothing}
+    # Function(io, ::ServiceType, ::Context)
+    service_cb::Union{Function, Nothing}
+end
+package_name(h::ExternalCodeGenHandler) = h.package_name
+
+# Add external import statements after "import ProtoBuf"
+function import_cb(
+    h::ExternalCodeGenHandler, 
+    io, 
+    ctx::Context, 
+    definitions::Dict{String,Union{MessageType, EnumType, ServiceType}}
+)
+    isnothing(h.import_cb) && return
+    h.import_cb(io, ctx, definitions)
+end
+
+# Add external service definitions
+function service_cb(h::ExternalCodeGenHandler, io, t::ServiceType, ctx::Context)
+    isnothing(h.service_cb) && return
+    println(io, "# $(package_name(h)) BEGIN")
+    h.service_cb(io, t, ctx)
+    println(io, "# $(package_name(h)) END")
+end
+
+const _external_codegen_handlers = Dict{String, ExternalCodeGenHandler}()
+function register_external_codegen_handler(package_name::String; import_cb=nothing, service_cb=nothing)
+    h = ExternalCodeGenHandler(package_name, import_cb, service_cb)
+    _external_codegen_handlers[package_name] = h
+end
+
 
 export protojl
 
