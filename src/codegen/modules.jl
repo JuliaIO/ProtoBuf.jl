@@ -115,7 +115,7 @@ end
         return str
     end
 else
-    slashcheck(str::String) == str
+    slashcheck(str::String) = str
 end
 
 function generate_module_file(io::IO, m::ProtoModule, output_directory::AbstractString, parsed_files::Dict, options::Options, depth::Int)
