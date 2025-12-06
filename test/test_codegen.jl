@@ -4,6 +4,7 @@ using ProtoBuf.CodeGenerators: import_paths, Context, codegen
 using ProtoBuf.CodeGenerators: generate_struct, codegen_cylic_stub, _generate_struct_alias
 using ProtoBuf.CodeGenerators: resolve_inter_package_references!, get_all_transitive_imports!
 using ProtoBuf.CodeGenerators: CodeGenerators, types_needing_params
+using ProtoBuf.CodeGenerators: joinpath_unix
 using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers
 using ProtoBuf.Lexers: Lexer
 using EnumX
@@ -130,7 +131,7 @@ end
     @testset "Minimal proto file with package imports" begin
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=false))
         @test s == """
-        include($(repr(joinpath("p", "p.jl"))))
+        include($(repr(joinpath_unix("p", "p.jl"))))
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf
@@ -139,7 +140,7 @@ end
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=true))
         @test s == """
         module main_pb
-        include($(repr(joinpath("p", "p.jl"))))
+        include($(repr(joinpath_unix("p", "p.jl"))))
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf
@@ -1313,5 +1314,26 @@ end
         service S { rpc foo(A) returns (A); }
         """)
         @test contains(s, "export A\n")
+    end
+
+    @testset "Unix path separators" begin
+        # Check that the unix-preserving path modifiers work correctly
+        @test ProtoBuf.CodeGenerators.joinpath_unix(["a", "b"]) == "a/b"
+        @test ProtoBuf.CodeGenerators.joinpath_unix(["a/b", "c"]) == "a/b/c"
+        @test ProtoBuf.CodeGenerators.normpath_unix("/a/../a/b") == "/a/b"
+        @test ProtoBuf.CodeGenerators.relpath_unix("a/b/c", "a/b") == "c"
+        
+        if Sys.iswindows()
+            # Not sure if these tests will pass on unix systems, but there's no need either
+            @test ProtoBuf.CodeGenerators.joinpath_unix(["a\\b", "c"]) == "a/b/c"
+            @test ProtoBuf.CodeGenerators.normpath_unix("\\a\\..\\a\\b") == "/a/b"
+            @test ProtoBuf.CodeGenerators.relpath_unix("a\\b\\c", "a\\b") == "c"
+        end
+
+        # Check that the mechanics forcing the user to either use 
+        # Base.joinpath or joinpath_unix are in place
+        @test_throws Any ProtoBuf.CodeGenerators.joinpath(["a", "b"]) == "a/b"
+        @test_throws Any ProtoBuf.CodeGenerators.normpath("/a/../a/b") == "/a/b"
+        @test_throws Any ProtoBuf.CodeGenerators.relpath("a/b/c", "a/b") == "c"
     end
 end

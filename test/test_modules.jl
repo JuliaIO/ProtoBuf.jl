@@ -4,6 +4,7 @@ using ProtoBuf.CodeGenerators: ResolvedProtoFile
 using ProtoBuf.CodeGenerators: Options
 using ProtoBuf.CodeGenerators: Namespaces
 using ProtoBuf.CodeGenerators: generate_module_file
+using ProtoBuf.CodeGenerators: joinpath_unix
 using ProtoBuf.Parsers: parse_proto_file, ParserState
 using ProtoBuf.Lexers: Lexer
 using Test
@@ -75,7 +76,7 @@ end
     @test haskey(n.packages, "B")
     @test n.packages["A"].name == "A"
     @test isempty(n.packages["A"].nonpkg_imports)
-    @test n.packages["A"].external_imports == Set([joinpath("..", "B", "B.jl")])
+    @test n.packages["A"].external_imports == Set([joinpath_unix("..", "B", "B.jl")])
     @test n.packages["A"].submodules[["A", "B"]].name == "B"
     @test n.packages["A"].submodules[["A", "B"]].proto_files[1].import_path == "main"
     @test n.packages["B"].name == "B"
@@ -93,16 +94,16 @@ end
         ),
         "A"
     );
-    @test n.packages["A"].external_imports == Set([joinpath("..", "B", "B.jl")])
+    @test n.packages["A"].external_imports == Set([joinpath_unix("..", "B", "B.jl")])
     @test n.packages["A"].submodules[["A", "B"]].external_imports == Set{String}()
     @test n.packages["A"].submodules[["A", "B"]].submodules[["A", "B", "C"]].external_imports == Set(["...B"])
     @test n.packages["A"].submodules[["A", "B"]].submodules[["A", "B", "C"]].submodules[["A", "B", "C", "D"]].external_imports == Set{String}()
     @test s == """
     module A
 
-    include($(repr(joinpath("..", "B", "B.jl"))))
+    include($(repr(joinpath_unix("..", "B", "B.jl"))))
 
-    include($(repr(joinpath("B", "B.jl"))))
+    include($(repr(joinpath_unix("B", "B.jl"))))
 
     end # module A
     """
@@ -121,10 +122,10 @@ end
     @test s == """
     module A
 
-    include($(repr(joinpath("..", "a_pb.jl"))))
-    include($(repr(joinpath("..", "b_pb.jl"))))
+    include($(repr(joinpath_unix("..", "a_pb.jl"))))
+    include($(repr(joinpath_unix("..", "b_pb.jl"))))
 
-    include($(repr(joinpath("B", "B.jl"))))
+    include($(repr(joinpath_unix("B", "B.jl"))))
 
     end # module A
     """
@@ -147,13 +148,13 @@ end
     module A
 
     module a_pb
-        include($(repr(joinpath("..", "a_pb.jl"))))
+        include($(repr(joinpath_unix("..", "a_pb.jl"))))
     end
     module b_pb
-        include($(repr(joinpath("..", "b_pb.jl"))))
+        include($(repr(joinpath_unix("..", "b_pb.jl"))))
     end
 
-    include($(repr(joinpath("B", "B.jl"))))
+    include($(repr(joinpath_unix("B", "B.jl"))))
 
     end # module A
     """
@@ -213,7 +214,7 @@ end
     import .A as var"#A"
 
     include("main_pb.jl")
-    include($(repr(joinpath("B", "B.jl"))))
+    include($(repr(joinpath_unix("B", "B.jl"))))
 
     end # module A
     """
