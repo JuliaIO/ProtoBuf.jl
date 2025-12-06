@@ -181,7 +181,7 @@ function _protojl(
     end
     # Do all internals using / as separator to avoid duplication 
     # if the relative paths uses // and imports uses /
-    search_directories = as_unix_path.(search_directories)
+    map!(as_unix_path, search_directories)
     validate_search_directories!(search_directories, options.include_vendored_wellknown_types)
 
     if isa(relative_paths, AbstractString)
@@ -189,7 +189,7 @@ function _protojl(
     end
     # Do all internals using / as separator to avoid duplication 
     # if the relative paths uses // and imports uses /
-    relative_paths = as_unix_path.(relative_paths)
+    map!(as_unix_path, relative_paths)
     
     absolute_paths = validate_proto_file_paths!(relative_paths, search_directories)
 

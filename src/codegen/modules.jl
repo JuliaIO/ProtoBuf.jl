@@ -105,13 +105,17 @@ function _add_file_to_package!(root::ProtoModule, file::ResolvedProtoFile, proto
     return nothing
 end
 
-function slashcheck(str::String)
-    if contains(str, "\\\\")
-        @warn "It appears the generated code contains a windows path separator. 
-        This should not be possible. If you see this message, please open
-        a ticket at ProtoBuf.jl."
+@static if Sys.iswindows()
+    function slashcheck(str::String)
+        if contains(str, "\\\\")
+            @warn "It appears the generated code contains a windows path separator. 
+            This should not be possible. If you see this message, please open
+            a ticket at ProtoBuf.jl."
+        end
+        return str
     end
-    return str
+else
+    slashcheck(str::String) == str
 end
 
 function generate_module_file(io::IO, m::ProtoModule, output_directory::AbstractString, parsed_files::Dict, options::Options, depth::Int)
