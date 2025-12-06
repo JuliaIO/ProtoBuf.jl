@@ -14,6 +14,35 @@ import Dates
 import ..ProtoBuf: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
 import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
+# Overwrite functions from Base so they are never used by accident
+joinpath(args...)  = error("Please never call `joinpath` directly within 
+    `CodeGenerators`, since this may generete non-portable code when used on 
+    Windows. Use `joinpath_unix` instead. Alternatively, use `Base.joinpath` 
+    if you are certain that the result will not affect parsing or generation. ")
+relpath(args...)   = error("Please never call `relpath` directly within 
+    `CodeGenerators`, since this may generete non-portable code when used on 
+    Windows. Use `relpath_unix` instead. Alternatively, use `Base.relpath` 
+    if you are certain that the result will not affect parsing or generation. ")
+normpath(args...)  = error("Please never call `normpath` directly within 
+    `CodeGenerators`, since this may generete non-portable code when used on 
+    Windows. Use `normpath_unix` instead. Alternatively, use `Base.normpath` 
+    if you are certain that the result will not affect parsing or generation. ")
+
+@static if Sys.iswindows()
+    as_unix_path(str::String) = replace(str, "\\" => "/")
+    joinpath_unix(args...) = as_unix_path(Base.joinpath(args...))
+    relpath_unix(args...) = as_unix_path(Base.relpath(args...))
+    normpath_unix(args...) = as_unix_path(Base.normpath(args...))
+else
+    # Behave just like calling the Base functions on unix, except these 
+    # functions make the behavior on different platforms more explicit. 
+    as_unix_path(str::String) = str
+    joinpath_unix(args...) = Base.joinpath(args...)
+    relpath_unix(args...) = Base.relpath(args...)
+    normpath_unix(args...) = Base.normpath(args...)
+end
+
+
 _is_repeated_field(f::AbstractProtoFieldType) = f.label == Parsers.REPEATED
 _is_repeated_field(::OneOfType) = false
 
@@ -150,11 +179,18 @@ function _protojl(
     elseif isa(search_directories, AbstractString)
         search_directories = [search_directories]
     end
+    # Do all internals using / as separator to avoid duplication 
+    # if the relative paths uses // and imports uses /
+    search_directories = as_unix_path.(search_directories)
     validate_search_directories!(search_directories, options.include_vendored_wellknown_types)
 
     if isa(relative_paths, AbstractString)
         relative_paths = [relative_paths]
     end
+    # Do all internals using / as separator to avoid duplication 
+    # if the relative paths uses // and imports uses /
+    relative_paths = as_unix_path.(relative_paths)
+    
     absolute_paths = validate_proto_file_paths!(relative_paths, search_directories)
 
     parsed_files = Dict{String,ResolvedProtoFile}()
@@ -173,6 +209,7 @@ function _protojl(
         isdir(output_directory) || error("`output_directory` \"$output_directory\" doesn't exist")
         output_directory = abspath(output_directory)
     end
+    output_directory = as_unix_path(output_directory)
 
     foreach(p->get_all_transitive_imports!(p, parsed_files), values(parsed_files))
     # Files within the same package could use definitions from different files
@@ -187,7 +224,7 @@ function _protojl(
     sorted_files = [parsed_files[sorted_file] for sorted_file in sorted_files]
     n = Namespaces(sorted_files, output_directory, parsed_files)
     for m in n.non_namespaced_protos
-        dst_path = joinpath(output_directory, proto_script_name(m))
+        dst_path = joinpath_unix(output_directory, proto_script_name(m))
         CodeGenerators.translate(dst_path, m, parsed_files, options)
     end
     for m in values(n.packages)
