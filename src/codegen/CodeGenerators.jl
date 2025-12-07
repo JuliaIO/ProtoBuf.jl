@@ -15,16 +15,16 @@ import ..ProtoBuf: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
 import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
 # Overwrite functions from Base so they are never used by accident
-joinpath(args...)  = error("Please never call `joinpath` directly within 
-    `CodeGenerators`, since this may generete non-portable code when used on 
+joinpath(args...)  = error("Please do not call `joinpath` directly within 
+    `CodeGenerators`, since this may generate non-portable code when used on 
     Windows. Use `joinpath_unix` instead. Alternatively, use `Base.joinpath` 
     if you are certain that the result will not affect parsing or generation. ")
-relpath(args...)   = error("Please never call `relpath` directly within 
-    `CodeGenerators`, since this may generete non-portable code when used on 
+relpath(args...)   = error("Please do not call `relpath` directly within 
+    `CodeGenerators`, since this may generate non-portable code when used on 
     Windows. Use `relpath_unix` instead. Alternatively, use `Base.relpath` 
     if you are certain that the result will not affect parsing or generation. ")
-normpath(args...)  = error("Please never call `normpath` directly within 
-    `CodeGenerators`, since this may generete non-portable code when used on 
+normpath(args...)  = error("Please do not call `normpath` directly within 
+    `CodeGenerators`, since this may generate non-portable code when used on 
     Windows. Use `normpath_unix` instead. Alternatively, use `Base.normpath` 
     if you are certain that the result will not affect parsing or generation. ")
 
