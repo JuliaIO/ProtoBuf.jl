@@ -26,10 +26,18 @@ vbyte_decode(io, UInt64)
 
 @test_noalloc vbyte_encode(io, typemax(UInt32))
 seekstart(io)
-@test @allocated(vbyte_decode(io, UInt32)) == 16
+@static if VERSION >= v"1.12"
+    @test @allocated(vbyte_decode(io, UInt32)) <= 16
+else
+    @test @allocated(vbyte_decode(io, UInt32)) == 16
+end
 @test_noalloc vbyte_encode(io, typemax(UInt64))
 seekstart(io)
-@test @allocated(vbyte_decode(io, UInt64)) == 16
+@static if VERSION >= v"1.12"
+    @test @allocated(vbyte_decode(io, UInt64)) <= 16
+else
+    @test @allocated(vbyte_decode(io, UInt64)) == 16
+end
 
 @enumx TestEnum DEFAULT=0 OTHER=1
 
