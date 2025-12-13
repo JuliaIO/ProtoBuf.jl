@@ -15,7 +15,14 @@ include("unittests.jl")
 if Base.VERSION > v"1.7.0" && !(is_ci() && get(VERSION.prerelease, 1, "") == "DEV")
     @testset "JET" begin
         include("jet_test_utils.jl")
-        is_ci() || jet_test_package(ProtoBuf)
+
+        # filter false positives for undefined variable warnings in `copy_chunks!` from Base.BitArray
+        jet_frames_to_skip = (
+            JETFrameFingerprint(JET.UndefVarErrorReport, :Base, :copy_chunks!, "copy_chunks!(dest::Vector{UInt64}, pos_d::Int64, src::Vector{UInt64}, pos_s::Int64, numbits::Int64)"),
+            JETFrameFingerprint(JET.UndefVarErrorReport, :Base, :copy_chunks_rtol!, "copy_chunks_rtol!(chunks::Vector{UInt64}, pos_d::Int64, pos_s::Int64, numbits::Int64)"),
+        )
+
+        is_ci() || jet_test_package(ProtoBuf; jet_frames_to_skip)
         # jet_test_file("unittests.jl", ignored_modules=(JET.AnyFrameModule(Test),))
         include("test_perf.jl")
     end

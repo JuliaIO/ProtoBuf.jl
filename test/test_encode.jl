@@ -1,7 +1,7 @@
 module TestEncode
 using ProtoBuf: Codecs
 import ProtoBuf as PB
-using .Codecs: encode, _encoded_size, ProtoEncoder, WireType
+using .Codecs: encode, decode!, _encoded_size, ProtoEncoder, ProtoDecoder, WireType, vbyte_decode, vbyte_encode
 using Test
 using EnumX: @enumx
 
@@ -67,7 +67,35 @@ function test_encode(input, i, w::WireType, expected, V::Type=Nothing)
     end
 
     bytes = take!(d.io)
-    if (isa(input, AbstractVector) && eltype(input) <: Union{Vector{UInt8}, String, TestInner}) || isa(input, AbstractDict)
+    if isa(input, AbstractDict)
+        # dictionaries should be decoded and compared in order-independent manner
+        result = empty(input)
+
+        bytes_io = IOBuffer(bytes)
+        while !eof(bytes_io)
+            # Parse tag and length of the outer message
+            _ = vbyte_decode(bytes_io, UInt32)  # tag (field number + wire type)
+            msg_len = vbyte_decode(bytes_io, UInt32)  # read length so that we know how much to read
+            msg_bytes = read(bytes_io, msg_len) # read message bytes
+
+            # Create a decoder for this, recreate the message in the form decoder needs
+            size_bytes = IOBuffer()
+            Codecs.vbyte_encode(size_bytes, UInt32(msg_len))
+            full_msg_bytes = vcat(take!(size_bytes), msg_bytes)
+
+            entry_decoder = Codecs.ProtoDecoder(IOBuffer(full_msg_bytes))
+            # provide encoding type info when available
+            if V === Nothing
+                decode!(entry_decoder, result)
+            else
+                decode!(entry_decoder, result, V)
+            end
+        end
+
+        @testset "decoded dict matches" begin
+            @test result == input
+        end
+    elseif isa(input, AbstractVector) && eltype(input) <: Union{Vector{UInt8}, String, TestInner}
         j = 1
         while !isempty(bytes)
             tag = bytes[1]

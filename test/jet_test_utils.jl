@@ -32,9 +32,14 @@ struct JETFrameFingerprint
     jet_signature::String
 end
 
-function _singnature_string(sig::JET.Signature, virtual_module_name_dot::String)
+function _singnature_string(linfo::Core.MethodInstance, virtual_module_name_dot::String)
     io = IOBuffer()
-    JET.print_signature(io, sig, (; annotate_types=false))
+    m = linfo.def
+    if m isa Module
+        Base.show_mi(io, linfo, #=from_stackframe=#true)
+    else
+        Base.StackTraces.show_spec_sig(IOContext(io, :backtrace=>true, :limit=>true), m, linfo.specTypes)
+    end
     out = String(take!(io))
     return replace(out, virtual_module_name_dot => "")
 end
@@ -54,12 +59,11 @@ function JETFrameFingerprint(
         method_name = Symbol(split(string(frame.linfo.specTypes.types[end].parameters[1]), '.')[end])
     end
 
-    # NOTE(tomasd): JET.Signature contains a vector of `Any` representing the frame signature
-    # information that is later used for report printing. Here we create a string
-    # representation of that signature and we remove the references to the virtual module
+    # NOTE(tomasd): We extract signature information from frame.linfo.specTypes.
+    # We create a string representation of that signature and we remove the references to the virtual module
     # in which the types and methods were defined. This makes this signature consistent
     # across JET runs.
-    signature_string = _singnature_string(frame.sig, virtual_module_name_dot)
+    signature_string = _singnature_string(frame.linfo, virtual_module_name_dot)
     return JETFrameFingerprint(jet_report_type, module_name, method_name, signature_string)
 end
 
@@ -78,7 +82,12 @@ function get_reports_filtered(
     verbose = false,
 )
     check_call_stack = !isempty(jet_frames_to_skip)
-    virtual_module_name_dot = string(result.res.actual2virtual.second, '.')
+    # Handle API change in JET 0.11+: actual2virtual is now nothing instead of a Pair
+    virtual_module_name_dot = if isnothing(result.res.actual2virtual)
+        ""  # JET 0.11+: no virtual module prefix to strip
+    else
+        string(result.res.actual2virtual.second, '.')  # JET 0.9-0.10
+    end
     reports = JET.get_reports(result)
 
     return filter!(reports) do report
@@ -111,15 +120,22 @@ function jet_test_package(package; ignored_modules = nothing, jet_frames_to_skip
     result = JET.report_package(package; ignored_modules, toplevel_logger=nothing, mode)
     reports = get_reports_filtered(result; jet_frames_to_skip)
     onfail(@test(isempty(reports))) do
-        JET.print_reports(
-            stdout,
-            reports,
+        # Handle API change in JET 0.11+
+        if isnothing(result.res.actual2virtual)
+            # JET 0.11+: simplified API, print result directly
+            JET.print_reports(stdout, result)
+        else
+            # JET 0.9-0.10: use PostProcessor
+            JET.print_reports(
+                stdout,
+                reports,
 @static if pkgversion(JET) < v"0.10.7"
-            JET.gen_postprocess(result.res.actual2virtual)
+                JET.gen_postprocess(result.res.actual2virtual)
 else
-            JET.PostProcessor(result.res.actual2virtual)
+                JET.PostProcessor(result.res.actual2virtual)
 end
-        )
+            )
+        end
         println()
         println("Remaining error reports and their `JETFrameFingerprint`s:")
         get_reports_filtered(result; jet_frames_to_skip, verbose=true)
@@ -140,15 +156,22 @@ function jet_test_file(file_path; ignored_modules = nothing, jet_frames_to_skip 
     result = JET.report_file(file_path; ignored_modules, toplevel_logger=nothing, mode)
     reports = get_reports_filtered(result; jet_frames_to_skip)
     onfail(@test(isempty(reports))) do
-        JET.print_reports(
-            stdout,
-            reports,
+        # Handle API change in JET 0.11+
+        if isnothing(result.res.actual2virtual)
+            # JET 0.11+: simplified API, print result directly
+            JET.print_reports(stdout, result)
+        else
+            # JET 0.9-0.10: use PostProcessor
+            JET.print_reports(
+                stdout,
+                reports,
 @static if pkgversion(JET) < v"0.10.7"
-            JET.gen_postprocess(result.res.actual2virtual)
+                JET.gen_postprocess(result.res.actual2virtual)
 else
-            JET.PostProcessor(result.res.actual2virtual)
+                JET.PostProcessor(result.res.actual2virtual)
 end
-        )
+            )
+        end
         println()
         println("Remaining error reports and their `JETFrameFingerprint`s:")
         get_reports_filtered(result; jet_frames_to_skip, verbose=true)
