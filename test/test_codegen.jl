@@ -130,7 +130,7 @@ end
     @testset "Minimal proto file with package imports" begin
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=false))
         @test s == """
-        include($(repr(joinpath("p", "p.jl"))))
+        include("p/p.jl")
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf
@@ -139,7 +139,7 @@ end
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=true))
         @test s == """
         module main_pb
-        include($(repr(joinpath("p", "p.jl"))))
+        include("p/p.jl")
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf
@@ -1354,5 +1354,26 @@ end
         finally
             empty!(ProtoBuf.CodeGenerators._external_codegen_handlers)
         end
+    end
+
+    @testset "Unix path separators" begin
+        # Check that the unix-preserving path modifiers work correctly
+        @test ProtoBuf.CodeGenerators.joinpath_unix(["a", "b"]) == "a/b"
+        @test ProtoBuf.CodeGenerators.joinpath_unix(["a/b", "c"]) == "a/b/c"
+        @test ProtoBuf.CodeGenerators.normpath_unix("/a/../a/b") == "/a/b"
+        @test ProtoBuf.CodeGenerators.relpath_unix("a/b/c", "a/b") == "c"
+        
+        if Sys.iswindows()
+            # Not sure if these tests will pass on unix systems, but there's no need either
+            @test ProtoBuf.CodeGenerators.joinpath_unix(["a\\b", "c"]) == "a/b/c"
+            @test ProtoBuf.CodeGenerators.normpath_unix("\\a\\..\\a\\b") == "/a/b"
+            @test ProtoBuf.CodeGenerators.relpath_unix("a\\b\\c", "a\\b") == "c"
+        end
+
+        # Check that the mechanics forcing the user to either use 
+        # Base.joinpath or joinpath_unix are in place
+        @test_throws Any ProtoBuf.CodeGenerators.joinpath(["a", "b"]) == "a/b"
+        @test_throws Any ProtoBuf.CodeGenerators.normpath("/a/../a/b") == "/a/b"
+        @test_throws Any ProtoBuf.CodeGenerators.relpath("a/b/c", "a/b") == "c"
     end
 end
