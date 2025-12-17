@@ -31,15 +31,16 @@ function field_encode_expr(@nospecialize(f::FieldType), ctx::Context)
         !isempty(encoding_val_type) && (encoding_val_type = ", Val{$encoding_val_type}")
         # TODO: do we want to allow unpacked representation? Docs say that parsers must always handle both cases
         # and since packed is strictly more efficient, currently we don't allow that.
-        # is_packed = parse(Bool, get(f.options, "packed", "false"))
-        # if is_packed
+        is_packed = parse(Bool, get(f.options, "packed", "false"))
+        if is_packed
             return "PB.encode(e, $(string(f.number)), x.$(jl_fieldname(f))$(encoding_val_type))"
-        # else
-        #     return """
-        #     for el in x.$(jl_fieldname(f))
-        #                 PB.encode(e, $(string(f.number)), el$(encoding_val_type))
-        #             end"""
-        # end
+        else
+	        return """
+		        for el in x.$(jl_fieldname(f))
+			        PB.encode(e, $(string(f.number)), el$(encoding_val_type))
+		        end
+	        """
+        end
     else
         return _field_encode_expr(f, ctx)
     end
