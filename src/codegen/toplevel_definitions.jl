@@ -167,9 +167,16 @@ function codegen(io, t::EnumType, ::Context)
     maybe_generate_reserved_fields_method(io, t)
 end
 
-function codegen(io, t::ServiceType, ::Context)
-    println(io, "# TODO: SERVICE")
-    println(io, "#    ", safename(t))
+
+function codegen(io, t::ServiceType, ctx::Context)
+    if isempty(_external_codegen_handlers)
+        println(io, "# SERVICE: No codegen handlers registered")
+        println(io, "#    ", safename(t))
+        return
+    end
+
+    map(h->service_cb(h, io, t, ctx), values(_external_codegen_handlers))
+    nothing
 end
 
 function translate(path::String, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProtoFile}, options)
@@ -227,6 +234,10 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
         end
     end # Otherwise all includes will happen in the enclosing module
     println(io, "import ProtoBuf as PB")
+
+    # Allow for doing things like "import gRPCClient" or "import gRPCServer" exactly one time per file        
+    map(h->import_cb(h, io, ctx, p.definitions), values(_external_codegen_handlers))
+
     options.common_abstract_type && println(io, "using ProtoBuf: AbstractProtoBufMessage")
     println(io, "using ProtoBuf: OneOf")
     println(io, "using ProtoBuf.EnumX: @enumx")
