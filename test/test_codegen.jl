@@ -130,7 +130,7 @@ end
     @testset "Minimal proto file with package imports" begin
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=false))
         @test s == """
-        include($(repr(joinpath("p", "p.jl"))))
+        include("p/p.jl")
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf
@@ -139,7 +139,7 @@ end
         s, p, ctx = translate_simple_proto("import \"path/to/a\";", Dict("path/to/a" => "package p;"), Options(always_use_modules=true))
         @test s == """
         module main_pb
-        include($(repr(joinpath("p", "p.jl"))))
+        include("p/p.jl")
         import .p
         import ProtoBuf as PB
         using ProtoBuf: OneOf

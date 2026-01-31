@@ -1,8 +1,15 @@
 # # https://github.com/golang/protobuf/issues/992#issuecomment-558718772
+
+if Sys.iswindows()
+    posixpath(path::String) = replace(path, r"[/\\]+" => "/")
+else
+    posixpath(path::String) = replace(path, r"/+" => "/")
+end
+
 proto_module_file_name(path::AbstractString) = string(proto_module_name(path), ".jl")
 proto_module_name(path::AbstractString) = basename(path)
 proto_script_name(path::AbstractString) = string(replace(basename(path), ".proto" => ""), "_pb.jl")
-proto_script_path(path::AbstractString) = joinpath(dirname(path), proto_script_name(path))
+proto_script_path(path::AbstractString) = posixpath(joinpath(dirname(path), proto_script_name(path)))
 
 is_namespaced(p::ProtoFile) = !isempty(p.preamble.namespace)
 namespace(p::ProtoFile) = p.preamble.namespace
@@ -15,7 +22,7 @@ import_paths(p::ProtoFile) = (i.path for i in p.preamble.imports)
 function namespaced_top_include(p::ProtoFile)
     if is_namespaced(p)
         top = first(namespace(p))
-        return joinpath(top, proto_module_file_name(top))
+        return posixpath(joinpath(top, proto_module_file_name(top)))
     else
         return proto_script_name(p)
     end
@@ -33,7 +40,7 @@ namespaced_top_import(p::ResolvedProtoFile) = namespaced_top_import(p.proto_file
 proto_script_path(p::ResolvedProtoFile) = proto_script_path(p.proto_file)
 
 proto_package_name(p) = first(namespace(p))
-rel_import_path(file, root_path) = relpath(joinpath(root_path, "..", namespaced_top_include(file)), joinpath(root_path))
+rel_import_path(file, root_path) = posixpath(relpath(joinpath(root_path, "..", namespaced_top_include(file)), joinpath(root_path)))
 
 struct ProtoModule
     name::String
@@ -105,6 +112,8 @@ function _add_file_to_package!(root::ProtoModule, file::ResolvedProtoFile, proto
     return nothing
 end
 
+_include_stmt_format(path::String) = repr(posixpath(path))
+
 function generate_module_file(io::IO, m::ProtoModule, output_directory::AbstractString, parsed_files::Dict, options::Options, depth::Int)
     println(io, "module $(m.name)")
     println(io)
@@ -112,14 +121,14 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
     if depth == 1
         # This is where we include external packages so they are available downstream
         for external_import in m.external_imports
-            println(io, "include(", repr(external_import), ')')
+            println(io, "include(", _include_stmt_format(external_import), ')')
         end
         # This is where we include external dependencies that may not be packages.
         # We wrap them in a module to make sure that multiple downstream dependencies
         # can import them safely.
         for nonpkg_import in m.nonpkg_imports
             !options.always_use_modules && print(io, "module $(nonpkg_import)\n    ")
-            println(io, "include(", repr(joinpath("..", string(nonpkg_import, ".jl"))), ')')
+            println(io, "include(", _include_stmt_format(joinpath("..", string(nonpkg_import, ".jl"))), ')')
             !options.always_use_modules && println(io, "end")
         end
     else # depth > 1
@@ -165,18 +174,18 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
             if length(namespace(file)) == length(namespace(imported_file)) - 1 && _startswith(namespace(file), namespace(imported_file))
                 submodule_name = last(namespace(imported_file))
                 get!(seen.dict, submodule_name) do
-                    println(io, "include(", repr(joinpath(submodule_name, string(submodule_name, ".jl"))), ")")
+                    println(io, "include(", _include_stmt_format(joinpath(submodule_name, string(submodule_name, ".jl"))), ")")
                 end
             end
         end
-        println(io, "include(", repr(proto_script_name(file)), ")")
+        println(io, "include(", _include_stmt_format(proto_script_name(file)), ")")
     end
     # Load in submodules nested in this namespace (the modules ending with `PB`),
     # that is, if we didn't include them above.
     for submodule_namespace in submodule_namespaces
         submodule = m.submodules[submodule_namespace]
         get!(seen.dict, submodule.name) do
-            println(io, "include(", repr(joinpath(submodule.name, string(submodule.name, ".jl"))), ")")
+            println(io, "include(", _include_stmt_format(joinpath(submodule.name, string(submodule.name, ".jl"))), ")")
         end
     end
     println(io)
@@ -201,7 +210,7 @@ end
 
 function validate_search_directories!(search_directories::Vector{String}, include_vendored_wellknown_types::Bool)
     include_vendored_wellknown_types && push!(search_directories, VENDORED_WELLKNOWN_TYPES_PARENT_PATH[])
-    unique!(map!(x->joinpath(abspath(x), ""), search_directories, search_directories))
+    unique!(map!(x->posixpath(joinpath(abspath(x), "")), search_directories, search_directories))
     bad_dirs = filter(!isdir, search_directories)
     !isempty(bad_dirs) && error("`search_directories` $bad_dirs don't exist")
     return nothing
@@ -221,7 +230,7 @@ function validate_proto_file_paths!(relative_paths::Vector{<:AbstractString}, se
         found = false
         for search_directory in search_directories
             found && continue
-            full_path = joinpath(search_directory, proto_file_path)
+            full_path = posixpath(joinpath(search_directory, proto_file_path))
             if isfile(joinpath(search_directory, proto_file_path))
                 found = true
                 full_paths[i] = full_path

@@ -100,9 +100,9 @@ end
     @test s == """
     module A
 
-    include($(repr(joinpath("..", "B", "B.jl"))))
+    include("../B/B.jl")
 
-    include($(repr(joinpath("B", "B.jl"))))
+    include("B/B.jl")
 
     end # module A
     """
@@ -121,10 +121,10 @@ end
     @test s == """
     module A
 
-    include($(repr(joinpath("..", "a_pb.jl"))))
-    include($(repr(joinpath("..", "b_pb.jl"))))
+    include("../a_pb.jl")
+    include("../b_pb.jl")
 
-    include($(repr(joinpath("B", "B.jl"))))
+    include("B/B.jl")
 
     end # module A
     """
@@ -147,13 +147,13 @@ end
     module A
 
     module a_pb
-        include($(repr(joinpath("..", "a_pb.jl"))))
+        include("../a_pb.jl")
     end
     module b_pb
-        include($(repr(joinpath("..", "b_pb.jl"))))
+        include("../b_pb.jl")
     end
 
-    include($(repr(joinpath("B", "B.jl"))))
+    include("B/B.jl")
 
     end # module A
     """
@@ -213,7 +213,7 @@ end
     import .A as var"#A"
 
     include("main_pb.jl")
-    include($(repr(joinpath("B", "B.jl"))))
+    include("B/B.jl")
 
     end # module A
     """
