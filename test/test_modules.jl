@@ -75,7 +75,7 @@ end
     @test haskey(n.packages, "B")
     @test n.packages["A"].name == "A"
     @test isempty(n.packages["A"].nonpkg_imports)
-    @test n.packages["A"].external_imports == Set([joinpath("..", "B", "B.jl")])
+    @test n.packages["A"].external_imports == Set([("../B/B.jl")])
     @test n.packages["A"].submodules[["A", "B"]].name == "B"
     @test n.packages["A"].submodules[["A", "B"]].proto_files[1].import_path == "main"
     @test n.packages["B"].name == "B"
@@ -93,7 +93,7 @@ end
         ),
         "A"
     );
-    @test n.packages["A"].external_imports == Set([joinpath("..", "B", "B.jl")])
+    @test n.packages["A"].external_imports == Set(["../B/B.jl"])
     @test n.packages["A"].submodules[["A", "B"]].external_imports == Set{String}()
     @test n.packages["A"].submodules[["A", "B"]].submodules[["A", "B", "C"]].external_imports == Set(["...B"])
     @test n.packages["A"].submodules[["A", "B"]].submodules[["A", "B", "C"]].submodules[["A", "B", "C", "D"]].external_imports == Set{String}()
