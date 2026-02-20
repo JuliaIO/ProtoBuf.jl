@@ -10,7 +10,6 @@ import ..Parsers: GroupType, OneOfType, MapType, FieldType
 import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType
 import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixedType
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
-import Dates
 import ..ProtoBuf: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
 import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
@@ -208,9 +207,9 @@ package_name(h::ExternalCodeGenHandler) = h.package_name
 
 # Add external import statements after "import ProtoBuf"
 function import_cb(
-    h::ExternalCodeGenHandler, 
-    io, 
-    ctx::Context, 
+    h::ExternalCodeGenHandler,
+    io,
+    ctx::Context,
     definitions::Dict{String,Union{MessageType, EnumType, ServiceType}}
 )
     isnothing(h.import_cb) && return
