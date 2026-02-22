@@ -325,3 +325,23 @@ using ProtoBuf
     @test pairs_message.map_field == decoded_pairs.map_field
 end
 end
+
+@testset "Avoid include duplications" begin
+    mktempdir() do dir
+        protojl(
+            ["test_project.proto", "sub_A/sub_A.proto"], 
+            [joinpath(pkgdir(ProtoBuf), "test", "test_protos", "test_project")], 
+            dir
+        )
+        filestr = read(joinpath(dir, "test_project", "sub_A", "sub_A.jl"), String)
+
+        # We specified `sub_A/sub_A.proto` above,
+        # but also import sub_A from `test_project.proto`. This has 
+        # previously been internally been handled with both / and \\ as
+        # file separators, causing a duplicated include. We check that
+        # we only get one include statement. 
+        # The test just searches for "sub_A_pb.jl", in case 
+        # includes would have formatting differences for some reason. 
+        @test length(findall("sub_A_pb.jl", filestr)) == 1
+    end
+end 
