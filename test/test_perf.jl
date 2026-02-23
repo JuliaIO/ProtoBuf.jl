@@ -1,15 +1,23 @@
 module JETPerformanceAnalysis
 using JET
 using ProtoBuf: Codecs
-import .Codecs: vbyte_decode, vbyte_encode, _encoded_size
+using .Codecs: vbyte_decode, vbyte_encode, _encoded_size
 using Test
 using EnumX
 
 @enumx TestEnum DEFAULT OTHER
 
-macro test_noalloc(e) :(@test(@allocated($(esc(e))) == 0)) end
+macro test_noalloc(e)
+    esc(Expr(:macrocall, Symbol("@test"), __source__,
+        Expr(:call, :(==),
+            Expr(:macrocall, Symbol("@allocated"), __source__, e),
+            0)))
+end
 
-io = IOBuffer()
+
+@testset "Performance checks" begin
+
+io = IOBuffer(sizehint=8*1024*1024)
 
 @test_opt vbyte_encode(io, typemax(UInt32))
 @test_opt vbyte_encode(io, typemax(UInt64))
@@ -24,32 +32,33 @@ vbyte_encode(io, typemax(UInt64))
 seekstart(io)
 vbyte_decode(io, UInt64)
 
-@test_noalloc vbyte_encode(io, typemax(UInt32))
+# A vbyte_decode that throws away the value so we don't count the results in the allocation tests
+vbyte_decode_and_forget(::Type{T}, io) where {T} = (seekstart(io); vbyte_decode(io, T); nothing)
+
 seekstart(io)
-@static if VERSION >= v"1.12"
-    @test @allocated(vbyte_decode(io, UInt32)) <= 16
-else
-    @test @allocated(vbyte_decode(io, UInt32)) == 16
+let x = typemax(UInt32)
+    @test_noalloc vbyte_encode(io, x)
 end
-@test_noalloc vbyte_encode(io, typemax(UInt64))
-seekstart(io)
-@static if VERSION >= v"1.12"
-    @test @allocated(vbyte_decode(io, UInt64)) <= 16
-else
-    @test @allocated(vbyte_decode(io, UInt64)) == 16
+vbyte_decode_and_forget(UInt32, io) # precompile
+@test_noalloc vbyte_decode_and_forget(UInt32, io) == 0
+
+let x = typemax(UInt64)
+    @test_noalloc vbyte_encode(io, x)
 end
+vbyte_decode_and_forget(UInt64, io) # precompile
+@test_noalloc vbyte_decode_and_forget(UInt64, io) == 0
 
 @enumx TestEnum DEFAULT=0 OTHER=1
 
 struct EmptyMessage end
-_encoded_size(x::EmptyMessage) = 0
+Codecs._encoded_size(x::EmptyMessage) = 0
 
 abstract type var"##AbstractNonEmptyMessage" end
 struct NonEmptyMessage <: var"##AbstractNonEmptyMessage"
     x::UInt32
     self_referential_field::Union{Nothing,NonEmptyMessage}
 end
-function _encoded_size(x::NonEmptyMessage)
+function Codecs._encoded_size(x::NonEmptyMessage)
     encoded_size = 0
     x.x != zero(UInt32) && (encoded_size += _encoded_size(x.x, 1))
     !isnothing(x.self_referential_field) && (encoded_size += _encoded_size(x.self_referential_field, 2))
@@ -260,66 +269,66 @@ _encoded_size(Dict("K" => typemax(Float64)))
 @test_opt _encoded_size(NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing)))
 
 # allocs
-let x = [UInt8[0xff]]; @test_noalloc _encoded_size(x) end
-let x = ["S"]; @test_noalloc _encoded_size(x) end
-let x = [typemax(UInt32)]; @test_noalloc _encoded_size(x) end
-let x = [typemax(UInt64)]; @test_noalloc _encoded_size(x) end
-let x = [typemax(Int32)]; @test_noalloc _encoded_size(x) end
-let x = [typemax(Int64)]; @test_noalloc _encoded_size(x) end
-let x = [true]; @test_noalloc _encoded_size(x) end
-let x = [typemax(Int32)]; @test_noalloc _encoded_size(x, Val{:zigzag}) end
-let x = [typemax(Int64)]; @test_noalloc _encoded_size(x, Val{:zigzag}) end
-let x = [typemin(Int32)]; @test_noalloc _encoded_size(x, Val{:zigzag}) end
-let x = [typemax(Int64)]; @test_noalloc _encoded_size(x, Val{:zigzag}) end
-let x = [TestEnum.OTHER]; @test_noalloc _encoded_size(x) end
-let x = [typemax(Int32)]; @test_noalloc _encoded_size(x, Val{:fixed}) end
-let x = [typemax(Int64)]; @test_noalloc _encoded_size(x, Val{:fixed}) end
-let x = [typemax(UInt32)]; @test_noalloc _encoded_size(x, Val{:fixed}) end
-let x = [typemax(UInt64)]; @test_noalloc _encoded_size(x, Val{:fixed}) end
-let x = [EmptyMessage()]; @test_noalloc _encoded_size(x) end
-let x = [NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))]; @test_noalloc _encoded_size(x) end
-let x = [NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))]; @test_noalloc _encoded_size(x, Val{:group}) end
-let x = Dict("K" => UInt8[0xff]); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => "S"); @test_noalloc _encoded_size(x) end
-let x = Dict("KEY" => "STR"); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => typemax(UInt32)); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => typemax(UInt64)); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => typemax(Int32)); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => typemax(Int64)); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => true); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => typemax(Int32)); @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:zigzag}}) end
-let x = Dict("K" => typemax(Int64)); @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:zigzag}}) end
-let x = Dict("K" => typemin(Int32)); @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:zigzag}}) end
-let x = Dict("K" => typemin(Int64)); @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:zigzag}}) end
-let x = Dict("K" => TestEnum.OTHER); @test_noalloc _encoded_size(x) end
+let x = [UInt8[0xff]]; @test_noalloc _encoded_size(x); nothing end
+let x = ["S"]; @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(UInt32)]; @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(UInt64)]; @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(Int32)]; @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(Int64)]; @test_noalloc _encoded_size(x); nothing end
+let x = [true]; @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(Int32)]; @test_noalloc _encoded_size(x, Val{:zigzag}); nothing end
+let x = [typemax(Int64)]; @test_noalloc _encoded_size(x, Val{:zigzag}); nothing end
+let x = [typemin(Int32)]; @test_noalloc _encoded_size(x, Val{:zigzag}); nothing end
+let x = [typemax(Int64)]; @test_noalloc _encoded_size(x, Val{:zigzag}); nothing end
+let x = [TestEnum.OTHER]; @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(Int32)]; @test_noalloc _encoded_size(x, Val{:fixed}); nothing end
+let x = [typemax(Int64)]; @test_noalloc _encoded_size(x, Val{:fixed}); nothing end
+let x = [typemax(UInt32)]; @test_noalloc _encoded_size(x, Val{:fixed}); nothing end
+let x = [typemax(UInt64)]; @test_noalloc _encoded_size(x, Val{:fixed}); nothing end
+let x = [EmptyMessage()]; @test_noalloc _encoded_size(x); nothing end
+let x = [NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))]; @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => UInt8[0xff]); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => "S"); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("KEY" => "STR"); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => typemax(UInt32)); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => typemax(UInt64)); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => typemax(Int32)); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => typemax(Int64)); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => true); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => typemax(Int32)), V=Val{Tuple{Nothing,:zigzag}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict("K" => typemax(Int64)), V=Val{Tuple{Nothing,:zigzag}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict("K" => typemin(Int32)), V=Val{Tuple{Nothing,:zigzag}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict("K" => typemin(Int64)), V=Val{Tuple{Nothing,:zigzag}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict("K" => TestEnum.OTHER); @test_noalloc _encoded_size(x); nothing end
 
-let x = Dict("K" => typemax(UInt32)); @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:fixed}}) end
-let x = Dict("K" => typemax(UInt64)); @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:fixed}}) end
-let x = Dict("K" => typemax(Int32)) ; @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:fixed}}) end
-let x = Dict("K" => typemax(Int64)) ; @test_noalloc _encoded_size(x, Val{Tuple{Nothing,:fixed}}) end
+let x = Dict("K" => typemax(UInt32)), V=Val{Tuple{Nothing,:fixed}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict("K" => typemax(UInt64)), V=Val{Tuple{Nothing,:fixed}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict("K" => typemax(Int32)) , V=Val{Tuple{Nothing,:fixed}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict("K" => typemax(Int64)) , V=Val{Tuple{Nothing,:fixed}}; @test_noalloc _encoded_size(x, V); nothing end
 
-let x = Dict("K" => EmptyMessage()); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))); @test_noalloc _encoded_size(x) end
-let x = Dict(typemax(UInt32) => "V"); @test_noalloc _encoded_size(x) end
-let x = Dict(typemax(UInt64) => "V"); @test_noalloc _encoded_size(x) end
-let x = Dict(typemax(Int32) => "V"); @test_noalloc _encoded_size(x) end
-let x = Dict(typemax(Int64) => "V"); @test_noalloc _encoded_size(x) end
-let x = Dict(true => "V"); @test_noalloc _encoded_size(x) end
-let x = Dict(typemax(Int32) => "V"); @test_noalloc _encoded_size(x, Val{Tuple{:zigzag,Nothing}}) end
-let x = Dict(typemax(Int64) => "V"); @test_noalloc _encoded_size(x, Val{Tuple{:zigzag,Nothing}}) end
-let x = Dict(typemin(Int32) => "V"); @test_noalloc _encoded_size(x, Val{Tuple{:zigzag,Nothing}}) end
-let x = Dict(typemin(Int64) => "V"); @test_noalloc _encoded_size(x, Val{Tuple{:zigzag,Nothing}}) end
-let x = Dict(TestEnum.OTHER => "V"); @test_noalloc _encoded_size(x) end
+let x = Dict("K" => EmptyMessage()); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => NonEmptyMessage(typemax(UInt32), NonEmptyMessage(typemax(UInt32), nothing))); @test_noalloc _encoded_size(x); nothing end
+let x = Dict(typemax(UInt32) => "V"); @test_noalloc _encoded_size(x); nothing end
+let x = Dict(typemax(UInt64) => "V"); @test_noalloc _encoded_size(x); nothing end
+let x = Dict(typemax(Int32) => "V");  @test_noalloc _encoded_size(x); nothing end
+let x = Dict(typemax(Int64) => "V");  @test_noalloc _encoded_size(x); nothing end
+let x = Dict(true => "V"); @test_noalloc _encoded_size(x); nothing end
+let x = Dict(typemax(Int32) => "V"), V=Val{Tuple{:zigzag,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict(typemax(Int64) => "V"), V=Val{Tuple{:zigzag,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict(typemin(Int32) => "V"), V=Val{Tuple{:zigzag,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict(typemin(Int64) => "V"), V=Val{Tuple{:zigzag,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict(TestEnum.OTHER => "V"); @test_noalloc _encoded_size(x); nothing end
 
-let x = Dict(typemax(UInt32) => "V"); @test_noalloc _encoded_size(x, Val{Tuple{:fixed,Nothing}}) end
-let x = Dict(typemax(UInt64) => "V"); @test_noalloc _encoded_size(x, Val{Tuple{:fixed,Nothing}}) end
-let x = Dict(typemax(Int32) => "V") ; @test_noalloc _encoded_size(x, Val{Tuple{:fixed,Nothing}}) end
-let x = Dict(typemax(Int64) => "V") ; @test_noalloc _encoded_size(x, Val{Tuple{:fixed,Nothing}}) end
+let x = Dict(typemax(UInt32) => "V"), V=Val{Tuple{:fixed,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict(typemax(UInt64) => "V"), V=Val{Tuple{:fixed,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict(typemax(Int32) => "V"),  V=Val{Tuple{:fixed,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
+let x = Dict(typemax(Int64) => "V"),  V=Val{Tuple{:fixed,Nothing}}; @test_noalloc _encoded_size(x, V); nothing end
 
-let x = typemax(Float32); @test_noalloc _encoded_size(x) end
-let x = typemax(Float64); @test_noalloc _encoded_size(x) end
-let x = [typemax(Float32)]; @test_noalloc _encoded_size(x) end
-let x = [typemax(Float64)]; @test_noalloc _encoded_size(x) end
-let x = Dict("K" => typemax(Float32)); @test_noalloc _encoded_size(x) end
-let x = Dict("K" => typemax(Float64)); @test_noalloc _encoded_size(x) end
-end
+let x = typemax(Float32); @test_noalloc _encoded_size(x); nothing end
+let x = typemax(Float64); @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(Float32)]; @test_noalloc _encoded_size(x); nothing end
+let x = [typemax(Float64)]; @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => typemax(Float32)); @test_noalloc _encoded_size(x); nothing end
+let x = Dict("K" => typemax(Float64)); @test_noalloc _encoded_size(x); nothing end
+end # testset
+end # module
