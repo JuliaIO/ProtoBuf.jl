@@ -40,13 +40,13 @@ let x = typemax(UInt32)
     @test_noalloc vbyte_encode(io, x)
 end
 vbyte_decode_and_forget(UInt32, io) # precompile
-@test_noalloc vbyte_decode_and_forget(UInt32, io) == 0
+@test_noalloc vbyte_decode_and_forget(UInt32, io)
 
 let x = typemax(UInt64)
     @test_noalloc vbyte_encode(io, x)
 end
 vbyte_decode_and_forget(UInt64, io) # precompile
-@test_noalloc vbyte_decode_and_forget(UInt64, io) == 0
+@test_noalloc vbyte_decode_and_forget(UInt64, io)
 
 @enumx TestEnum DEFAULT=0 OTHER=1
 
