@@ -65,6 +65,7 @@ end
 _dot_join(prefix, s) = isempty(prefix) ? s : string(prefix, '.', s)
 
 @enum(FieldLabel, DEFAULT, REQUIRED, OPTIONAL, REPEATED)
+@enum(IsbitsInfo, UNKNOWN, ISBITS, NONISBITS)
 
 # We're reusing the same FieldType for both Message and OneOf fields
 # OneOf fields don't use the label field
@@ -97,6 +98,7 @@ struct MessageType <: AbstractProtoType
     extends::Vector{ExtendType}
     has_oneof_field::Bool
     is_self_referential::Base.RefValue{Bool}
+    isbits::Base.RefValue{IsbitsInfo}
 end
 
 struct GroupType <: AbstractProtoFieldType
@@ -343,6 +345,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
     extends = Vector{ExtendType}()
     has_oneof_field = false
     is_self_referential = Ref{Bool}(false) # set during topological sort
+    isbits = Ref{IsbitsInfo}(UNKNOWN) # set during tagged-oneof generation
 
     name = _dot_join(name_prefix, name)
     expectnext(ps, Tokens.LBRACE)
@@ -379,7 +382,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
         end
     end
     # TODO: validate field_numbers vs reserved and extensions
-    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, is_self_referential)
+    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, is_self_referential, isbits)
 end
 
 # We consumed RPC

@@ -31,6 +31,7 @@ Base.@kwdef struct Options
     add_kwarg_constructors::Bool = false
     parametrize_oneofs::Bool = false
     common_abstract_type::Bool = false
+    tagged_oneofs::Bool = false
 end
 
 struct Context
@@ -133,8 +134,10 @@ function protojl(
     add_kwarg_constructors::Bool=false,
     parametrize_oneofs::Bool=false,
     common_abstract_type::Bool = false,
+    tagged_oneofs::Bool = false,
 )
-    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type)
+    xor(tagged_oneofs, parametrize_oneofs) || throw(ArgumentError("..."))
+    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type, tagged_oneofs)
     return _protojl(relative_paths, search_directories, output_directory, options)
 end
 
