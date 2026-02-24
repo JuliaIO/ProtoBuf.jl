@@ -200,7 +200,7 @@ function generate_package(node::ProtoModule, output_directory::AbstractString, p
 end
 
 function validate_search_directories!(search_directories::Vector{String}, include_vendored_wellknown_types::Bool)
-    include_vendored_wellknown_types && push!(search_directories, VENDORED_WELLKNOWN_TYPES_PARENT_PATH)
+    include_vendored_wellknown_types && push!(search_directories, VENDORED_WELLKNOWN_TYPES_PARENT_PATH[])
     unique!(map!(x->joinpath(abspath(x), ""), search_directories, search_directories))
     bad_dirs = filter(!isdir, search_directories)
     !isempty(bad_dirs) && error("`search_directories` $bad_dirs don't exist")

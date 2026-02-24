@@ -1307,11 +1307,52 @@ end
         @test  d["main"].proto_file.definitions["FromA"].fields[1].type.package_namespace == "var\"#A\".B"
     end
 
-    @testset "Services are excluded from exports (as they are not currently supported)" begin
+    @testset "Services are excluded from exports without handlers registered" begin
         s, p, ctx = translate_simple_proto("""
         message A {}
         service S { rpc foo(A) returns (A); }
         """)
-        @test contains(s, "export A\n")
+        @test contains(s, strip("""
+        import ProtoBuf as PB
+        using ProtoBuf: OneOf
+        using ProtoBuf.EnumX: @enumx
+        export A
+        struct A end
+        function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:A})
+            while !PB.message_done(d)
+                field_number, wire_type = PB.decode_tag(d)
+                Base.skip(d, wire_type)
+            end
+            return A()
+        end
+        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+            initpos = position(e.io)
+            return position(e.io) - initpos
+        end
+        function PB._encoded_size(x::A)
+            encoded_size = 0
+            return encoded_size
+        end
+        end # module
+        """))
+    end
+
+    @testset "Services code generation handlers work" begin 
+        try
+            import_cb(io, ctx, definitions) = println(io, "import gRPCClient")
+            service_cb(io, t, ctx) = println(io, "gRPCServiceClient = nothing")
+
+            ProtoBuf.CodeGenerators.register_external_codegen_handler("ProtoBuf.jl"; import_cb=import_cb, service_cb=service_cb)
+
+            s, p, ctx = translate_simple_proto("""
+            message A {}
+            service S { rpc foo(A) returns (A); }
+            """)
+
+            @test contains(s, "\nimport gRPCClient\n")
+            @test contains(s, "\ngRPCServiceClient = nothing\n")
+        finally
+            empty!(ProtoBuf.CodeGenerators._external_codegen_handlers)
+        end
     end
 end

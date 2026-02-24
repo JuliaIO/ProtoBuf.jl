@@ -202,7 +202,16 @@ function parse_proto_file(ps::ParserState)
             push!(extends, parse_extend_type(ps, definitions))
         else
             type = parse_type(ps, definitions)
-            definitions[type.name] = type
+            if type isa ExtendType
+                ps.errored = true
+                error("Extend types not expected here")
+                # push!(extends, type)
+            elseif type isa MapType
+                ps.errored = true
+                error("Map types cannot appear at top-level scope")
+            else
+                definitions[type.name] = type
+            end
         end
     end
     package_parts = split(package_identifier, '.', keepempty=false)

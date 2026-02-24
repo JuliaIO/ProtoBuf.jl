@@ -10,7 +10,6 @@ import ..Parsers: GroupType, OneOfType, MapType, FieldType
 import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType
 import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixedType
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
-import Dates
 import ..ProtoBuf: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
 import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
@@ -89,9 +88,9 @@ All imported `.proto` files are compiled as well; an error is thrown if they can
 - `output_directory::Union{String,Nothing}=nothing`: Path to store the generated Julia source code. When omitted, the translated code is saved to temp directory, the path is shown as a @info log.
 
 # Keywords
-- `include_vendored_wellknown_types::Bool=true`: Append `ProtoBuf.VENDORED_WELLKNOWN_TYPES_PARENT_PATH` to `search_directories`, making the "well-known" message definitions available.
+- `include_vendored_wellknown_types::Bool=true`: Append `ProtoBuf.VENDORED_WELLKNOWN_TYPES_PARENT_PATH[]` to `search_directories`, making the "well-known" message definitions available.
 - `always_use_modules::Bool=true`: Generate julia code in a module even if the `.proto` file doesn't contain a `package` specifier. The module name of `{file_name}.proto` file is `{file_name}_pb`.
-- `force_required::Union{Nothing,Dict{String,Set{String}}}=nothing`: Assume `message` and `oneof` fields to be aleways send over the wire -- then we woudln't need to `Union` their respective types with `Nothing`. E.g:
+- `force_required::Union{Nothing,Dict{String,Set{String}}}=nothing`: Assume `message` and `oneof` fields to be always send over the wire -- then we wouldn't need to `Union` their respective types with `Nothing`. E.g:
 ```julia
 # force_required === nothing
 struct MyMessage
@@ -194,6 +193,41 @@ function _protojl(
         generate_package(m, output_directory, parsed_files, options)
     end
     return nothing
+end
+
+# Allows other packages to extend code generation
+struct ExternalCodeGenHandler
+    package_name::String
+    # Function(io, ::Context, ::Dict{String, Union{MessageType, ServiceType, EnumType}})
+    import_cb::Union{Function, Nothing}
+    # Function(io, ::ServiceType, ::Context)
+    service_cb::Union{Function, Nothing}
+end
+package_name(h::ExternalCodeGenHandler) = h.package_name
+
+# Add external import statements after "import ProtoBuf"
+function import_cb(
+    h::ExternalCodeGenHandler,
+    io,
+    ctx::Context,
+    definitions::Dict{String,Union{MessageType, EnumType, ServiceType}}
+)
+    isnothing(h.import_cb) && return
+    h.import_cb(io, ctx, definitions)
+end
+
+# Add external service definitions
+function service_cb(h::ExternalCodeGenHandler, io, t::ServiceType, ctx::Context)
+    isnothing(h.service_cb) && return
+    println(io, "# $(package_name(h)) BEGIN")
+    h.service_cb(io, t, ctx)
+    println(io, "# $(package_name(h)) END")
+end
+
+const _external_codegen_handlers = Dict{String, ExternalCodeGenHandler}()
+function register_external_codegen_handler(package_name::String; import_cb=nothing, service_cb=nothing)
+    h = ExternalCodeGenHandler(package_name, import_cb, service_cb)
+    _external_codegen_handlers[package_name] = h
 end
 
 
