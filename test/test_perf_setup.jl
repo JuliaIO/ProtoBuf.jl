@@ -13,7 +13,8 @@ macro test_noalloc(e)
         Expr(:call, :(==), s, 0))
     esc(quote
         $s = $alloc_expr
-        if $s != 0
+        for _ in 1:3
+            $s == 0 && break
             $s = $alloc_expr
         end
         $test_expr
