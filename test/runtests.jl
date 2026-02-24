@@ -24,7 +24,11 @@ if Base.VERSION > v"1.7.0" && !(is_ci() && get(VERSION.prerelease, 1, "") == "DE
 
         is_ci() || jet_test_package(ProtoBuf; jet_frames_to_skip)
         # jet_test_file("unittests.jl", ignored_modules=(JET.AnyFrameModule(Test),))
-        include("test_perf.jl")
+        @testset "Performance checks" begin
+            # it somethow helps when the warmup happens in a separate include statement
+            include("test_perf_setup.jl")
+            include("test_perf.jl")
+        end
     end
 end
 
