@@ -13,14 +13,12 @@ macro test_noalloc(e)
         Expr(:call, :(==), s, 0))
     esc(quote
         $s = $alloc_expr
-        for _ in 1:3
-            $s == 0 && break
-            $s = $alloc_expr
-        end
+        $s == 0 || ($s = $alloc_expr)
+        $s == 0 || ($s = $alloc_expr)
+        $s == 0 || ($s = $alloc_expr)
         $test_expr
     end)
 end
-
 io = IOBuffer(sizehint=8*1024*1024)
 
 @test_opt vbyte_encode(io, typemax(UInt32))
