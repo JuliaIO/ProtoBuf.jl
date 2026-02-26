@@ -156,6 +156,14 @@ function _protojl(
     end
     absolute_paths = validate_proto_file_paths!(relative_paths, search_directories)
 
+    # Ensure that all paths are use slash as a separator,
+    # so that equality checks between paths behave as expected,
+    # which can be problematic on windows where both / and \ argument
+    # valid separators. This also reduces consecutive separators into one. 
+    map!(posixpath, absolute_paths, absolute_paths)
+    map!(posixpath, relative_paths, relative_paths)
+    map!(posixpath, search_directories, search_directories)
+
     parsed_files = Dict{String,ResolvedProtoFile}()
     _import_paths = Set{String}()
     for (rel_path, abs_path) in zip(relative_paths, absolute_paths)
