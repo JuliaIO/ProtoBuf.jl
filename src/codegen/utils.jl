@@ -59,6 +59,7 @@ end
 
 _maybe_top_namespace(p) = isempty(namespace(p)) ? nothing : first(namespace(p))
 function Parsers._postprocess_reference!(t::ReferencedType, rctx::InterFileResolvingContext, ::String)
+    # We only end up here if the reference could not be resolved within the same file
     if !t.resolved
         found = false
         ns = namespace(rctx.resolved_file)
@@ -90,17 +91,20 @@ function Parsers._postprocess_reference!(t::ReferencedType, rctx::InterFileResol
                 t.name = name_without_import
                 found = true
             else
-                # The name is not qualified.
+                # Refer to type in imported file without namespace semantics
+                # For example B being in an imported file. The imported file
+                # may still define a package C, but we just specified B, not C.B. 
                 def = get(imported_file.definitions, t.name, nothing)
                 isnothing(def) && continue
                 if !isempty(ins)
                     # Same package, different file -> no package prefix needed
                     if ns != ins
-                        t.package_namespace = namespaces_clash ? _safe_namespace_string(ins) : join(ins, '.')
+                        t.package_namespace_str = namespaces_clash ? _safe_namespace_string(ins) : join(ins, '.')
                     end
                 elseif rctx.options.always_use_modules
-                    t.package_namespace = replace(proto_script_name(imported_file), ".jl" => "")
+                    t.package_namespace_str = replace(proto_script_name(imported_file), ".jl" => "")
                 end
+                t.namespace = ins
                 t.package_import_path = import_path
                 t.reference_type = Parsers.reference_type(def, t)
                 t.resolved = true
@@ -109,8 +113,9 @@ function Parsers._postprocess_reference!(t::ReferencedType, rctx::InterFileResol
             if found
                 # Same package, different file -> no package prefix needed
                 if ns != ins
-                    t.package_namespace = namespaces_clash ? _safe_namespace_string(ins) : join(ins, '.')
+                    t.package_namespace_str = namespaces_clash ? _safe_namespace_string(ins) : join(ins, '.')
                 end
+                t.namespace = ins
                 t.package_import_path = import_path
                 t.reference_type = Parsers.reference_type(def, t)
                 t.resolved = true

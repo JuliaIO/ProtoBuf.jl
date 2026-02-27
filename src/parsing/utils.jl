@@ -121,7 +121,10 @@ get_type_name(t::MapType)          = get_type_name(t.valuetype) # messages and e
 function _is_self_reference!(t::MessageType, field_type_name::Union{Nothing,String})
     isnothing(field_type_name) && return true  # don't push as dependency
     if t.name == field_type_name
-        t.is_self_referential[] = true
+        # Note: When this is called during _topological_sort and the field is a reference
+        # it should have a name of the form `t.name == "<package>.<fieldname>"`, making the above
+        # comparison in the edge case when referring to B.C in A, even if A.C exists.  
+        t.has_self_reference[] = true
         return true  # don't push as dependency
     end
     return false # push as dependency

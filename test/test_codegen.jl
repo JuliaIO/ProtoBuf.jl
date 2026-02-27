@@ -4,7 +4,7 @@ using ProtoBuf.CodeGenerators: import_paths, Context, codegen
 using ProtoBuf.CodeGenerators: generate_struct, codegen_cylic_stub, _generate_struct_alias
 using ProtoBuf.CodeGenerators: resolve_inter_package_references!, get_all_transitive_imports!
 using ProtoBuf.CodeGenerators: CodeGenerators, types_needing_params
-using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers
+using ProtoBuf.Parsers: parse_proto_file, ParserState, Parsers, ReferencedType
 using ProtoBuf.Lexers: Lexer
 using EnumX
 using Test
@@ -12,7 +12,7 @@ using Test
 strify(f, args...) = (io = IOBuffer(); f(io, args...); String(take!(io)))
 codegen_str(args...) = strify(codegen, args...)
 function generate_struct_str(def, ctx, ; remaining=copy(ctx._remaining_cyclic_defs))
-    ctx._toplevel_raw_name[] = def.name
+    ctx._toplevel_raw_name[] = (def.name, (def isa ReferencedType) ? namespace(def) : String[])
     if def.name in keys(ctx._types_and_oneofs_requiring_type_params)
         original_remaining = copy(ctx._remaining_cyclic_defs)
         empty!(ctx._remaining_cyclic_defs)
@@ -44,7 +44,7 @@ function translate_simple_proto(str::String, options=Options())
         p, r.import_path, d,
         types_needing_params(@view(p.sorted_definitions[end-ncyclic+1:end]), p, options),
         copy(p.cyclic_definitions),
-        Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
+        Ref((get(p.sorted_definitions, length(p.sorted_definitions), ""), namespace(p))),
         r.transitive_imports,
         options
     )
@@ -75,7 +75,7 @@ function translate_simple_proto(str::String, deps::Dict{String,String}, options=
         p, r.import_path, d,
         types_needing_params(@view(p.sorted_definitions[end-ncyclic+1:end]), p, options),
         copy(original_cyclic_definitions),
-        Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
+        Ref((get(p.sorted_definitions, length(p.sorted_definitions), ""), namespace(p))),
         r.transitive_imports,
         options
     )
@@ -1304,7 +1304,183 @@ end
                 "main2" => """package A.B; message FromB {}""",
             ),
         );
-        @test  d["main"].proto_file.definitions["FromA"].fields[1].type.package_namespace == "var\"#A\".B"
+        @test  d["main"].proto_file.definitions["FromA"].fields[1].type.package_namespace_str == "var\"#A\".B"
+    end
+
+    @testset "Refer to type with same name in same package and subpackage" begin
+        s, d, ctx = translate_simple_proto(
+            """
+            package A;
+            import \"main2\";
+            message FromA {
+                optional X x1 = 1;
+                optional B.X x2 = 2;
+           }
+            message X {};
+            """,
+            Dict(
+                "main2" => """package A.B; message X {}""",
+            ),
+        );
+        @test contains(s, """
+        struct FromA
+            x1::Union{Nothing,X}
+            x2::Union{Nothing,A.B.X}
+        end
+        """)
+    end
+
+    @testset "Self-referential type also referring to type with same name in subpackage" begin
+        s, d, ctx = translate_simple_proto(
+            """
+            package A;
+            import \"main2\";
+            message X {
+                optional X x1 = 1;
+                optional A.X x2 = 2;
+                optional B.X x3 = 3;
+            }
+            """,
+            Dict(
+                "main2" => """package A.B; message X {}""",
+            ),
+        );
+        @test contains(s, """
+        struct X
+            x1::Union{Nothing,X}
+            x2::Union{Nothing,X}
+            x3::Union{Nothing,A.B.X}
+        end
+        """)
+    end
+
+    @testset "Cyclic type also referring to type with same name in subpackage" begin
+        # Checks that a reference B.Y into another package B is not treated as 
+        # cyclic just because of the name Y. 
+        s, d, ctx = translate_simple_proto(
+            """
+            package A;
+            import \"main2\";
+            message X {
+                optional Y y1 = 1;
+                optional A.Y y2 = 2;
+                optional B.Y y3 = 3;
+            }
+            
+            message Y {
+                optional X x = 1;
+            }
+            """,
+            Dict(
+                "main2" => """package A.B; message Y{};""",
+            ),
+        );
+        # The cyclic reference gets a type parameter
+        # The self-reference gets a stub
+        # The references to types with same names in A.B should
+        # not get type parameters or stubs. 
+        @test contains(s, """
+        struct var"##Stub#X"{T1<:var"##Abstract#Y"} <: var"##Abstract#X"
+            y1::Union{Nothing,T1}
+            y2::Union{Nothing,T1}
+            y3::Union{Nothing,A.B.Y}
+        end
+        """)
+    end
+
+    @testset "Self-referential and cyclic type also referring to type with same name in subpackage" begin
+        # Checks that a reference B.X into another package B is not treated as 
+        # cyclic or self referential just because of the name X. 
+        s, d, ctx = translate_simple_proto(
+            """
+            package A;
+            import \"main2\";
+            message X {
+                optional X x1 = 1;
+                optional B.X x2 = 2;
+                optional Y y1 = 3;
+                optional B.Y y2= 4;
+            }
+            
+            message Y {
+                optional X x = 1;
+            }
+            """,
+            Dict(
+                "main2" => """package A.B; message X {}; message Y{};""",
+            ),
+        );
+        # The cyclic reference gets a type parameter
+        # The self-reference gets a stub
+        # The references to types with same names in A.B should
+        # not get type parameters or stubs. 
+        @test contains(s, """
+        struct var"##Stub#X"{T1<:var"##Abstract#Y"} <: var"##Abstract#X"
+            x1::Union{Nothing,var"##Stub#X"{T1}}
+            x2::Union{Nothing,A.B.X}
+            y1::Union{Nothing,T1}
+            y2::Union{Nothing,A.B.Y}
+        end
+        """)
+        @test contains(s, """
+        struct var"##Stub#Y" <: var"##Abstract#Y"
+            x::Union{Nothing,var"##Stub#X"{var"##Stub#Y"}}
+        end
+        """)
+        @test contains(s, """
+        function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:X})
+            x1 = Ref{Union{Nothing,X}}(nothing)
+            x2 = Ref{Union{Nothing,A.B.X}}(nothing)
+            y1 = Ref{Union{Nothing,Y}}(nothing)
+            y2 = Ref{Union{Nothing,A.B.Y}}(nothing)
+        """)
+        @test contains(s, """
+        const Y = var"##Stub#Y"
+        """)
+        @test contains(s, """
+        function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:Y})
+            x = Ref{Union{Nothing,X}}(nothing)
+        """)
+    end
+
+    @testset "Oneof containing self-referential and cyclic type also referring to type with same name in subpackage" begin
+        # Checks that a reference B.X into another package B is not treated as 
+        # cyclic or self referential just because of the name X. 
+        s, d, ctx = translate_simple_proto(
+            """
+            package A;
+            import \"main2\";
+            message X {
+                oneof o {
+                    X x1 = 1;
+                    B.X x2 = 2;
+                    Y y1 = 3;
+                    B.Y y2= 4;
+                }
+            }
+            
+            message Y {
+                optional X x = 1;
+            }
+            """,
+            Dict(
+                "main2" => """package A.B; message X {}; message Y{};""",
+            ),
+        );
+        # The cyclic reference gets a type parameter
+        # The self-reference gets a stub
+        # The references to types with same names in A.B should
+        # not get type parameters or stubs. 
+        @test contains(s, """
+        struct var"##Stub#X"{T1<:var"##Abstract#Y"} <: var"##Abstract#X"
+            o::Union{Nothing,OneOf{<:Union{var"##Stub#X"{T1},A.B.X,T1,A.B.Y}}}
+        end
+        """)
+        @test contains(s, """
+        PB.oneof_field_types(::Type{X}) = (;
+            o = (;x1=X, x2=A.B.X, y1=Y, y2=A.B.Y),
+        )
+        """)
     end
 
     @testset "Services are excluded from exports without handlers registered" begin

@@ -53,7 +53,7 @@ function generate_struct(io, t::MessageType, ctx::Context)
     if _needs_abstract_type_for_parametrized_oneofs(t, ctx)
         type_params = get_type_params_for_non_cyclic(t, ctx)
         params_string = get_type_param_string(type_params)
-        maybe_subtype = t.is_self_referential[] ?
+        maybe_subtype = t.has_self_reference[] ?
             string(" <: ", abstract_type_name(t.name)) :
             ctx.options.common_abstract_type ?
                 " <: AbstractProtoBufMessage" :
@@ -209,7 +209,7 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
         file_map,
         types_needing_params(_cyclic_defs(p), p, options),
         copy(p.cyclic_definitions),
-        Ref{String}(),
+        Ref{Tuple{String, Vector{String}}}(("", String[])),
         rp.transitive_imports,
         options,
     )
@@ -276,20 +276,20 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
 
     for def_name in _non_cyclic_defs(p)
         println(io)
-        ctx._toplevel_raw_name[] = def_name
+        ctx._toplevel_raw_name[] = (def_name, namespace(p))
         codegen(io, p.definitions[def_name], ctx)
     end
 
     length(_cyclic_defs(p)) > 0 && print(io, "\n# Stub definitions for cyclic types")
     for def_name in _cyclic_defs(p)
         println(io)
-        ctx._toplevel_raw_name[] = def_name
+        ctx._toplevel_raw_name[] = (def_name, namespace(p))
         codegen_cylic_stub(io, p.definitions[def_name], ctx)
     end
 
     for def_name in _cyclic_defs(p)
         println(io)
-        ctx._toplevel_raw_name[] = def_name
+        ctx._toplevel_raw_name[] = (def_name, namespace(p))
         codegen_cylic_rest(io, p.definitions[def_name], ctx)
     end
 
