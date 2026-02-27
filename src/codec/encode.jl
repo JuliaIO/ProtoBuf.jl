@@ -1,5 +1,5 @@
 function encode_tag(io::IO, field_number, wire_type::WireType)
-    vbyte_encode(io, (UInt32(field_number) << 3) | UInt32(wire_type))
+    vbyte_encode(io, (UInt64(field_number) << 3) | UInt64(wire_type))
     return nothing
 end
 encode_tag(e::ProtoEncoder, field_number, wire_type::WireType) = encode_tag(e.io, field_number, wire_type)
@@ -27,7 +27,7 @@ maybe_ensure_room(::IO, n) = nothing
         f(sink, x, V...) # e.g. _encode(io, x) or _encode(io, x, Val{:zigzag})
         endpos = position(io)
         encoded_size = endpos - initpos - encoded_size_len_guess
-        encoded_size_len = _encoded_size(UInt32(encoded_size))
+        encoded_size_len = _encoded_size(UInt64(encoded_size))
         @assert (initpos + encoded_size_len + encoded_size) <= io.maxsize
         # If our initial guess on encoded size of the size was wrong, then we need to move the encoded data
         if encoded_size_len_guess < encoded_size_len
@@ -43,11 +43,11 @@ maybe_ensure_room(::IO, n) = nothing
         end
         # Now we can encode the size
         seek(io, initpos)
-        vbyte_encode(io, UInt32(encoded_size))
+        vbyte_encode(io, UInt64(encoded_size))
         seek(io, initpos + encoded_size_len + encoded_size)
     else
         # TODO: avoid quadratic behavior when estimating encoded size by providing a scratch buffer
-        vbyte_encode(io, UInt32(_encoded_size(x, V...)))
+        vbyte_encode(io, UInt64(_encoded_size(x, V...)))
         f(sink, x, V...)
     end
     return nothing
@@ -55,7 +55,7 @@ end
 
 @inline function _with_size(f, io::IO, sink, x, V...)
     # TODO: avoid quadratic behavior when estimating encoded size by providing a scratch buffer
-    vbyte_encode(io, UInt32(_encoded_size(x, V...)))
+    vbyte_encode(io, UInt64(_encoded_size(x, V...)))
     f(sink, x, V...)
     return nothing
 end
@@ -140,7 +140,7 @@ function encode(e::ProtoEncoder, i::Int, x::Dict{K,V}) where {K,V}
     for (k, v) in x
         # encode header for key-value pair message
         encode_tag(e, i, LENGTH_DELIMITED)
-        vbyte_encode(e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2)))
+        vbyte_encode(e.io, UInt64(_encoded_size(k, 1) + _encoded_size(v, 2)))
         encode(e, 1, k)
         encode(e, 2, v)
     end
@@ -153,7 +153,7 @@ for T in (:(:fixed), :(:zigzag))
         for (k, v) in x
             # encode header for key-value pair message
             encode_tag(e, i, LENGTH_DELIMITED)
-            vbyte_encode(e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2)))
+            vbyte_encode(e.io, UInt64(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2)))
             encode(e, 1, k, Val{$(T)})
             encode(e, 2, v)
         end
@@ -164,7 +164,7 @@ for T in (:(:fixed), :(:zigzag))
         for (k, v) in x
             # encode header for key-value pair message
             encode_tag(e, i, LENGTH_DELIMITED)
-            vbyte_encode(e.io, UInt32(_encoded_size(k, 1) + _encoded_size(v, 2, Val{$(T)})))
+            vbyte_encode(e.io, UInt64(_encoded_size(k, 1) + _encoded_size(v, 2, Val{$(T)})))
             encode(e, 1, k)
             encode(e, 2, v, Val{$(T)})
         end
@@ -178,7 +178,7 @@ for T in (:(:fixed), :(:zigzag)), S in (:(:fixed), :(:zigzag))
         for (k, v) in x
             # encode header for key-value pair message
             encode_tag(e, i, LENGTH_DELIMITED)
-            vbyte_encode(e.io, UInt32(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2, Val{$(S)})))
+            vbyte_encode(e.io, UInt64(_encoded_size(k, 1, Val{$(T)}) + _encoded_size(v, 2, Val{$(S)})))
             encode(e, 1, k, Val{$(T)})
             encode(e, 2, v, Val{$(S)})
         end
@@ -225,14 +225,14 @@ end
 
 function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}) where {T<:Union{Bool,UInt8,Float32,Float64}}
     encode_tag(e, i, LENGTH_DELIMITED)
-    vbyte_encode(e.io, UInt32(sizeof(x)))
+    vbyte_encode(e.io, UInt64(sizeof(x)))
     _encode(e.io, x)
     return nothing
 end
 
 function encode(e::AbstractProtoEncoder, i::Int, x::Base.CodeUnits{UInt8, String})
     encode_tag(e, i, LENGTH_DELIMITED)
-    vbyte_encode(e.io, UInt32(sizeof(x)))
+    vbyte_encode(e.io, UInt64(sizeof(x)))
     _encode(e.io, x)
     return nothing
 end
@@ -241,7 +241,7 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Vector{String})
     maybe_ensure_room(e.io, length(x) * (sizeof(first(x)) + 1))
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
-        vbyte_encode(e.io, UInt32(sizeof(el)))
+        vbyte_encode(e.io, UInt64(sizeof(el)))
         _encode(e.io, el)
     end
     return nothing
@@ -251,7 +251,7 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Vector{Vector{UInt8}})
     maybe_ensure_room(e.io, length(x) * (sizeof(first(x)) + 1))
     for el in x
         encode_tag(e, i, LENGTH_DELIMITED)
-        vbyte_encode(e.io, UInt32(sizeof(el)))
+        vbyte_encode(e.io, UInt64(sizeof(el)))
         _encode(e.io, el)
     end
     return nothing
@@ -259,14 +259,14 @@ end
 
 function encode(e::AbstractProtoEncoder, i::Int, x::String)
     encode_tag(e, i, LENGTH_DELIMITED)
-    vbyte_encode(e.io, UInt32(sizeof(x)))
+    vbyte_encode(e.io, UInt64(sizeof(x)))
     _encode(e.io, x)
     return nothing
 end
 
 function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:fixed}}) where {T<:Union{UInt32,UInt64,Int32,Int64}}
     encode_tag(e, i, LENGTH_DELIMITED)
-    vbyte_encode(e.io, UInt32(sizeof(x)))
+    vbyte_encode(e.io, UInt64(sizeof(x)))
     _encode(e.io, x, Val{:fixed})
     return nothing
 end
@@ -307,7 +307,7 @@ function encode(e::AbstractProtoEncoder, i::Int, x::Vector{T}, ::Type{Val{:group
     for el in x
         encode_tag(e, i, START_GROUP)
         encode(e, el) # This method has to be generated by protojl
-        vbyte_encode(e.io, UInt32(END_GROUP))
+        vbyte_encode(e.io, UInt64(END_GROUP))
     end
     return nothing
 end
@@ -316,7 +316,7 @@ function encode(e::AbstractProtoEncoder, i::Int, x::T, ::Type{Val{:group}}) wher
     maybe_ensure_room(e.io, 2 + sizeof(T))
     encode_tag(e, i, START_GROUP)
     encode(e, x) # This method has to be generated by protojl
-    vbyte_encode(e.io, UInt32(END_GROUP))
+    vbyte_encode(e.io, UInt64(END_GROUP))
     return nothing
 end
 
