@@ -10,6 +10,7 @@ import ..Parsers: GroupType, OneOfType, MapType, FieldType
 import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType
 import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixedType
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
+import ..Parsers: TypeInfo
 import ..ProtoBuf: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
 import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
@@ -52,6 +53,8 @@ include("defaults.jl")
 include("decode_methods.jl")
 include("encode_methods.jl")
 include("metadata_methods.jl")
+include("type_info.jl")
+include("tagged_oneofs.jl")
 include("toplevel_definitions.jl")
 include("utils.jl")
 
@@ -162,7 +165,7 @@ function _protojl(
     # Ensure that all paths are use slash as a separator,
     # so that equality checks between paths behave as expected,
     # which can be problematic on windows where both / and \ argument
-    # valid separators. This also reduces consecutive separators into one. 
+    # valid separators. This also reduces consecutive separators into one.
     map!(posixpath, absolute_paths, absolute_paths)
     map!(posixpath, relative_paths, relative_paths)
     map!(posixpath, search_directories, search_directories)

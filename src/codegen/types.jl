@@ -73,7 +73,12 @@ function jl_typename(t::ReferencedType, ctx::Context)
 end
 
 function jl_typename(t::OneOfType, ctx::Context)
-    return string("OneOf{", _jl_oneof_inner_typename(t, ctx), "}")
+    if ctx.options.tagged_oneofs
+        name = string("var\"", ctx._toplevel_raw_name[], ".", replace(titlecase(t.name), "_"=>""), "\"")
+    else
+        name = string("OneOf{", _jl_oneof_inner_typename(t, ctx), "}")
+    end
+    return name
 end
 
 function _jl_oneof_inner_typename(t::OneOfType, ctx::Context)

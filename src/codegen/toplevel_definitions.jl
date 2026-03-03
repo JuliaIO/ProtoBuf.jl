@@ -40,7 +40,9 @@ function generate_struct_field(io, field::OneOfType, ctx::Context, type_params)
     field_name = jl_fieldname(field)
     type_param = get(type_params.oneofs, field.name, nothing)
 
-    if !isnothing(type_param)
+    if ctx.options.tagged_oneofs
+        type_name = jl_typename(field, ctx)
+    elseif !isnothing(type_param)
         type_name = type_param.param
     else
         type_name = _get_oneof_type_bound(field, ctx, type_params)
@@ -77,6 +79,7 @@ end
 codegen(t::AbstractProtoType, ctx::Context) = codegen(stdout, t, ctx::Context)
 
 function codegen(io, t::MessageType, ctx::Context)
+    maybe_generate_tagged_oneofs(io, t, ctx)
     generate_struct(io, t, ctx)
     maybe_generate_kwarg_constructor_method(io, t, ctx)
     maybe_generate_deprecation(io, t)

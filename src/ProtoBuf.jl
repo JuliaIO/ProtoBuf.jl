@@ -28,8 +28,7 @@ function __init__()
     return nothing
 end
 
-abstract type AbstractOneOf end
-struct OneOf{T} <: AbstractOneOf
+struct OneOf{T}
     name::Symbol
     value::T
 end
