@@ -49,12 +49,12 @@ end
 include("modules.jl")
 include("names.jl")
 include("types.jl")
+include("tagged_oneofs.jl")
 include("defaults.jl")
 include("decode_methods.jl")
 include("encode_methods.jl")
 include("metadata_methods.jl")
 include("type_info.jl")
-include("tagged_oneofs.jl")
 include("toplevel_definitions.jl")
 include("utils.jl")
 

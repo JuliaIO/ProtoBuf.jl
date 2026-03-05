@@ -27,10 +27,13 @@ function maybe_generate_tagged_oneofs(io, t::MessageType, ctx::Context)
     return nothing
 end
 
-function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
-    (; bitstypes, ptrstypes, isbits_flags) = _split_oneof_types(f.fields, ctx)
+_tagged_getfield(info, ident) = string("Base.getfield(", ident,", :", info.inline ? "bit" : "ptr", ")::", info.type)
 
+function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
+    field_infos = _tagged_oneof_field_infos(f.fields, ctx)
     typename = string("var\"", t.name, ".", replace(titlecase(f.name), "_"=>""), "\"")
+    seen = Set{String}()
+
     print(io, "struct ", typename)
     if t.is_self_referential[] # || appears_in_cycle
         print(io, "{T<:", abstract_type_name(t.name), "}")
@@ -39,53 +42,57 @@ function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
     println(io, "    tag::UInt8")
 
     print(io, "    bit::Union{Nothing")
-    for (name, type) in bitstypes
-        print(io, ", ")
-        print(io, type)
+    for info in field_infos
+        info.inline || continue
+        get!(seen.dict, info.type) do
+            print(io, ",")
+            print(io, info.type)
+            nothing
+        end
     end
     println(io, "}")
 
+    empty!(seen)
     print(io, "    ptr::Union{Nothing")
-    for (name, type) in ptrstypes
-        print(io, ", ")
-        print(io, type)
+    for info in field_infos
+        info.inline && continue
+        get!(seen.dict, info.type) do
+            print(io, ",")
+            print(io, info.type)
+            nothing
+        end
     end
     println(io, "}")
     println(io, "end")
 
-    for (i, (isbits_flag, f)) in enumerate(zip(isbits_flags, f.fields))
-        fieldname = jl_fieldname(f)
-        fieldtype = jl_typename(f, ctx)
-        print(io, typename, "(::Val{", repr(Symbol(fieldname)), "}, x)")
-        print(io, " = ", typename, "(UInt8(", i, "), ")
-        if isbits_flag
-            println(io, "convert(", fieldtype, ", x), nothing)")
+    for info in field_infos
+        print(io, typename, "(::Val{:", info.name, "}, x)")
+        print(io, " = ", typename, "(UInt8(", info.idx, "), ")
+        if info.inline
+            println(io, "convert(", info.type, ", x), nothing)")
         else
-            println(io, "nothing, convert(", fieldtype, ", x))")
+            println(io, "nothing, convert(", info.type, ", x))")
         end
     end
 
-    for (isbits_flag, f) in zip(isbits_flags, f.fields)
-        fieldname = jl_fieldname(f)
-        fieldtype = jl_typename(f, ctx)
-        print(io, "PB.unsafe_getproperty(x::", typename, ", ::Val{", repr(Symbol(fieldname)), "})")
-        println(io, " = Base.getfield(x, :", isbits_flag ? "bit" : "ptr", ")::", fieldtype)
+    for info in field_infos
+        print(io, "PB.unsafe_getproperty(x::", typename, ", ::Val{:", info.name, "})")
+        println(io, " = ", _tagged_getfield(info, "x"))
     end
 
     print(io, "PB.field_to_tag(::Type{", typename, "}) = (;")
-    for (i, f) in enumerate(f.fields)
-        fieldname = jl_fieldname(f)
-        i > 1 && print(io, ", ")
-        print(io, fieldname, " = UInt8(", i,")")
+    for info in field_infos
+        info.idx > 1 && print(io, ", ")
+        print(io, info.name, " = UInt8(", info.idx,")")
     end
     println(io, ")")
 
     println(io, "function PB.active_name(f::F, x::", typename, ") where {F}")
     println(io, "    tag = getfield(x, :tag)")
-    for (i, f) in enumerate(f.fields)
+    for info in field_infos
         print(io, "    ")
-        i > 1 ? print(io, "elseif") : print(io, "if    ")
-        println(io, " tag == UInt8(", i, "); return f(Val(", repr(Symbol(jl_fieldname(f))), "))")
+        info.idx > 1 ? print(io, "elseif") : print(io, "if    ")
+        println(io, " tag == UInt8(", info.idx, "); return f(Val(:", info.name, "))")
     end
     println(io, "    else   PB.throw_bad_tag(", typename,", tag)")
     println(io, "    end")
@@ -93,10 +100,10 @@ function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
 
     println(io, "function PB.active_value(f::F, x::", typename, ") where {F}")
     println(io, "    tag = getfield(x, :tag)")
-    for (i, f) in enumerate(f.fields)
+    for info in field_infos
         print(io, "    ")
-        i > 1 ? print(io, "elseif") : print(io, "if    ")
-        println(io, " tag == UInt8(", i, "); return f(PB.unsafe_getproperty(x, Val(", repr(Symbol(jl_fieldname(f))), ")))")
+        info.idx > 1 ? print(io, "elseif") : print(io, "if    ")
+        println(io, " tag == UInt8(", info.idx, "); return f(", _tagged_getfield(info, "x"), ")")
     end
     println(io, "    else   PB.throw_bad_tag(", typename,", tag)")
     println(io, "    end")
@@ -104,21 +111,14 @@ function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
     return nothing
 end
 
-function _split_oneof_types(fields, ctx)
-    bitstypes = NTuple{2,String}[]
-    ptrstypes = NTuple{2,String}[]
-    isbits_flags = Bool[]
-
+function _tagged_oneof_field_infos(fields, ctx)
+    field_infos = @NamedTuple{idx::Int, name::String, type::String, inline::Bool}[]
+    idx = 1
     for f in fields
         tinfo = query_typeinfo!(f, ctx)
-        if tinfo.isbits && tinfo.size <= 16
-            push!(bitstypes, (jl_fieldname(f), jl_typename(f, ctx)))
-            push!(isbits_flags, true)
-        else
-            push!(ptrstypes, (jl_fieldname(f), jl_typename(f, ctx)))
-            push!(isbits_flags, false)
-        end
+        push!(field_infos, (; idx, name=jl_fieldname(f), type=jl_typename(f, ctx), inline=tinfo.isbits && tinfo.size <= 16))
+        idx += 1
     end
-    return (; bitstypes, ptrstypes, isbits_flags)
+    return field_infos
 end
 

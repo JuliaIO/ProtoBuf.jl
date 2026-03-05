@@ -62,14 +62,14 @@ function jl_type_oneof_decode_expr(f::FieldType{ReferencedType}, ctx::Context)
       return "OneOf(:$(jl_fieldname(f)), PB.decode(d, $(jl_typename(f.type, ctx))))"
 end
 
-jl_type_tagged_oneof_decode_expr(f::FieldType, typename, ctx::Context) = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, $(jl_typename(f.type, ctx))))"
-jl_type_tagged_oneof_decode_expr(f::GroupType, typename, ctx::Context) = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, Ref{$(jl_typename(f.type, ctx))}, Val{:group}))"
-jl_type_tagged_oneof_decode_expr(f::FieldType{SFixed32Type}, typename, ::Context) = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, Int32, Val{:fixed}))"
-jl_type_tagged_oneof_decode_expr(f::FieldType{SFixed64Type}, typename, ::Context) = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, Int64, Val{:fixed}))"
-jl_type_tagged_oneof_decode_expr(f::FieldType{Fixed32Type}, typename, ::Context)  = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, UInt32, Val{:fixed}))"
-jl_type_tagged_oneof_decode_expr(f::FieldType{Fixed64Type}, typename, ::Context)  = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, UInt64, Val{:fixed}))"
-jl_type_tagged_oneof_decode_expr(f::FieldType{SInt32Type}, typename, ::Context)   = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, Int32, Val{:zigzag}))"
-jl_type_tagged_oneof_decode_expr(f::FieldType{SInt64Type}, typename, ::Context)   = "$(typename)(Val(:$(jl_fieldname(f))), decode(d, Int64, Val{:zigzag}))"
+jl_type_tagged_oneof_decode_expr(f::FieldType, typename, ctx::Context) = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, $(jl_typename(f.type, ctx))))"
+jl_type_tagged_oneof_decode_expr(f::GroupType, typename, ctx::Context) = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, Ref{$(jl_typename(f.type, ctx))}, Val{:group}))"
+jl_type_tagged_oneof_decode_expr(f::FieldType{SFixed32Type}, typename, ::Context) = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, Int32, Val{:fixed}))"
+jl_type_tagged_oneof_decode_expr(f::FieldType{SFixed64Type}, typename, ::Context) = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, Int64, Val{:fixed}))"
+jl_type_tagged_oneof_decode_expr(f::FieldType{Fixed32Type}, typename, ::Context)  = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, UInt32, Val{:fixed}))"
+jl_type_tagged_oneof_decode_expr(f::FieldType{Fixed64Type}, typename, ::Context)  = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, UInt64, Val{:fixed}))"
+jl_type_tagged_oneof_decode_expr(f::FieldType{SInt32Type}, typename, ::Context)   = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, Int32, Val{:zigzag}))"
+jl_type_tagged_oneof_decode_expr(f::FieldType{SInt64Type}, typename, ::Context)   = "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, Int64, Val{:zigzag}))"
 function jl_type_tagged_oneof_decode_expr(f::FieldType{ReferencedType}, typename, ctx::Context)
       _is_message(f.type, ctx) && return "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, Ref{$(jl_typename(f.type, ctx))}))"
       return "$(typename)(Val(:$(jl_fieldname(f))), PB.decode(d, $(jl_typename(f.type, ctx))))"
@@ -121,8 +121,9 @@ function generate_decode_method(io, t::MessageType, ctx::Context)
     for (i, field) in enumerate(t.fields)
         field_decode_expr(io, field, i, ctx)
     end
-    has_fields && println(io, "        else")
-    println(io, "    " ^ (3 - !has_fields), "Base.skip(d, wire_type)")
+    print(io, "        ")
+    has_fields && print(io, "else   ")
+    println(io, "Base.skip(d, wire_type)")
     has_fields && println(io, "        end")
     println(io, "    end")
     print(io, "    return ")
