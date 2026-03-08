@@ -1,4 +1,5 @@
 const BOXED = TypeInfo(true, false, 8, 8)
+const STOP_RECURSION = TypeInfo(true, false, 0, 1)
 
 function _align(sz, al, fsz, fal)
     al = max(al, fal)
@@ -10,27 +11,27 @@ function _align(sz, al, fsz, fal)
     return sz, al
 end
 
-query_typeinfo!(t::ReferencedType, ctx) = query_typeinfo!(_get_referenced_type(t, ctx), ctx)
-query_typeinfo!(::DoubleType, ctx) = TypeInfo(true, true, 8, 8)
-query_typeinfo!(::FloatType, ctx) = TypeInfo(true, true, 4, 4)
-query_typeinfo!(::Int32Type, ctx) = TypeInfo(true, true, 4, 4)
-query_typeinfo!(::Int64Type, ctx) = TypeInfo(true, true, 8, 8)
-query_typeinfo!(::UInt32Type, ctx) = TypeInfo(true, true, 4, 4)
-query_typeinfo!(::UInt64Type, ctx) = TypeInfo(true, true, 8, 8)
-query_typeinfo!(::SInt32Type, ctx) = TypeInfo(true, true, 4, 4)
-query_typeinfo!(::SInt64Type, ctx) = TypeInfo(true, true, 8, 8)
-query_typeinfo!(::Fixed32Type, ctx) = TypeInfo(true, true, 4, 4)
-query_typeinfo!(::Fixed64Type, ctx) = TypeInfo(true, true, 8, 8)
-query_typeinfo!(::SFixed32Type, ctx) = TypeInfo(true, true, 4, 4)
-query_typeinfo!(::SFixed64Type, ctx) = TypeInfo(true, true, 8, 8)
-query_typeinfo!(::BoolType, ctx) = TypeInfo(true, true, 1, 1)
-query_typeinfo!(::StringType, ctx) = BOXED
-query_typeinfo!(::BytesType, ctx) = BOXED
-query_typeinfo!(::MapType, ctx) = BOXED
-query_typeinfo!(::EnumType, ctx) = TypeInfo(true, true, 4, 4) # Currently we only generate 4 byte enums
-query_typeinfo!(f::AbstractProtoFieldType, ctx) = _is_repeated_field(f) ? BOXED : query_typeinfo!(f.type, ctx)
-query_typeinfo!(f::GroupType, ctx) = _is_repeated_field(f) ? BOXED : query_typeinfo!(t.type, ctx)
-function query_typeinfo!(t::OneOfType, ctx) # relies on the TaggedUnion layout!
+query_typeinfo!(t::ReferencedType, ctx::Context) = query_typeinfo!(_get_referenced_type(t, ctx), ctx)
+query_typeinfo!(::DoubleType, ctx::Context) = TypeInfo(true, true, 8, 8)
+query_typeinfo!(::FloatType, ctx::Context) = TypeInfo(true, true, 4, 4)
+query_typeinfo!(::Int32Type, ctx::Context) = TypeInfo(true, true, 4, 4)
+query_typeinfo!(::Int64Type, ctx::Context) = TypeInfo(true, true, 8, 8)
+query_typeinfo!(::UInt32Type, ctx::Context) = TypeInfo(true, true, 4, 4)
+query_typeinfo!(::UInt64Type, ctx::Context) = TypeInfo(true, true, 8, 8)
+query_typeinfo!(::SInt32Type, ctx::Context) = TypeInfo(true, true, 4, 4)
+query_typeinfo!(::SInt64Type, ctx::Context) = TypeInfo(true, true, 8, 8)
+query_typeinfo!(::Fixed32Type, ctx::Context) = TypeInfo(true, true, 4, 4)
+query_typeinfo!(::Fixed64Type, ctx::Context) = TypeInfo(true, true, 8, 8)
+query_typeinfo!(::SFixed32Type, ctx::Context) = TypeInfo(true, true, 4, 4)
+query_typeinfo!(::SFixed64Type, ctx::Context) = TypeInfo(true, true, 8, 8)
+query_typeinfo!(::BoolType, ctx::Context) = TypeInfo(true, true, 1, 1)
+query_typeinfo!(::StringType, ctx::Context) = BOXED
+query_typeinfo!(::BytesType, ctx::Context) = BOXED
+query_typeinfo!(::MapType, ctx::Context) = BOXED
+query_typeinfo!(::EnumType, ctx::Context) = TypeInfo(true, true, 4, 4) # Currently we only generate 4 byte enums
+query_typeinfo!(f::AbstractProtoFieldType, ctx::Context) = _is_repeated_field(f) ? BOXED : query_typeinfo!(f.type, ctx)
+query_typeinfo!(f::GroupType, ctx::Context) = _is_repeated_field(f) ? BOXED : query_typeinfo!(t.type, ctx)
+function query_typeinfo!(t::OneOfType, ctx::Context) # relies on the TaggedUnion layout!
     bits_size = Int8(0)
     bits_alignment = Int8(0)
     ptrs_size = Int8(0)
@@ -39,7 +40,7 @@ function query_typeinfo!(t::OneOfType, ctx) # relies on the TaggedUnion layout!
     any_ptrs = false
 
     for f in t.fields
-        tinfo = query_typeinfo!(f, ctx)
+        tinfo = query_typeinfo!(f, ctx::Context)
         if tinfo.isbits && tinfo.size <= 16 # check
             any_bits = true
             bits_size = max(bits_size, tinfo.size)
@@ -69,22 +70,20 @@ function query_typeinfo!(t::OneOfType, ctx) # relies on the TaggedUnion layout!
     return out
 end
 
-function query_typeinfo!(t::MessageType, ctx)
+function query_typeinfo!(t::MessageType, ctx::Context)
     tinfo = t.tinfo[]
     if !tinfo.known
-        if t.is_self_referential[]
-            tinfo = BOXED
-        else
-            _alignment = Int8(0)
-            _size = Int8(0)
-            _isbits = !t.is_self_referential[] # && !appears_in_cycle
-            for f in t.fields
-                f_tinfo = query_typeinfo!(f, ctx)
-                _isbits &= f_tinfo.isbits
-                _size, _alignment = _align(_size, _alignment, f_tinfo.size, f_tinfo.alignment)
-            end
-            tinfo = TypeInfo(true, _isbits, _size, _alignment)
+        appears_in_cycle = t.name in keys(ctx._types_and_oneofs_requiring_type_params)
+        _alignment = Int8(0)
+        _size = Int8(0)
+        _isbits = !(t.is_self_referential[] || appears_in_cycle)
+        !_isbits && (t.tinfo[] = STOP_RECURSION)
+        for f in t.fields
+            f_tinfo = query_typeinfo!(f, ctx)
+            _isbits &= f_tinfo.isbits
+            _size, _alignment = _align(_size, _alignment, f_tinfo.size, f_tinfo.alignment)
         end
+        tinfo = TypeInfo(true, _isbits, _size, _alignment)
 
         t.tinfo[] = tinfo
     end

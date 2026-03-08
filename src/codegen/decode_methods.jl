@@ -78,7 +78,7 @@ end
 function field_decode_expr(io, field::OneOfType, i, ctx::Context)
     field_name = jl_fieldname(field)
     if ctx.options.tagged_oneofs
-        typename = string("var\"", ctx._toplevel_raw_name[], ".", replace(titlecase(field.name), "_"=>""), "\"")
+        typename = jl_tagged_type_name(field, ctx)
         for (j, case) in enumerate(field.fields)
             j += i
             print(io, "    " ^ 2, j == 2 ? "if     " : "elseif ", "field_number == ", string(case.number), "; ")

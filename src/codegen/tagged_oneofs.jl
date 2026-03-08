@@ -27,26 +27,49 @@ function maybe_generate_tagged_oneofs(io, t::MessageType, ctx::Context)
     return nothing
 end
 
+function maybe_generate_non_cyclic_tagged_oneofs(io, t::MessageType, ctx::Context)
+    !(t.has_oneof_field && ctx.options.tagged_oneofs) && return nothing
+    deps = get(ctx._types_and_oneofs_requiring_type_params, t.name, nothing)
+    cyclic_oneofs = isnothing(deps) ? Set{String}() : Set{String}(name for (isoneof, name) in deps if isoneof)
+    for field in t.fields
+        field isa OneOfType || continue
+        field.name in cyclic_oneofs && continue
+        _generate_tagged_oneof(io, t, field::OneOfType, ctx)
+        println(io)
+    end
+    return nothing
+end
+
+function maybe_generate_cyclic_tagged_oneofs(io, t::MessageType, ctx::Context)
+    !(t.has_oneof_field && ctx.options.tagged_oneofs) && return nothing
+    deps = get(ctx._types_and_oneofs_requiring_type_params, t.name, nothing)
+    cyclic_oneofs = isnothing(deps) ? Set{String}() : Set{String}(name for (isoneof, name) in deps if isoneof)
+    for field in t.fields
+        field isa OneOfType || continue
+        field.name in cyclic_oneofs || continue
+        _generate_tagged_oneof(io, t, field::OneOfType, ctx)
+        println(io)
+    end
+    return nothing
+end
+
 _tagged_getfield(info, ident) = string("Base.getfield(", ident,", :", info.inline ? "bit" : "ptr", ")::", info.type)
 
 function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
     field_infos = _tagged_oneof_field_infos(f.fields, ctx)
-    typename = string("var\"", t.name, ".", replace(titlecase(f.name), "_"=>""), "\"")
+    typename = jl_tagged_type_name(f, t.name)
     seen = Set{String}()
 
     print(io, "struct ", typename)
-    if t.is_self_referential[] # || appears_in_cycle
-        print(io, "{T<:", abstract_type_name(t.name), "}")
-    end
     println(io, " <: PB.TaggedOneOf")
     println(io, "    tag::UInt8")
 
     print(io, "    bit::Union{Nothing")
     for info in field_infos
         info.inline || continue
-        get!(seen.dict, info.type) do
+        get!(seen.dict, info.type_toplevel) do
             print(io, ",")
-            print(io, info.type)
+            print(io, info.type_toplevel)
             nothing
         end
     end
@@ -56,9 +79,9 @@ function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
     print(io, "    ptr::Union{Nothing")
     for info in field_infos
         info.inline && continue
-        get!(seen.dict, info.type) do
+        get!(seen.dict, info.type_toplevel) do
             print(io, ",")
-            print(io, info.type)
+            print(io, info.type_toplevel)
             nothing
         end
     end
@@ -112,11 +135,19 @@ function _generate_tagged_oneof(io, t::MessageType, f::OneOfType, ctx::Context)
 end
 
 function _tagged_oneof_field_infos(fields, ctx)
-    field_infos = @NamedTuple{idx::Int, name::String, type::String, inline::Bool}[]
+    field_infos = @NamedTuple{idx::Int, name::String, type_toplevel::String, type::String, inline::Bool}[]
     idx = 1
     for f in fields
         tinfo = query_typeinfo!(f, ctx)
-        push!(field_infos, (; idx, name=jl_fieldname(f), type=jl_typename(f, ctx), inline=tinfo.isbits && tinfo.size <= 16))
+        name = jl_fieldname(f)
+        type = jl_typename(f, ctx)
+        inline = tinfo.isbits && tinfo.size <= 16
+        if f isa FieldType{ReferencedType}
+            type_toplevel = reconstruct_parametrized_stub_type_name(f.type, ctx)
+        else
+            type_toplevel = type
+        end
+        push!(field_infos, (; idx, name, type_toplevel, type, inline))
         idx += 1
     end
     return field_infos

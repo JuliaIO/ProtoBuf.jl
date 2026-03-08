@@ -74,7 +74,7 @@ end
 
 function jl_typename(t::OneOfType, ctx::Context)
     if ctx.options.tagged_oneofs
-        name = string("var\"", ctx._toplevel_raw_name[], ".", replace(titlecase(t.name), "_"=>""), "\"")
+        name = jl_tagged_type_name(t, ctx)
     else
         name = string("OneOf{", _jl_oneof_inner_typename(t, ctx), "}")
     end
@@ -119,35 +119,47 @@ function types_needing_params(cyclical_names::AbstractVector{String}, proto_file
     return field_types_requiring_type_params
 end
 
-_types_needing_params!(out, lookup, t::AbstractProtoType,         _cyclical_set, options, self_name, _seen) = nothing
+_any(f, x) = mapreduce(f, |, x, init=false)::Bool
+_types_needing_params!(out, lookup, t::AbstractProtoType,         _cyclical_set, options, self_name, _seen) = false
 _types_needing_params!(out, lookup, t::FieldType{ReferencedType}, _cyclical_set, options, self_name, _seen) = _types_needing_params!(out, lookup, t.type, _cyclical_set, options, self_name, _seen)
-_types_needing_params!(out, lookup, t::MessageType,               _cyclical_set, options, self_name, _seen) = foreach(f->_types_needing_params!(out, lookup, f, _cyclical_set, options, self_name, _seen), t.fields)
-_types_needing_params!(out, lookup, t::GroupType,                 _cyclical_set, options, self_name, _seen) = foreach(f->_types_needing_params!(out, lookup, f, _cyclical_set, options, self_name, _seen), t.type.fields)
+_types_needing_params!(out, lookup, t::MessageType,               _cyclical_set, options, self_name, _seen) = _any(f->_types_needing_params!(out, lookup, f, _cyclical_set, options, self_name, _seen), t.fields)
+_types_needing_params!(out, lookup, t::GroupType,                 _cyclical_set, options, self_name, _seen) = _any(f->_types_needing_params!(out, lookup, f, _cyclical_set, options, self_name, _seen), t.type.fields)
 _types_needing_params!(out, lookup, t::FieldType{MapType},        _cyclical_set, options, self_name, _seen) = _types_needing_params!(out, lookup, t.type.valuetype, _cyclical_set, options, self_name, _seen)
 function _types_needing_params!(out, lookup, t::OneOfType, _cyclical_set, options, self_name, _seen)
+    found = false
     if options.parametrize_oneofs
+        found = true
         get!(_seen.dict, (true, t.name)) do
             push!(out, (true, t.name))
             return nothing
         end
     else
-        foreach(f->_types_needing_params!(out, lookup, f.type, _cyclical_set, options, self_name, _seen), t.fields)
+        found = _any(f->_types_needing_params!(out, lookup, f.type, _cyclical_set, options, self_name, _seen), t.fields)
+        if found && options.tagged_oneofs
+            get!(_seen.dict, (true, t.name)) do
+                push!(out, (true, t.name))
+                return nothing
+            end
+        end
     end
+    return found
 end
 function _types_needing_params!(out, lookup, t::ReferencedType, _cyclical_set, options, self_name, _seen)
     __types_needing_params!(out, lookup, t.name, _cyclical_set, options, self_name, _seen)
 end
 function __types_needing_params!(out, lookup, tname, _cyclical_set, options, self_name, _seen)
-    tname == self_name && return nothing # self-references do not need type params, they just work
+    tname == self_name && return false # self-references do not need type params, they just work
+    found = false
     if tname in _cyclical_set
+        found = true
         get!(_seen.dict, (false, tname)) do
             push!(out, (false, tname))
             return nothing
         end
     elseif tname in keys(lookup)
-        foreach(f->__types_needing_params!(out, lookup, f[2], _cyclical_set, options, self_name, _seen), lookup[tname])
+        found = _any(f->__types_needing_params!(out, lookup, f[2], _cyclical_set, options, self_name, _seen), lookup[tname])
     end
-    return nothing
+    return found
 end
 
 function _maybe_subtype(name, options)
@@ -168,6 +180,9 @@ const EMPTY_TYPE_PARAMS = TypeParams(Dict{String,ParamMetadata}(), Dict{String,P
 # Type bounds used in parametrizations -- for OneOfs we're constructing the union type, for
 # the other cases we're only referring to predeclared abstract types.
 function _get_oneof_type_bound(f::OneOfType, ctx::Context, type_params::TypeParams=EMPTY_TYPE_PARAMS)
+    if ctx.options.tagged_oneofs
+        return abstract_tagged_oneof_type_name(f, ctx)
+    end
     seen = Set{String}()
     union_types = String[]
     struct_name = ctx._toplevel_raw_name[]
@@ -280,9 +295,7 @@ end
 # complicate things further by also parametrizing on stub types to resolve dependency cycles.
 function reconstruct_parametrized_stub_type_name(t::Union{MessageType,ReferencedType}, ctx::Context, type_params::TypeParams=EMPTY_TYPE_PARAMS)
     type_name = t.name
-    _types_and_oneofs_requiring_type_params = ctx._types_and_oneofs_requiring_type_params
-    _remaining_cyclic_defs = ctx._remaining_cyclic_defs
-    deps = get(_types_and_oneofs_requiring_type_params, type_name, nothing)
+    deps = get(ctx._types_and_oneofs_requiring_type_params, type_name, nothing)
     # If there are no dependencies requiring type params, this means that the type is not cyclic
     # and doesn't have a parametrized oneof fields.
     isnothing(deps) && return _safename(type_name)
@@ -295,29 +308,31 @@ function reconstruct_parametrized_stub_type_name(t::Union{MessageType,Referenced
     io = IOBuffer()
     print(io, stub_type_name(type_name))
     print(io, "{")
-    _reconstruct_parametrized_stub_type_name(io, t.name, _types_and_oneofs_requiring_type_params, _remaining_cyclic_defs, type_params)
+    _reconstruct_parametrized_stub_type_name(io, t.name, ctx, type_params)
     print(io, "}")
 
     return String(take!(io))
 end
 
-function _reconstruct_parametrized_stub_type_name(io, name::String, _types_and_oneofs_requiring_type_params, _remaining_cyclic_defs, type_params=EMPTY_TYPE_PARAMS)
-    @assert name in keys(_types_and_oneofs_requiring_type_params)
-    deps = _types_and_oneofs_requiring_type_params[name]
+function _reconstruct_parametrized_stub_type_name(io, name::String, ctx, type_params=EMPTY_TYPE_PARAMS)
+    @assert name in keys(ctx._types_and_oneofs_requiring_type_params)
+    deps = ctx._types_and_oneofs_requiring_type_params[name]
     _first = true
-    for (isoneof, dep) in deps
+    for (_isoneof, dep) in deps
         !_first && print(io, ',')
-        if dep in _remaining_cyclic_defs                            # dep not defined yet -> use type param
+        if dep in ctx._remaining_cyclic_defs                            # dep not defined yet -> use type param
             print(io, type_params.references[dep].param)
-        elseif dep in keys(_types_and_oneofs_requiring_type_params) # dep is cyclic -> use stubbed name and recurse
-            dep_has_params = !isempty(_types_and_oneofs_requiring_type_params[dep])
+        elseif dep in keys(ctx._types_and_oneofs_requiring_type_params) # dep is cyclic -> use stubbed name and recurse
+            dep_has_params = !isempty(ctx._types_and_oneofs_requiring_type_params[dep])
             if dep_has_params
                 print(io, stub_type_name(dep), "{")
-                _reconstruct_parametrized_stub_type_name(io, dep, _types_and_oneofs_requiring_type_params, _remaining_cyclic_defs, type_params)
+                _reconstruct_parametrized_stub_type_name(io, dep, ctx, type_params)
                 print(io, '}')
             else
                 print(io, stub_type_name(dep))
             end
+        elseif ctx.options.tagged_oneofs
+            print(io, jl_tagged_type_name(dep, name))
         else
             print(io, "<:Union{Nothing,<:OneOf}")
         end
