@@ -42,6 +42,8 @@ function generate_struct_field(io, field::OneOfType, ctx::Context, type_params)
 
     if !isnothing(type_param)
         type_name = type_param.param
+    elseif ctx.options.tagged_oneofs
+        type_name = jl_typename(field, ctx)
     else
         type_name = _get_oneof_type_bound(field, ctx, type_params)
     end
@@ -77,6 +79,7 @@ end
 codegen(t::AbstractProtoType, ctx::Context) = codegen(stdout, t, ctx::Context)
 
 function codegen(io, t::MessageType, ctx::Context)
+    maybe_generate_tagged_oneofs(io, t, ctx)
     generate_struct(io, t, ctx)
     maybe_generate_kwarg_constructor_method(io, t, ctx)
     maybe_generate_deprecation(io, t)
@@ -121,11 +124,15 @@ const B = var"##Stub#B"                # <- This is fully concrete type
 =#
 function codegen_cylic_stub(io, t::MessageType, ctx::Context)
     @assert t.name in keys(ctx._types_and_oneofs_requiring_type_params)
+
+    maybe_generate_non_cyclic_tagged_oneofs(io, t, ctx)
+
     # After we're done with this struct, all the subsequent definitions can use it
     # so we pop it from the list of cyclic definitions.
     abstract_base_name = pop!(ctx._remaining_cyclic_defs, t.name, "")
     type_params = get_type_params_for_cyclic(t, ctx)
     params_string = get_type_param_string(type_params)
+
 
     print(io, "struct ", stub_type_name(t.name), length(t.fields) > 0 ? params_string : " ", _maybe_subtype(abstract_base_name, ctx.options))
     # new line if there are fields, otherwise ensure that we have space before `end`
@@ -140,6 +147,7 @@ end
 # as we do for non-cyclic types.
 function codegen_cylic_rest(io, t::MessageType, ctx::Context)
     _generate_struct_alias(io, t, ctx)
+    maybe_generate_cyclic_tagged_oneofs(io, t, ctx)
     # We must define the constructor after the const is set, otherwise we get an error
     maybe_generate_constructor_for_type_alias(io, t, ctx)
     maybe_generate_kwarg_constructor_method(io, t, ctx)
@@ -270,6 +278,15 @@ function translate(io, rp::ResolvedProtoFile, file_map::Dict{String,ResolvedProt
     end
     for name in p.cyclic_definitions
         println(io, "abstract type ", abstract_type_name(name), options.common_abstract_type ? " <: AbstractProtoBufMessage" : "", " end")
+    end
+    if options.tagged_oneofs
+        for (parent, params) in ctx._types_and_oneofs_requiring_type_params
+            for (isoneof, fieldname) in params
+                if isoneof
+                    println(io, "abstract type ", abstract_tagged_oneof_type_name(fieldname, parent), " <: PB.TaggedOneOf end")
+                end
+            end
+        end
     end
 
     println(io)

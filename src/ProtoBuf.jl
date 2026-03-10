@@ -49,7 +49,7 @@ include("codec/Codecs.jl")
 import .Lexers
 import .Parsers
 import .CodeGenerators
-import .CodeGenerators: protojl
+import .CodeGenerators: TaggedOneOf, protojl, unsafe_getproperty, field_to_tag, active_name, active_value, throw_bad_tag, throw_not_set, tag
 import .Codecs
 import .Codecs: decode, decode!, encode, AbstractProtoDecoder, AbstractProtoEncoder, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, decode_tag, skip, _encoded_size
 

@@ -69,12 +69,23 @@ function print_field_encode_expr(io, f::GroupType, ctx::Context)
 end
 
 function print_field_encode_expr(io, fs::OneOfType, ctx::Context)
-    println(io, "    if isnothing(x.$(safename(fs)));")
-    for f in fs.fields
-        V = _decoding_val_type(f.type)
-        V = isempty(V) ? "" : ", Val{$V}"
-        println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
-        println(io, "    " ^ 2, "PB.encode(e, $(string(f.number)), x.$(safename(fs))[]::$(jl_typename(f, ctx))$V)")
+    x_field = "x.$(safename(fs))"
+    println(io, "    if isnothing($(x_field));")
+    if ctx.options.tagged_oneofs
+        tag_infos = _tagged_oneof_field_infos(fs.fields, ctx)
+        for (f, info) in zip(fs.fields, tag_infos)
+            V = _decoding_val_type(f.type)
+            V = isempty(V) ? "" : ", Val{$V}"
+            print(io, "    elseif ", "Base.getfield($(x_field), :tag) == UInt8(", info.idx, "); ")
+            println(io, "PB.encode(e, $(string(f.number)), ", _tagged_getfield(info, x_field), "$V)")
+        end
+    else
+        for f in fs.fields
+            V = _decoding_val_type(f.type)
+            V = isempty(V) ? "" : ", Val{$V}"
+            print(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f), "; ")
+            println(io, "PB.encode(e, $(string(f.number)), x.$(safename(fs))[]::$(jl_typename(f, ctx))$V)")
+        end
     end
     println(io, "    end")
 end
@@ -103,12 +114,23 @@ function print_field_encoded_size_expr(io, f::GroupType, ::Context)
 end
 
 function print_field_encoded_size_expr(io, fs::OneOfType, ctx::Context)
-    println(io, "    if isnothing(x.$(safename(fs)));")
-    for f in fs.fields
-        V = _decoding_val_type(f.type)
-        V = isempty(V) ? "" : ", Val{$V}"
-        println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
-        println(io, "    " ^ 2, "encoded_size += PB._encoded_size(x.$(safename(fs))[]::$(jl_typename(f, ctx)), $(string(f.number))$V)")
+    x_field = "x.$(safename(fs))"
+    println(io, "    if     isnothing($(x_field));")
+    if ctx.options.tagged_oneofs
+        tag_infos = _tagged_oneof_field_infos(fs.fields, ctx)
+        for (f, info) in zip(fs.fields, tag_infos)
+            V = _decoding_val_type(f.type)
+            V = isempty(V) ? "" : ", Val{$V}"
+            print(io, "    elseif ", "Base.getfield($(x_field), :tag) == UInt8(", info.idx, "); ")
+            println(io, "encoded_size += PB._encoded_size(", _tagged_getfield(info, x_field),", $(string(f.number))$V)")
+        end
+    else
+        for f in fs.fields
+            V = _decoding_val_type(f.type)
+            V = isempty(V) ? "" : ", Val{$V}"
+            print(io, "    elseif ", "$(x_field).name === :", jl_fieldname(f), "; ")
+            println(io, "encoded_size += PB._encoded_size($(x_field)[]::$(jl_typename(f, ctx)), $(string(f.number))$V)")
+        end
     end
     println(io, "    end")
 end

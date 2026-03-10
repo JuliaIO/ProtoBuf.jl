@@ -1,3 +1,13 @@
+struct TypeInfo
+    known::Bool # False when initilized inside of MessageType
+    isbits::Bool
+    size::UInt8
+    alignment::UInt8
+end
+function Base.show(io::IO, ti::TypeInfo)
+    println(io, "TypeInfo(", ti.known, ", ", ti.isbits, ", ", Int(ti.size), ", ", Int(ti.alignment), ")")
+    return nothing
+end
 abstract type AbstractProtoType end
 abstract type AbstractProtoNumericType <: AbstractProtoType end
 abstract type AbstractProtoFixedType <: AbstractProtoNumericType end
@@ -97,6 +107,7 @@ struct MessageType <: AbstractProtoType
     extends::Vector{ExtendType}
     has_oneof_field::Bool
     is_self_referential::Base.RefValue{Bool}
+    tinfo::Base.RefValue{TypeInfo}
 end
 
 struct GroupType <: AbstractProtoFieldType
@@ -343,6 +354,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
     extends = Vector{ExtendType}()
     has_oneof_field = false
     is_self_referential = Ref{Bool}(false) # set during topological sort
+    isbits = Ref(TypeInfo(false, false, 0, 0)) # set during tagged-oneof generation
 
     name = _dot_join(name_prefix, name)
     expectnext(ps, Tokens.LBRACE)
@@ -379,7 +391,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
         end
     end
     # TODO: validate field_numbers vs reserved and extensions
-    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, is_self_referential)
+    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, is_self_referential, isbits)
 end
 
 # We consumed RPC

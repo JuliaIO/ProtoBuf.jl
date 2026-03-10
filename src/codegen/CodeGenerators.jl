@@ -7,9 +7,10 @@ import ..Parsers: Int64Type, UInt32Type, UInt64Type, SInt32Type, SInt64Type
 import ..Parsers: Fixed32Type, Fixed64Type, SFixed32Type, SFixed64Type, BoolType
 import ..Parsers: StringType, BytesType
 import ..Parsers: GroupType, OneOfType, MapType, FieldType
-import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType
+import ..Parsers: MessageType, EnumType, ServiceType, RPCType, ReferencedType, TaggedOneOfType
 import ..Parsers: AbstractProtoType, AbstractProtoNumericType, AbstractProtoFixedType
 import ..Parsers: AbstractProtoFloatType, AbstractProtoFieldType
+import ..Parsers: TypeInfo
 import ..ProtoBuf: VENDORED_WELLKNOWN_TYPES_PARENT_PATH, PACKAGE_VERSION
 import ..ProtoBuf: _topological_sort, get_upstream_dependencies!
 
@@ -31,6 +32,7 @@ Base.@kwdef struct Options
     add_kwarg_constructors::Bool = false
     parametrize_oneofs::Bool = false
     common_abstract_type::Bool = false
+    tagged_oneofs::Bool = false
 end
 
 struct Context
@@ -47,10 +49,12 @@ end
 include("modules.jl")
 include("names.jl")
 include("types.jl")
+include("tagged_oneofs.jl")
 include("defaults.jl")
 include("decode_methods.jl")
 include("encode_methods.jl")
 include("metadata_methods.jl")
+include("type_info.jl")
 include("toplevel_definitions.jl")
 include("utils.jl")
 
@@ -133,8 +137,10 @@ function protojl(
     add_kwarg_constructors::Bool=false,
     parametrize_oneofs::Bool=false,
     common_abstract_type::Bool = false,
+    tagged_oneofs::Bool = false,
 )
-    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type)
+    xor(tagged_oneofs, parametrize_oneofs) || throw(ArgumentError("..."))
+    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type, tagged_oneofs)
     return _protojl(relative_paths, search_directories, output_directory, options)
 end
 
@@ -159,7 +165,7 @@ function _protojl(
     # Ensure that all paths are use slash as a separator,
     # so that equality checks between paths behave as expected,
     # which can be problematic on windows where both / and \ argument
-    # valid separators. This also reduces consecutive separators into one. 
+    # valid separators. This also reduces consecutive separators into one.
     map!(posixpath, absolute_paths, absolute_paths)
     map!(posixpath, relative_paths, relative_paths)
     map!(posixpath, search_directories, search_directories)
