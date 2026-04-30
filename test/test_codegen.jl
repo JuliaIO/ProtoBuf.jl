@@ -1280,6 +1280,18 @@ end
             @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method,        p.definitions["A"], ctx) == "A(;a = nothing, o = nothing) = A(a, o)\n"
         end
 
+        @testset "deprecated message: depwarn in kwarg constructor" begin
+            s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { option deprecated = true; int32 x = 1; }", Options(add_kwarg_constructors=true))
+            @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method, p.definitions["A"], ctx) == "function A(;x = zero(Int32))\n    Base.depwarn(\"`A` is deprecated.\", nameof(A))\n    return A(x)\nend\n"
+            @test strify(CodeGenerators.maybe_generate_deprecation,              p.definitions["A"], ctx) == ""
+        end
+
+        @testset "deprecated message: module-scope depwarn when kwarg constructor is disabled" begin
+            s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { option deprecated = true; int32 x = 1; }", Options(add_kwarg_constructors=false))
+            @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method, p.definitions["A"], ctx) == ""
+            @test strify(CodeGenerators.maybe_generate_deprecation,              p.definitions["A"], ctx) == "Base.depwarn(\"`A` is deprecated.\", nameof(A))\n"
+        end
+
         @testset "reserved fields are available for enums" begin
             s, p, ctx = translate_simple_proto("""
             enum Foo {
