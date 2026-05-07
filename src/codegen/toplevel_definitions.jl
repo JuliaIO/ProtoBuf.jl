@@ -6,7 +6,11 @@ function _should_force_required(qualified_name, ctx::Context)
 end
 
 function generate_struct_field(io, @nospecialize(field), ctx::Context, type_params)
-    println(io, "    ", jl_fieldname(field)::String, "::", jl_typename(field, ctx)::String)
+    type_name = jl_typename(field, ctx)::String
+    if _is_proto3_optional_scalar(field, ctx)
+        type_name = string("Union{Nothing,", type_name, "}")
+    end
+    println(io, "    ", jl_fieldname(field)::String, "::", type_name)
 end
 
 function generate_struct_field(io, field::FieldType{ReferencedType}, ctx::Context, type_params::TypeParams)

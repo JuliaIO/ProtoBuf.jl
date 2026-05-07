@@ -23,12 +23,37 @@ function _is_optional_referenced_message(field::Union{FieldType{ReferencedType},
     return false
 end
 
+# proto3 explicit `optional` on a scalar field carries presence semantics
+# (synthetic oneof at the descriptor level). We surface that in Julia by typing
+# the field as `Union{Nothing,T}` and defaulting it to `nothing` so that
+# unset and zero-valued fields are distinguishable. proto2 behavior is left
+# untouched (its OPTIONAL label is the default-ish presence-less label there).
+_is_scalar_proto_type(::AbstractProtoType) = false
+_is_scalar_proto_type(::Union{StringType,BytesType,BoolType}) = true
+_is_scalar_proto_type(::AbstractProtoFloatType) = true
+_is_scalar_proto_type(::AbstractProtoNumericType) = true
+function _is_proto3_optional_scalar(@nospecialize(field), ctx::Context)
+    field isa FieldType || return false
+    ctx.proto_file.preamble.isproto3 || return false
+    field.label === Parsers.OPTIONAL || return false
+    _is_scalar_proto_type(field.type) || return false
+    struct_name = ctx._toplevel_raw_name[]
+    return !_should_force_required(string(struct_name, ".", jl_fieldname(field)), ctx)
+end
+
 _needs_encoding_condition(field::Union{FieldType{ReferencedType},GroupType}, ctx::Context) = field.label === Parsers.REPEATED || _is_optional_referenced_message(field, ctx)
 _needs_encoding_condition(field::FieldType, _::Context) = field.label !== Parsers.REQUIRED
 
-jl_type_default_value(f::FieldType{StringType}, ::Context) = get(f.options, "default", "\"\"")
-jl_type_default_value(f::FieldType{BoolType}, ::Context)   = get(f.options, "default", "false")
+function jl_type_default_value(f::FieldType{StringType}, ctx::Context)
+    _is_proto3_optional_scalar(f, ctx) && return "nothing"
+    return get(f.options, "default", "\"\"")
+end
+function jl_type_default_value(f::FieldType{BoolType}, ctx::Context)
+    _is_proto3_optional_scalar(f, ctx) && return "nothing"
+    return get(f.options, "default", "false")
+end
 function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoFloatType}), ctx::Context)
+    _is_proto3_optional_scalar(f, ctx) && return "nothing"
     type_name = jl_typename(f, ctx)
     default = get(f.options, "default", nothing)
     if default === nothing
@@ -55,6 +80,7 @@ _jl_parse_default_int(::Union{Int64Type,SInt64Type,SFixed64Type}, s::String) = p
 _jl_parse_default_int(::Union{UInt32Type,Fixed32Type}, s::String) = parse(UInt32, s)
 _jl_parse_default_int(::Union{UInt64Type,Fixed64Type}, s::String) = parse(UInt64, s)
 function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoNumericType}), ctx::Context)
+    _is_proto3_optional_scalar(f, ctx) && return "nothing"
     type_name = jl_typename(f, ctx)
     default = get(f.options, "default", nothing)
     if default === nothing
@@ -62,7 +88,8 @@ function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoNumeric
     end
     return string(type_name, '(', repr(_jl_parse_default_int(f.type, default)), ')')
 end
-function jl_type_default_value(f::FieldType{BytesType}, ::Context)
+function jl_type_default_value(f::FieldType{BytesType}, ctx::Context)
+    _is_proto3_optional_scalar(f, ctx) && return "nothing"
     out = get(f.options, "default", nothing)
     return isnothing(out) ? "UInt8[]" : "b$(out)"
 end

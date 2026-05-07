@@ -1033,10 +1033,13 @@ end
             }
             message B {}
             """)
+            # proto3 explicit `optional` carries presence: scalar fields become
+            # Union{Nothing,T} with `nothing` defaults, mirroring how messages
+            # are already handled.
             @test contains(s, """
             struct A
                 def_int::Int32
-                opt_int::Int32
+                opt_int::Union{Nothing,Int32}
                 rep_int::Vector{Int32}
                 def_msg::Union{Nothing,B}
                 opt_msg::Union{Nothing,B}
@@ -1047,7 +1050,7 @@ end
             function PB.encode(e::PB.AbstractProtoEncoder, x::A)
                 initpos = position(e.io)
                 x.def_int != zero(Int32) && PB.encode(e, 1, x.def_int)
-                x.opt_int != zero(Int32) && PB.encode(e, 2, x.opt_int)
+                !isnothing(x.opt_int) && PB.encode(e, 2, x.opt_int)
                 !isempty(x.rep_int) && PB.encode(e, 3, x.rep_int)
                 !isnothing(x.def_msg) && PB.encode(e, 4, x.def_msg)
                 !isnothing(x.opt_msg) && PB.encode(e, 5, x.opt_msg)
@@ -1057,7 +1060,7 @@ end
             function PB._encoded_size(x::A)
                 encoded_size = 0
                 x.def_int != zero(Int32) && (encoded_size += PB._encoded_size(x.def_int, 1))
-                x.opt_int != zero(Int32) && (encoded_size += PB._encoded_size(x.opt_int, 2))
+                !isnothing(x.opt_int) && (encoded_size += PB._encoded_size(x.opt_int, 2))
                 !isempty(x.rep_int) && (encoded_size += PB._encoded_size(x.rep_int, 3))
                 !isnothing(x.def_msg) && (encoded_size += PB._encoded_size(x.def_msg, 4))
                 !isnothing(x.opt_msg) && (encoded_size += PB._encoded_size(x.opt_msg, 5))
@@ -1065,6 +1068,36 @@ end
                 return encoded_size
             end
             """)
+        end
+
+        @testset "proto3 `optional` scalars get Union{Nothing,T} with `nothing` defaults" begin
+            # All scalar kinds: type wrap and default both flip when proto3 + optional.
+            for (proto_type, jl_type) in [
+                ("bool", "Bool"),
+                ("int32", "Int32"), ("int64", "Int64"),
+                ("uint32", "UInt32"), ("uint64", "UInt64"),
+                ("sint32", "Int32"), ("sint64", "Int64"),
+                ("fixed32", "UInt32"), ("fixed64", "UInt64"),
+                ("sfixed32", "Int32"), ("sfixed64", "Int64"),
+                ("float", "Float32"), ("double", "Float64"),
+                ("string", "String"), ("bytes", "Vector{UInt8}"),
+            ]
+                s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { optional $proto_type a = 1; }")
+                @test contains(s, "a::Union{Nothing,$jl_type}\n")
+                @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "nothing"
+                # Encode condition flips to !isnothing regardless of any trailing Val{...} markers (zigzag/fixed).
+                @test contains(s, "!isnothing(x.a) && PB.encode(e, 1, x.a")
+            end
+
+            # proto3 implicit-presence (no `optional` keyword) keeps the bare type and zero default.
+            s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { int32 a = 1; }")
+            @test contains(s, "a::Int32\n")
+            @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Int32)"
+
+            # proto2 OPTIONAL stays unchanged (presence-less default-valued semantics).
+            s, p, ctx = translate_simple_proto("syntax = \"proto2\"; message A { optional int32 a = 1; }")
+            @test contains(s, "a::Int32\n")
+            @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Int32)"
         end
 
         s, p, ctx = translate_simple_proto("message A { optional string a = 1; }")
