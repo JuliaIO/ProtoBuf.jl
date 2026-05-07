@@ -193,6 +193,36 @@ end
     @test n.packages["A"].submodules[["A", "B"]].name == "B"
 end
 
+@testset "Submodules with transitive sibling dependencies are included before proto files" begin
+    # Regression test: when a proto file at the parent level imports a child
+    # submodule B, and B imports sibling submodule A, the old two-phase include
+    # strategy would:
+    #   1. Include B (direct import of root proto file) + root proto file
+    #   2. Include A in the "remaining" phase — AFTER B
+    # This breaks because B depends on A but A wasn't loaded yet.
+    # The fix includes ALL submodules in topological order first, then proto files.
+    s, d, n = simple_namespace_from_protos(
+        """package P; import "sibling_b";""",
+        Dict(
+            "sibling_b" => """package P.B; import "sibling_a";""",
+            "sibling_a" => """package P.A;""",
+        ),
+        "P"
+    );
+    # A must appear before B (B depends on A), and both before proto files
+    @test s == """
+    module P
+
+    import .P as var"#P"
+
+    include("A/A.jl")
+    include("B/B.jl")
+    include("main_pb.jl")
+
+    end # module P
+    """
+end
+
 @testset "Imports within a leaf module which name-clashes with top module" begin
     s, d, n = simple_namespace_from_protos(
         """
@@ -212,8 +242,8 @@ end
 
     import .A as var"#A"
 
-    include("main_pb.jl")
     include("B/B.jl")
+    include("main_pb.jl")
 
     end # module A
     """

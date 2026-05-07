@@ -164,29 +164,16 @@ function generate_module_file(io::IO, m::ProtoModule, output_directory::Abstract
         end
     end
     has_deps && println(io)
-    # Load in imported proto files that are defined in this package (the files ending with `_pb.jl`)
-    # In case there is a dependency of some of these files on a submodule, we include that submodule
-    # first.
-    seen = Set{String}()
-    for file in m.proto_files
-        for i in import_paths(file)
-            imported_file = parsed_files[i]
-            if length(namespace(file)) == length(namespace(imported_file)) - 1 && _startswith(namespace(file), namespace(imported_file))
-                submodule_name = last(namespace(imported_file))
-                get!(seen.dict, submodule_name) do
-                    println(io, "include(", _include_stmt_format(joinpath(submodule_name, string(submodule_name, ".jl"))), ")")
-                end
-            end
-        end
-        println(io, "include(", _include_stmt_format(proto_script_name(file)), ")")
-    end
-    # Load in submodules nested in this namespace (the modules ending with `PB`),
-    # that is, if we didn't include them above.
+    # Include ALL submodules in topologically sorted order first, then proto files.
+    # This ensures inter-sibling submodule dependencies are resolved before any
+    # proto file or submodule that references them. This is safe because proto files
+    # can depend on submodules but never the reverse.
     for submodule_namespace in submodule_namespaces
         submodule = m.submodules[submodule_namespace]
-        get!(seen.dict, submodule.name) do
-            println(io, "include(", _include_stmt_format(joinpath(submodule.name, string(submodule.name, ".jl"))), ")")
-        end
+        println(io, "include(", _include_stmt_format(joinpath(submodule.name, string(submodule.name, ".jl"))), ")")
+    end
+    for file in m.proto_files
+        println(io, "include(", _include_stmt_format(proto_script_name(file)), ")")
     end
     println(io)
     println(io, "end # module $(m.name)")
