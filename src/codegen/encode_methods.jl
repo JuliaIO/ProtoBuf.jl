@@ -5,10 +5,17 @@ function encode_condition(f::FieldType, ctx::Context)
         return _encode_condition(f, ctx)
     end
 end
-_encode_condition(@nospecialize(f::FieldType), ctx::Context) = "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
-_encode_condition(f::FieldType{<:AbstractProtoFloatType}, ctx:: Context) = "x.$(jl_fieldname(f)) !== $(jl_init_value(f, ctx))"
+function _encode_condition(@nospecialize(f::FieldType), ctx::Context)
+    _is_proto3_optional_scalar(f, ctx) && return "!isnothing(x.$(jl_fieldname(f)))"
+    return "x.$(jl_fieldname(f)) != $(jl_init_value(f, ctx))"
+end
+function _encode_condition(f::FieldType{<:AbstractProtoFloatType}, ctx::Context)
+    _is_proto3_optional_scalar(f, ctx) && return "!isnothing(x.$(jl_fieldname(f)))"
+    return "x.$(jl_fieldname(f)) !== $(jl_init_value(f, ctx))"
+end
 _encode_condition(f::FieldType{<:MapType}, ::Context) = "!isempty(x.$(jl_fieldname(f)))"
 function _encode_condition(f::FieldType{T}, ctx::Context) where {T<:Union{StringType,BytesType}}
+    _is_proto3_optional_scalar(f, ctx) && return "!isnothing(x.$(jl_fieldname(f)))"
     default = get(f.options, "default", nothing)
     if default === nothing
         return "!isempty(x.$(jl_fieldname(f)))"
