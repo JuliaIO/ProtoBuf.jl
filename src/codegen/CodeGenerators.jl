@@ -25,6 +25,7 @@ end
 ResolvedProtoFile(rel_path, p) = ResolvedProtoFile(rel_path, p, Set{String}(), Set{String}())
 
 Base.@kwdef struct Options
+    mutable_structs::Bool = false
     include_vendored_wellknown_types::Bool = true
     always_use_modules::Bool = true
     force_required::Union{Nothing,Dict{String,Set{String}}} = nothing
@@ -59,6 +60,7 @@ include("utils.jl")
         relative_paths::Union{String,Vector{String}},
         search_directories::Union{String,Vector{String},Nothing}=nothing,
         output_directory::Union{String,Nothing}=nothing;
+        mutable_structs::Bool=false,
         include_vendored_wellknown_types::Bool=true,
         always_use_modules::Bool=true,
         force_required::Union{Nothing,Dict{String,Set{String}}}=nothing,
@@ -88,6 +90,7 @@ All imported `.proto` files are compiled as well; an error is thrown if they can
 - `output_directory::Union{String,Nothing}=nothing`: Path to store the generated Julia source code. When omitted, the translated code is saved to temp directory, the path is shown as a @info log.
 
 # Keywords
+- `mutable_structs::Bool=false`: If set to `true`, generate structs that are mutable in nature. 
 - `include_vendored_wellknown_types::Bool=true`: Append `ProtoBuf.VENDORED_WELLKNOWN_TYPES_PARENT_PATH[]` to `search_directories`, making the "well-known" message definitions available.
 - `always_use_modules::Bool=true`: Generate julia code in a module even if the `.proto` file doesn't contain a `package` specifier. The module name of `{file_name}.proto` file is `{file_name}_pb`.
 - `force_required::Union{Nothing,Dict{String,Set{String}}}=nothing`: Assume `message` and `oneof` fields to be always send over the wire -- then we wouldn't need to `Union` their respective types with `Nothing`. E.g:
@@ -127,14 +130,15 @@ function protojl(
     relative_paths::Union{<:AbstractString,<:AbstractVector{<:AbstractString}},
     search_directories::Union{<:AbstractString,<:AbstractVector{<:AbstractString},Nothing}=nothing,
     output_directory::Union{<:AbstractString,Nothing}=nothing;
+    mutable_structs::Bool=false,
     include_vendored_wellknown_types::Bool=true,
     always_use_modules::Bool=true,
     force_required::Union{Nothing,<:Dict{<:AbstractString,<:Set{<:AbstractString}}}=nothing,
     add_kwarg_constructors::Bool=false,
     parametrize_oneofs::Bool=false,
-    common_abstract_type::Bool = false,
+    common_abstract_type::Bool=false,
 )
-    options = Options(include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type)
+    options = Options(mutable_structs, include_vendored_wellknown_types, always_use_modules, force_required, add_kwarg_constructors, parametrize_oneofs, common_abstract_type)
     return _protojl(relative_paths, search_directories, output_directory, options)
 end
 
@@ -181,7 +185,7 @@ function _protojl(
         output_directory = abspath(output_directory)
     end
 
-    foreach(p->get_all_transitive_imports!(p, parsed_files), values(parsed_files))
+    foreach(p -> get_all_transitive_imports!(p, parsed_files), values(parsed_files))
     # Files within the same package could use definitions from different files
     # without fully qualifying their name -- on Julia side, we need to make sure
     # the files are read in order that respect these implicit dependencies.
@@ -207,9 +211,9 @@ end
 struct ExternalCodeGenHandler
     package_name::String
     # Function(io, ::Context, ::Dict{String, Union{MessageType, ServiceType, EnumType}})
-    import_cb::Union{Function, Nothing}
+    import_cb::Union{Function,Nothing}
     # Function(io, ::ServiceType, ::Context)
-    service_cb::Union{Function, Nothing}
+    service_cb::Union{Function,Nothing}
 end
 package_name(h::ExternalCodeGenHandler) = h.package_name
 
@@ -218,7 +222,7 @@ function import_cb(
     h::ExternalCodeGenHandler,
     io,
     ctx::Context,
-    definitions::Dict{String,Union{MessageType, EnumType, ServiceType}}
+    definitions::Dict{String,Union{MessageType,EnumType,ServiceType}}
 )
     isnothing(h.import_cb) && return
     h.import_cb(io, ctx, definitions)
@@ -232,7 +236,7 @@ function service_cb(h::ExternalCodeGenHandler, io, t::ServiceType, ctx::Context)
     println(io, "# $(package_name(h)) END")
 end
 
-const _external_codegen_handlers = Dict{String, ExternalCodeGenHandler}()
+const _external_codegen_handlers = Dict{String,ExternalCodeGenHandler}()
 function register_external_codegen_handler(package_name::String; import_cb=nothing, service_cb=nothing)
     h = ExternalCodeGenHandler(package_name, import_cb, service_cb)
     _external_codegen_handlers[package_name] = h

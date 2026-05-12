@@ -35,6 +35,7 @@ const JULIA_RESERVED_KEYWORDS = Set{String}([
     "macro",
     "Method",
     "module",
+    "mutable",
     "OneOf",
     "quote",
     "return",
