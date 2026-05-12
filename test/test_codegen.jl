@@ -33,8 +33,8 @@ function translate_simple_proto(str::String, options=Options())
     l = Lexer(IOBuffer(str), "main")
     p = parse_proto_file(ParserState(l))
     r = ResolvedProtoFile("main", p)
-    d = Dict{String, ResolvedProtoFile}("main" => r)
-    foreach(p->get_all_transitive_imports!(p, d), values(d))
+    d = Dict{String,ResolvedProtoFile}("main" => r)
+    foreach(p -> get_all_transitive_imports!(p, d), values(d))
     resolve_inter_package_references!(d, options)
     translate(buf, r, d, options)
     s = String(take!(buf))
@@ -56,15 +56,15 @@ function translate_simple_proto(str::String, deps::Dict{String,String}, options=
     l = Lexer(IOBuffer(str), "main")
     p = parse_proto_file(ParserState(l))
     r = ResolvedProtoFile("main", p)
-    d = Dict{String, ResolvedProtoFile}("main" => r)
+    d = Dict{String,ResolvedProtoFile}("main" => r)
     for (k, v) in deps
         get!(d, k) do
             l = Lexer(IOBuffer(v), k)
             ResolvedProtoFile(k, parse_proto_file(ParserState(l)))
         end
     end
-    d["main"] =  r
-    foreach(p->get_all_transitive_imports!(p, d), values(d))
+    d["main"] = r
+    foreach(p -> get_all_transitive_imports!(p, d), values(d))
     resolve_inter_package_references!(d, options)
     original_cyclic_definitions = copy(p.cyclic_definitions)
     translate(buf, r, d, options)
@@ -157,18 +157,21 @@ end
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === nothing
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
 
-        @test contains(s, """
-        function PB.encode(e::PB.AbstractProtoEncoder, x::B)
-            initpos = position(e.io)
-            PB.encode(e, 1, x.a)
-            return position(e.io) - initpos
-        end
-        function PB._encoded_size(x::B)
-            encoded_size = 0
-            encoded_size += PB._encoded_size(x.a, 1)
-            return encoded_size
-        end
-        """)
+        @test contains(
+            s,
+            """
+function PB.encode(e::PB.AbstractProtoEncoder, x::B)
+    initpos = position(e.io)
+    PB.encode(e, 1, x.a)
+    return position(e.io) - initpos
+end
+function PB._encoded_size(x::B)
+    encoded_size = 0
+    encoded_size += PB._encoded_size(x.a, 1)
+    return encoded_size
+end
+"""
+        )
     end
 
     @testset "Struct fields are optional when not marked required" begin
@@ -196,6 +199,14 @@ end
             a::A
         end
         """
+
+        s, p, ctx = translate_simple_proto("message A {} message B { required A a = 1; }", Options(mutable_structs=true))
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        mutable struct B
+            a::A
+        end
+        """
+
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === nothing
         @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
     end
@@ -470,17 +481,17 @@ end
                 a = invokelatest(A)
                 try
                     a.d1["a"] = invokelatest(A)
-                    a.d1["aa"] = invokelatest(A; o = OneOf(:a, invokelatest(A)))
-                    a.d1["ab"] = invokelatest(A; o = OneOf(:b, invokelatest(B)))
-                    a.d1["ac"] = invokelatest(A; o = OneOf(:c, invokelatest(C)))
+                    a.d1["aa"] = invokelatest(A; o=OneOf(:a, invokelatest(A)))
+                    a.d1["ab"] = invokelatest(A; o=OneOf(:b, invokelatest(B)))
+                    a.d1["ac"] = invokelatest(A; o=OneOf(:c, invokelatest(C)))
 
-                    a.d2["baa"] = invokelatest(B; a = invokelatest(A; o = OneOf(:a, invokelatest(A))))
-                    a.d2["bab"] = invokelatest(B; a = invokelatest(A; o = OneOf(:b, invokelatest(B))))
-                    a.d2["bac"] = invokelatest(B; a = invokelatest(A; o = OneOf(:c, invokelatest(C))))
+                    a.d2["baa"] = invokelatest(B; a=invokelatest(A; o=OneOf(:a, invokelatest(A))))
+                    a.d2["bab"] = invokelatest(B; a=invokelatest(A; o=OneOf(:b, invokelatest(B))))
+                    a.d2["bac"] = invokelatest(B; a=invokelatest(A; o=OneOf(:c, invokelatest(C))))
 
-                    a.d3["caa"] = invokelatest(C; a = invokelatest(A; o = OneOf(:a, invokelatest(A))))
-                    a.d3["cab"] = invokelatest(C; a = invokelatest(A; o = OneOf(:b, invokelatest(B))))
-                    a.d3["cac"] = invokelatest(C; a = invokelatest(A; o = OneOf(:c, invokelatest(C))))
+                    a.d3["caa"] = invokelatest(C; a=invokelatest(A; o=OneOf(:a, invokelatest(A))))
+                    a.d3["cab"] = invokelatest(C; a=invokelatest(A; o=OneOf(:b, invokelatest(B))))
+                    a.d3["cac"] = invokelatest(C; a=invokelatest(A; o=OneOf(:c, invokelatest(C))))
                     @test true
                 catch e
                     @test false
@@ -759,12 +770,15 @@ end
 
     @testset "Self referential parametrized OneOf with a common abstract type" begin
         s, p, ctx = translate_simple_proto("message A { oneof o { A a = 1; int32 b = 2; } }", Options(always_use_modules=false, parametrize_oneofs=true, common_abstract_type=true))
-        @test contains(s, """
-        abstract type var"##Abstract#A" <: AbstractProtoBufMessage end
-        struct A{T1<:Union{Nothing,OneOf{<:Union{var"##Abstract#A",Int32}}}} <: var"##Abstract#A"
-            o::T1
-        end
-        """)
+        @test contains(
+            s,
+            """
+abstract type var"##Abstract#A" <: AbstractProtoBufMessage end
+struct A{T1<:Union{Nothing,OneOf{<:Union{var"##Abstract#A",Int32}}}} <: var"##Abstract#A"
+    o::T1
+end
+"""
+        )
     end
 
     @testset "OneOf field codegen" begin
@@ -826,6 +840,26 @@ end
         struct B{T1<:OneOf{<:Union{Int32,UInt32}}}
             a::T1
         end""", s)
+    end
+
+    @testset "`mutable_structs` option makes the generated struct mutable" begin
+        s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(mutable_structs=true))
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        mutable struct B
+            a::Union{Nothing,A}
+        end
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
+
+        s, p, ctx = translate_simple_proto("message A {} message B { optional A a = 1; }", Options(mutable_structs=true))
+        @test generate_struct_str(p.definitions["B"], ctx) == """
+        mutable struct B
+            a::Union{Nothing,A}
+        end
+        """
+        @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === "nothing"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
     end
 
     @testset "Basic enum codegen" begin
@@ -941,39 +975,45 @@ end
         s, p, ctx = translate_simple_proto("message A { optional float a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float32)"
         # Test that we compare floats with triple equals to always serialize negative zero
-        @test contains(s, """
-        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
-            initpos = position(e.io)
-            x.a !== zero(Float32) && PB.encode(e, 1, x.a)
-            return position(e.io) - initpos
-        end
-        function PB._encoded_size(x::A)
-            encoded_size = 0
-            x.a !== zero(Float32) && (encoded_size += PB._encoded_size(x.a, 1))
-            return encoded_size
-        end
-        """)
+        @test contains(
+            s,
+            """
+function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+    initpos = position(e.io)
+    x.a !== zero(Float32) && PB.encode(e, 1, x.a)
+    return position(e.io) - initpos
+end
+function PB._encoded_size(x::A)
+    encoded_size = 0
+    x.a !== zero(Float32) && (encoded_size += PB._encoded_size(x.a, 1))
+    return encoded_size
+end
+"""
+        )
         s, p, ctx = translate_simple_proto("message A { optional double a = 1; }")
         @test CodeGenerators.jl_default_value(p.definitions["A"].fields[1], ctx) == "zero(Float64)"
         # Test that we compare floats with triple equals to always serialize negative zero
-        @test contains(s, """
-        function PB.encode(e::PB.AbstractProtoEncoder, x::A)
-            initpos = position(e.io)
-            x.a !== zero(Float64) && PB.encode(e, 1, x.a)
-            return position(e.io) - initpos
-        end
-        function PB._encoded_size(x::A)
-            encoded_size = 0
-            x.a !== zero(Float64) && (encoded_size += PB._encoded_size(x.a, 1))
-            return encoded_size
-        end
-        """)
+        @test contains(
+            s,
+            """
+function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+    initpos = position(e.io)
+    x.a !== zero(Float64) && PB.encode(e, 1, x.a)
+    return position(e.io) - initpos
+end
+function PB._encoded_size(x::A)
+    encoded_size = 0
+    x.a !== zero(Float64) && (encoded_size += PB._encoded_size(x.a, 1))
+    return encoded_size
+end
+"""
+        )
 
-            s, p, ctx = translate_simple_proto("""
-            syntax = "proto2";
-            message A { repeated int32 c = 3; repeated B f = 6; }
-            message B {}
-            """)
+        s, p, ctx = translate_simple_proto("""
+        syntax = "proto2";
+        message A { repeated int32 c = 3; repeated B f = 6; }
+        message B {}
+        """)
 
         @testset "Required fields are sent over the wire uncoditionally" begin
             s, p, ctx = translate_simple_proto("""
@@ -988,38 +1028,44 @@ end
             }
             message B {}
             """)
-            @test contains(s, """
-            struct A
-                req_int::Int32
-                opt_int::Int32
-                rep_int::Vector{Int32}
-                opt_msg::Union{Nothing,B}
-                req_msg::B
-                rep_msg::Vector{B}
-            end
-            """)
-            @test contains(s, """
-            function PB.encode(e::PB.AbstractProtoEncoder, x::A)
-                initpos = position(e.io)
-                PB.encode(e, 1, x.req_int)
-                x.opt_int != zero(Int32) && PB.encode(e, 2, x.opt_int)
-                !isempty(x.rep_int) && PB.encode(e, 3, x.rep_int)
-                !isnothing(x.opt_msg) && PB.encode(e, 4, x.opt_msg)
-                PB.encode(e, 5, x.req_msg)
-                !isempty(x.rep_msg) && PB.encode(e, 6, x.rep_msg)
-                return position(e.io) - initpos
-            end
-            function PB._encoded_size(x::A)
-                encoded_size = 0
-                encoded_size += PB._encoded_size(x.req_int, 1)
-                x.opt_int != zero(Int32) && (encoded_size += PB._encoded_size(x.opt_int, 2))
-                !isempty(x.rep_int) && (encoded_size += PB._encoded_size(x.rep_int, 3))
-                !isnothing(x.opt_msg) && (encoded_size += PB._encoded_size(x.opt_msg, 4))
-                encoded_size += PB._encoded_size(x.req_msg, 5)
-                !isempty(x.rep_msg) && (encoded_size += PB._encoded_size(x.rep_msg, 6))
-                return encoded_size
-            end
-            """)
+            @test contains(
+                s,
+                """
+struct A
+    req_int::Int32
+    opt_int::Int32
+    rep_int::Vector{Int32}
+    opt_msg::Union{Nothing,B}
+    req_msg::B
+    rep_msg::Vector{B}
+end
+"""
+            )
+            @test contains(
+                s,
+                """
+function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+    initpos = position(e.io)
+    PB.encode(e, 1, x.req_int)
+    x.opt_int != zero(Int32) && PB.encode(e, 2, x.opt_int)
+    !isempty(x.rep_int) && PB.encode(e, 3, x.rep_int)
+    !isnothing(x.opt_msg) && PB.encode(e, 4, x.opt_msg)
+    PB.encode(e, 5, x.req_msg)
+    !isempty(x.rep_msg) && PB.encode(e, 6, x.rep_msg)
+    return position(e.io) - initpos
+end
+function PB._encoded_size(x::A)
+    encoded_size = 0
+    encoded_size += PB._encoded_size(x.req_int, 1)
+    x.opt_int != zero(Int32) && (encoded_size += PB._encoded_size(x.opt_int, 2))
+    !isempty(x.rep_int) && (encoded_size += PB._encoded_size(x.rep_int, 3))
+    !isnothing(x.opt_msg) && (encoded_size += PB._encoded_size(x.opt_msg, 4))
+    encoded_size += PB._encoded_size(x.req_msg, 5)
+    !isempty(x.rep_msg) && (encoded_size += PB._encoded_size(x.rep_msg, 6))
+    return encoded_size
+end
+"""
+            )
 
             s, p, ctx = translate_simple_proto("""
             syntax = "proto3";
@@ -1033,38 +1079,44 @@ end
             }
             message B {}
             """)
-            @test contains(s, """
-            struct A
-                def_int::Int32
-                opt_int::Int32
-                rep_int::Vector{Int32}
-                def_msg::Union{Nothing,B}
-                opt_msg::Union{Nothing,B}
-                rep_msg::Vector{B}
-            end
-            """)
-            @test contains(s, """
-            function PB.encode(e::PB.AbstractProtoEncoder, x::A)
-                initpos = position(e.io)
-                x.def_int != zero(Int32) && PB.encode(e, 1, x.def_int)
-                x.opt_int != zero(Int32) && PB.encode(e, 2, x.opt_int)
-                !isempty(x.rep_int) && PB.encode(e, 3, x.rep_int)
-                !isnothing(x.def_msg) && PB.encode(e, 4, x.def_msg)
-                !isnothing(x.opt_msg) && PB.encode(e, 5, x.opt_msg)
-                !isempty(x.rep_msg) && PB.encode(e, 6, x.rep_msg)
-                return position(e.io) - initpos
-            end
-            function PB._encoded_size(x::A)
-                encoded_size = 0
-                x.def_int != zero(Int32) && (encoded_size += PB._encoded_size(x.def_int, 1))
-                x.opt_int != zero(Int32) && (encoded_size += PB._encoded_size(x.opt_int, 2))
-                !isempty(x.rep_int) && (encoded_size += PB._encoded_size(x.rep_int, 3))
-                !isnothing(x.def_msg) && (encoded_size += PB._encoded_size(x.def_msg, 4))
-                !isnothing(x.opt_msg) && (encoded_size += PB._encoded_size(x.opt_msg, 5))
-                !isempty(x.rep_msg) && (encoded_size += PB._encoded_size(x.rep_msg, 6))
-                return encoded_size
-            end
-            """)
+            @test contains(
+                s,
+                """
+struct A
+    def_int::Int32
+    opt_int::Int32
+    rep_int::Vector{Int32}
+    def_msg::Union{Nothing,B}
+    opt_msg::Union{Nothing,B}
+    rep_msg::Vector{B}
+end
+"""
+            )
+            @test contains(
+                s,
+                """
+function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+    initpos = position(e.io)
+    x.def_int != zero(Int32) && PB.encode(e, 1, x.def_int)
+    x.opt_int != zero(Int32) && PB.encode(e, 2, x.opt_int)
+    !isempty(x.rep_int) && PB.encode(e, 3, x.rep_int)
+    !isnothing(x.def_msg) && PB.encode(e, 4, x.def_msg)
+    !isnothing(x.opt_msg) && PB.encode(e, 5, x.opt_msg)
+    !isempty(x.rep_msg) && PB.encode(e, 6, x.rep_msg)
+    return position(e.io) - initpos
+end
+function PB._encoded_size(x::A)
+    encoded_size = 0
+    x.def_int != zero(Int32) && (encoded_size += PB._encoded_size(x.def_int, 1))
+    x.opt_int != zero(Int32) && (encoded_size += PB._encoded_size(x.opt_int, 2))
+    !isempty(x.rep_int) && (encoded_size += PB._encoded_size(x.rep_int, 3))
+    !isnothing(x.def_msg) && (encoded_size += PB._encoded_size(x.def_msg, 4))
+    !isnothing(x.opt_msg) && (encoded_size += PB._encoded_size(x.opt_msg, 5))
+    !isempty(x.rep_msg) && (encoded_size += PB._encoded_size(x.rep_msg, 6))
+    return encoded_size
+end
+"""
+            )
         end
 
         s, p, ctx = translate_simple_proto("message A { optional string a = 1; }")
@@ -1261,8 +1313,8 @@ end
             let _mod = Core.eval(Module(gensym()), Meta.parse(s)).main_pb
                 A = Base.@invokelatest(_mod.A)
                 Foo_T = Base.@invokelatest(Base.@invokelatest(_mod.Foo).T)
-                @test reserved_fields(A) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
-                @test reserved_fields(Foo_T) == (names = String[], numbers = Union{Int,UnitRange{Int}}[])
+                @test reserved_fields(A) == (names=String[], numbers=Union{Int,UnitRange{Int}}[])
+                @test reserved_fields(Foo_T) == (names=String[], numbers=Union{Int,UnitRange{Int}}[])
                 @test extendable_field_numbers(A) == Union{Int,UnitRange{Int}}[]
                 @test default_values(A) == (;)
                 @test oneof_field_types(A) == (;)
@@ -1272,12 +1324,12 @@ end
 
         @testset "metadata_methods are generated when needed" begin
             s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { reserved \"b\"; reserved 2; extensions 4 to max; A a = 1; oneof o { sfixed32 s = 3 [default = -1]; }}", Options(add_kwarg_constructors=true))
-            @test strify(CodeGenerators.maybe_generate_reserved_fields_method,          p.definitions["A"])      == "PB.reserved_fields(::Type{A}) = (names = [\"b\"], numbers = Union{Int,UnitRange{Int}}[2])\n"
-            @test strify(CodeGenerators.maybe_generate_extendable_field_numbers_method, p.definitions["A"])      == "PB.extendable_field_numbers(::Type{A}) = Union{Int,UnitRange{Int}}[4:536870911]\n"
-            @test strify(CodeGenerators.maybe_generate_default_values_method,           p.definitions["A"], ctx) == "PB.default_values(::Type{A}) = (;a = nothing, s = Int32(-1))\n"
-            @test strify(CodeGenerators.maybe_generate_oneof_field_types_method,        p.definitions["A"], ctx) == "PB.oneof_field_types(::Type{A}) = (;\n    o = (;s=Int32),\n)\n"
-            @test strify(CodeGenerators.maybe_generate_field_numbers_method,            p.definitions["A"])      == "PB.field_numbers(::Type{A}) = (;a = 1, s = 3)\n"
-            @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method,        p.definitions["A"], ctx) == "A(;a = nothing, o = nothing) = A(a, o)\n"
+            @test strify(CodeGenerators.maybe_generate_reserved_fields_method, p.definitions["A"]) == "PB.reserved_fields(::Type{A}) = (names = [\"b\"], numbers = Union{Int,UnitRange{Int}}[2])\n"
+            @test strify(CodeGenerators.maybe_generate_extendable_field_numbers_method, p.definitions["A"]) == "PB.extendable_field_numbers(::Type{A}) = Union{Int,UnitRange{Int}}[4:536870911]\n"
+            @test strify(CodeGenerators.maybe_generate_default_values_method, p.definitions["A"], ctx) == "PB.default_values(::Type{A}) = (;a = nothing, s = Int32(-1))\n"
+            @test strify(CodeGenerators.maybe_generate_oneof_field_types_method, p.definitions["A"], ctx) == "PB.oneof_field_types(::Type{A}) = (;\n    o = (;s=Int32),\n)\n"
+            @test strify(CodeGenerators.maybe_generate_field_numbers_method, p.definitions["A"]) == "PB.field_numbers(::Type{A}) = (;a = 1, s = 3)\n"
+            @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method, p.definitions["A"], ctx) == "A(;a = nothing, o = nothing) = A(a, o)\n"
         end
 
         @testset "reserved fields are available for enums" begin
@@ -1287,7 +1339,7 @@ end
                 reserved "FOO", "BAR";
              }
             """)
-            @test strify(CodeGenerators.maybe_generate_reserved_fields_method, p.definitions["Foo"]) =="PB.reserved_fields(::Type{Foo.T}) = (names = [\"FOO\", \"BAR\"], numbers = Union{Int,UnitRange{Int}}[2, 15, 9:11, 40:536870911])\n"
+            @test strify(CodeGenerators.maybe_generate_reserved_fields_method, p.definitions["Foo"]) == "PB.reserved_fields(::Type{Foo.T}) = (names = [\"FOO\", \"BAR\"], numbers = Union{Int,UnitRange{Int}}[2, 15, 9:11, 40:536870911])\n"
         end
     end
 
@@ -1303,8 +1355,8 @@ end
             Dict(
                 "main2" => """package A.B; message FromB {}""",
             ),
-        );
-        @test  d["main"].proto_file.definitions["FromA"].fields[1].type.package_namespace == "var\"#A\".B"
+        )
+        @test d["main"].proto_file.definitions["FromA"].fields[1].type.package_namespace == "var\"#A\".B"
     end
 
     @testset "Services are excluded from exports without handlers registered" begin
