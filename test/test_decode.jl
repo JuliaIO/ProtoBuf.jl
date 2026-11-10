@@ -334,3 +334,56 @@ end
     end
 end
 end # module
+
+module TestRequiredMessageFields
+import ProtoBuf as PB
+using Test
+
+const temp_dir = mktempdir()
+PB.protojl("required_messages.proto", joinpath(pkgdir(PB), "test", "test_protos"), temp_dir, always_use_modules=false)
+include(joinpath(temp_dir, "required_messages_pb.jl"))
+
+const Item = var"GroupRow.Item"
+
+function occurrences(pairs::Pair...; group::Bool=false)
+    io = IOBuffer()
+    e = PB.ProtoEncoder(io)
+    for (field_number, message) in pairs
+        group ? PB.encode(e, field_number, message, Val{:group}) : PB.encode(e, field_number, message)
+    end
+    return take!(io)
+end
+
+decode_bytes(::Type{T}, bytes) where {T} = PB.decode(PB.ProtoDecoder(IOBuffer(bytes)), T)
+
+function decode_into!(buffer, bytes, args...)
+    d = PB.ProtoDecoder(IOBuffer(bytes))
+    PB.decode_tag(d)
+    PB.decode!(d, buffer, args...)
+    return buffer[]
+end
+
+@testset "required message fields" begin
+    @testset "first occurrence" begin
+        @test decode_bytes(Row, occurrences(1 => PointerFree(nothing, 2))) == Row(PointerFree(nothing, 2))
+        @test decode_bytes(GroupRow, occurrences(1 => Item(nothing, 2); group=true)) == GroupRow(Item(nothing, 2))
+    end
+
+    @testset "repeated occurrences merge" begin
+        @test decode_bytes(Row, occurrences(1 => PointerFree(Tag(1), 1), 1 => PointerFree(Tag(2), 2))) == Row(PointerFree(Tag(2), 2))
+        @test decode_bytes(Row, occurrences(1 => PointerFree(nothing, 1), 1 => PointerFree(Tag(2), 2))) == Row(PointerFree(Tag(2), 2))
+        @test decode_bytes(Row, occurrences(1 => PointerFree(Tag(1), 1), 1 => PointerFree(nothing, 2))) == Row(PointerFree(Tag(1), 2))
+    end
+
+    @testset "missing field" begin
+        @test_throws "Row.item" decode_bytes(Row, UInt8[])
+        @test_throws "GroupRow.item" decode_bytes(GroupRow, UInt8[])
+    end
+
+    @testset "decode! into a Ref{T} from older generated code" begin
+        @test decode_into!(Ref(PointerFree(Tag(7), 1)), occurrences(1 => PointerFree(nothing, 2))) == PointerFree(nothing, 2)
+        @test decode_into!(Ref(Item(Tag(7), 1)), occurrences(1 => Item(nothing, 2); group=true), Val{:group}) == Item(nothing, 2)
+        @test decode_into!(Ref(HasPointer(Tag(7), "a")), occurrences(1 => HasPointer(nothing, "b"))) == HasPointer(Tag(7), "b")
+    end
+end
+end # module

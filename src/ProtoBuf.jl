@@ -51,7 +51,7 @@ import .Parsers
 import .CodeGenerators
 import .CodeGenerators: protojl
 import .Codecs
-import .Codecs: decode, decode!, encode, AbstractProtoDecoder, AbstractProtoEncoder, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, decode_tag, skip, _encoded_size
+import .Codecs: decode, decode!, encode, AbstractProtoDecoder, AbstractProtoEncoder, ProtoDecoder, BufferedVector, ProtoEncoder, message_done, decode_tag, skip, _encoded_size, required_field
 
 # For codegen/metadata_methods.jl
 """
@@ -96,7 +96,7 @@ end
 Return a named tuple of fields names to their respective default values from the original proto message type.
 Fields of `OneOf` types are expanded as they don't map to any single default value.
 
-`required` message-fields do not have a default value and are represented as `Ref{MyFieldMessageType}()`.
+`required` message-fields do not have a default value.
 """
 function default_values(::Type{T}) where T
     return (;)
