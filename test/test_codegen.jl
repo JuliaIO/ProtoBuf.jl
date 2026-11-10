@@ -155,7 +155,7 @@ end
         end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === nothing
-        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
 
         @test contains(s, """
         function PB.encode(e::PB.AbstractProtoEncoder, x::B)
@@ -197,7 +197,7 @@ end
         end
         """
         @test CodeGenerators.jl_default_value(p.definitions["B"].fields[1], ctx) === nothing
-        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{A}()"
+        @test CodeGenerators.jl_init_value(p.definitions["B"].fields[1], ctx) == "Ref{Union{Nothing,A}}(nothing)"
     end
 
     @testset "Struct fields are optional when the type is self referential" begin

@@ -81,10 +81,17 @@ end
 
 jl_fieldname_deref(f, ::Context) = _is_repeated_field(f) ? "$(jl_fieldname(f))[]" : jl_fieldname(f)
 function jl_fieldname_deref(f::FieldType{ReferencedType}, ctx::Context)
-    should_deref = _is_repeated_field(f) | _is_message(f.type, ctx)
-    return should_deref ? "$(jl_fieldname(f))[]" : jl_fieldname(f)
+    _is_message(f.type, ctx) && return _message_deref(f, ctx)
+    return _is_repeated_field(f) ? "$(jl_fieldname(f))[]" : jl_fieldname(f)
 end
-jl_fieldname_deref(f::GroupType, ::Context) = "$(jl_fieldname(f))[]"
+jl_fieldname_deref(f::GroupType, ctx::Context) = _message_deref(f, ctx)
+
+function _message_deref(f::Union{FieldType{ReferencedType},GroupType}, ctx::Context)
+    deref = "$(jl_fieldname(f))[]"
+    (_is_repeated_field(f) || _is_optional_referenced_message(f, ctx)) && return deref
+    field = string(ctx._toplevel_raw_name[], '.', f isa GroupType ? f.field_name : f.name)
+    return "PB.required_field($(deref), $(repr(field)))"
+end
 
 
 function generate_decode_method(io, t::MessageType, ctx::Context)

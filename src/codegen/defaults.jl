@@ -78,10 +78,7 @@ function jl_type_init_value(f::FieldType{ReferencedType}, ctx::Context)
         end
         return "$(jl_typename(f.type, ctx)[1:end-2]).$(default)"
     else # message
-        if _is_optional_referenced_message(f, ctx)
-            return "Ref{Union{Nothing,$(jl_typename(f.type, ctx))}}(nothing)"
-        end
-        return "Ref{$(jl_typename(f.type, ctx))}()"
+        return "Ref{Union{Nothing,$(jl_typename(f.type, ctx))}}(nothing)"
     end
 end
 
@@ -92,10 +89,7 @@ function jl_init_value(f::GroupType, ctx::Context)
     if _is_repeated_field(f)
         return "PB.BufferedVector{$(jl_typename(f.type, ctx))}()"
     else
-        if _is_optional_referenced_message(f, ctx)
-            return "Ref{Union{Nothing,$(jl_typename(f.type, ctx))}}(nothing)"
-        end
-        return "Ref{$(jl_typename(f.type, ctx))}()"
+        return "Ref{Union{Nothing,$(jl_typename(f.type, ctx))}}(nothing)"
     end
 end
 
