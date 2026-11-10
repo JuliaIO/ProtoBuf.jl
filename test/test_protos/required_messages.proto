@@ -1,0 +1,26 @@
+syntax = "proto2";
+
+message Tag {
+    optional int32 id = 1;
+}
+
+message PointerFree {
+    optional Tag tag = 1;
+    required int32 k = 2;
+}
+
+message HasPointer {
+    optional Tag tag = 1;
+    optional string name = 2;
+}
+
+message Row {
+    required PointerFree item = 1;
+}
+
+message GroupRow {
+    required group Item = 1 {
+        optional Tag tag = 2;
+        required int32 k = 3;
+    }
+}
