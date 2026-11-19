@@ -39,7 +39,7 @@ struct Context
     file_map::Dict{String,ResolvedProtoFile}
     _types_and_oneofs_requiring_type_params::Dict{String,Vector{Tuple{Bool,String}}}
     _remaining_cyclic_defs::Set{String}
-    _toplevel_raw_name::Ref{String}
+    _toplevel_raw_name::Ref{Tuple{String, Vector{String}}}
     transitive_imports::Set{String}
     options::Options
 end

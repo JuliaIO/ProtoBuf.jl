@@ -29,7 +29,8 @@ end
 #       when the rest of the file (and other, imported files) are parsed.
 mutable struct ReferencedType <: AbstractProtoType
     name::String
-    package_namespace::Union{Nothing,String}
+    namespace::Vector{String}
+    package_namespace_str::Union{Nothing,String}
     package_import_path::Union{Nothing,String}
     reference_type::TypeOfReference
     resolve_from_innermost::Bool
@@ -38,9 +39,9 @@ end
 
 function ReferencedType(name::String)
     if startswith(name, '.')
-        return ReferencedType(name[2:end], nothing, nothing, UNKNOWN, false, false)
+        return ReferencedType(name[2:end], String[], nothing, nothing, UNKNOWN, false, false)
     else
-        return ReferencedType(name, nothing, nothing, UNKNOWN, true, false)
+        return ReferencedType(name, String[], nothing, nothing, UNKNOWN, true, false)
     end
 end
 struct RPCType <: AbstractProtoType
@@ -96,7 +97,7 @@ struct MessageType <: AbstractProtoType
     extensions::Vector{Union{Int,UnitRange{Int}}}
     extends::Vector{ExtendType}
     has_oneof_field::Bool
-    is_self_referential::Base.RefValue{Bool}
+    has_self_reference::Base.RefValue{Bool}
 end
 
 struct GroupType <: AbstractProtoFieldType
@@ -342,7 +343,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
     extensions = Vector{Union{Int,UnitRange{Int}}}()
     extends = Vector{ExtendType}()
     has_oneof_field = false
-    is_self_referential = Ref{Bool}(false) # set during topological sort
+    has_self_reference = Ref{Bool}(false) # set during topological sort
 
     name = _dot_join(name_prefix, name)
     expectnext(ps, Tokens.LBRACE)
@@ -379,7 +380,7 @@ function _parse_message_body(ps::ParserState, name, definitions, name_prefix)
         end
     end
     # TODO: validate field_numbers vs reserved and extensions
-    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, is_self_referential)
+    return MessageType(name, fields, options, reserved_nums, reserved_names, extensions, extends, has_oneof_field, has_self_reference)
 end
 
 # We consumed RPC

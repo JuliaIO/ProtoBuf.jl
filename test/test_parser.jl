@@ -22,7 +22,7 @@ function translate_simple_proto(str::String, options=Options())
         p, r.import_path, d,
         types_needing_params(@view(p.sorted_definitions[end-ncyclic+1:end]), p, options),
         copy(p.cyclic_definitions),
-        Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
+        Ref((get(p.sorted_definitions, length(p.sorted_definitions), ""), namespace(p))),
         r.transitive_imports,
         options
     )
@@ -52,7 +52,7 @@ function translate_simple_proto(str::String, deps::Dict{String,String}, options=
         p, r.import_path, d,
         types_needing_params(@view(p.sorted_definitions[end-ncyclic+1:end]), p, options),
         copy(p.cyclic_definitions),
-        Ref(get(p.sorted_definitions, length(p.sorted_definitions), "")),
+        Ref((get(p.sorted_definitions, length(p.sorted_definitions), ""), namespace(p))),
         r.transitive_imports,
         options
     )
@@ -240,7 +240,7 @@ end
         @test p.definitions["A"].fields[1].type.name == "B"
         # we were able to infer the type of the dependency by finding it among imported modules
         @test p.definitions["A"].fields[1].type.reference_type == Parsers.MESSAGE
-        @test p.definitions["A"].fields[1].type.package_namespace === "P"
+        @test p.definitions["A"].fields[1].type.package_namespace_str === "P"
     end
 
     @testset "Single message with package-imported namespaced field type" begin
@@ -258,7 +258,7 @@ end
         @test p.definitions["A"].fields[1].type isa Parsers.ReferencedType
         @test p.definitions["A"].fields[1].type.name == "B"
         @test p.definitions["A"].fields[1].type.reference_type == Parsers.MESSAGE
-        @test p.definitions["A"].fields[1].type.package_namespace == "P"
+        @test p.definitions["A"].fields[1].type.package_namespace_str == "P"
         @test p.definitions["A"].fields[1].type.package_import_path == "path/to/a"
     end
 
@@ -279,7 +279,7 @@ end
         @test p.definitions["A"].fields[1].type isa Parsers.ReferencedType
         @test p.definitions["A"].fields[1].type.name == "B"
         @test p.definitions["A"].fields[1].type.reference_type == Parsers.MESSAGE
-        @test p.definitions["A"].fields[1].type.package_namespace == "P"
+        @test p.definitions["A"].fields[1].type.package_namespace_str == "P"
         @test p.definitions["A"].fields[1].type.package_import_path == "path/to/a"
 
         @test p.definitions["A"].fields[2].name == "b_local"
@@ -287,7 +287,7 @@ end
         @test p.definitions["A"].fields[2].type isa Parsers.ReferencedType
         @test p.definitions["A"].fields[2].type.name == "B"
         @test p.definitions["A"].fields[2].type.reference_type == Parsers.MESSAGE
-        @test p.definitions["A"].fields[2].type.package_namespace === nothing
+        @test p.definitions["A"].fields[2].type.package_namespace_str === nothing
         @test p.definitions["A"].fields[2].type.package_import_path === nothing
     end
 
