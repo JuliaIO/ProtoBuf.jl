@@ -321,7 +321,7 @@ end
 @inline function Base.skip(d::AbstractProtoDecoder, wire_type::WireType)
     io = get_stream(d)
     if wire_type == VARINT
-        while read(io, UInt8) >= 0x80 end
+        vbyte_decode(io, UInt64)
     elseif wire_type == FIXED64
         skip(io, 8)
     elseif wire_type == LENGTH_DELIMITED

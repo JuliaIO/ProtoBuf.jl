@@ -11,6 +11,8 @@ end
     unsafe_write(io, ref, nb)
 end
 
+@noinline _malformed_varint_error() = error("Malformed varint: more than 10 bytes")
+
 @inline function vbyte_decode(io, ::Type{T}) where {T<:Union{UInt32,Int32}}
     b = T(read(io, UInt8))
     b < 0x80 && return b
@@ -32,8 +34,12 @@ end
     b < 0x80 && return (x | (b << 28))
 
     x |= (b & 0x7F) << 28
-    # TODO: we shouldn't get here... log? throw? don't eat other bytes >= 0x80?
-    return x
+    # Negative int32 and enum values arrive sign-extended to 10 bytes. Like Google's
+    # parsers, read up to 10 bytes and keep the low 32 bits.
+    for _ in 6:10
+        read(io, UInt8) < 0x80 && return x
+    end
+    _malformed_varint_error()
 end
 
 @inline function vbyte_decode(io, ::Type{T}) where {T<:Union{UInt64,Int64}}
@@ -75,8 +81,7 @@ end
     x |= (b & 0x7F) << 56
     b = T(read(io, UInt8))
     b < 0x80 && return (x | (b << 63))
-    # TODO: we shouldn't get here... log? throw? eat other bytes >= 0x80?
-    return x
+    _malformed_varint_error()
 end
 
 @inline function vbyte_encode(io::IO, x::UInt32)

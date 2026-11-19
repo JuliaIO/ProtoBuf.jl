@@ -259,8 +259,8 @@ end
 
         @testset "sint32" begin
             test_decode([0x04], Int32(2), Val{:zigzag})
-            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF], typemin(Int32), Val{:zigzag})
-            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0xFF], typemax(Int32), Val{:zigzag})
+            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0x0F], typemin(Int32), Val{:zigzag})
+            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0x0F], typemax(Int32), Val{:zigzag})
         end
 
         @testset "sint64" begin
@@ -275,6 +275,20 @@ end
 
         @testset "unknown enum member" begin
             test_decode([0x10], Core.bitcast(TestEnum.T, Int32(0x10)))
+        end
+
+        @testset "negative enum member" begin
+            # Negative enum values are sign-extended to 10 bytes on the wire
+            neg = Core.bitcast(TestEnum.T, Int32(-1))
+            ten_bytes = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01]
+            test_decode(ten_bytes, neg)
+            test_decode([ten_bytes; 0x01], [neg, TestEnum.B])
+            @test decode(ProtoDecoder(IOBuffer([0x10; ten_bytes])), TestStruct).oneof[] === neg
+        end
+
+        @testset "skipped varint longer than 10 bytes" begin
+            # unknown field 3 holding an 11-byte varint, then x = 5
+            @test_throws ErrorException decode(ProtoDecoder(IOBuffer([0x18; fill(0x80, 10); 0x00; 0x08; 0x05])), TestInner)
         end
     end
 
