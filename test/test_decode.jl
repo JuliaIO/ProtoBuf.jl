@@ -137,6 +137,8 @@ end
 
         @testset "repeated bool" begin
             test_decode([0x00, 0x01, 0x00], Bool[false, true, false])
+            # bools are varints: any nonzero value is true
+            test_decode([0x02, 0x80, 0x01, 0x80, 0x00], Bool[true, true, false])
         end
 
         @testset "repeated float64" begin
@@ -255,6 +257,10 @@ end
 
         @testset "bool" begin
             test_decode([0x01], true)
+            # bools are varints: any nonzero value is true, e.g. an int32 field read as bool
+            test_decode([0x02], true)
+            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01], true)
+            test_decode([0x80, 0x00], false)
         end
 
         @testset "sint32" begin
