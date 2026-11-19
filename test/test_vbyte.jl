@@ -25,6 +25,11 @@ test_vbyte_roundtrip(input) = (io = PipeBuffer(); vbyte_encode(io, unsigned(inpu
             test_vbyte_decode(UInt8[0x80, 0x80, 0x80, 0x80, 0x88, 0x80, 0x80, 0x80, 0x00], UInt32(1) << 31)
             test_vbyte_decode(UInt8[0xaa, 0xaa, 0xaa, 0xaa, 0x2a, 0xaa, 0xaa, 0xaa, 0x2a], 0xa54a952a)
 
+            # Negative int32 and enum values take 10 bytes; all of them must be consumed
+            io = PipeBuffer(UInt8[0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01, 0x2a])
+            @test vbyte_decode(io, UInt32) == 0xfffffffe
+            @test read(io, UInt8) == 0x2a
+
             test_vbyte_decode(UInt8[0x81, 0x82, 0x83, 0x84, 0x05], mapreduce(i->UInt64(i) << 7(i - 1), |, 5:-1:0))
             test_vbyte_decode(UInt8[0x81, 0x82, 0x83, 0x04], mapreduce(i->UInt64(i) << 7(i - 1), |, 4:-1:0))
             test_vbyte_decode(UInt8[0x81, 0x82, 0x03], mapreduce(i->UInt64(i) << 7(i - 1), |, 3:-1:0))
@@ -57,6 +62,11 @@ test_vbyte_roundtrip(input) = (io = PipeBuffer(); vbyte_encode(io, unsigned(inpu
             test_vbyte_decode(UInt8[0x81, 0x02], mapreduce(i->UInt64(i) << 7(i - 1), |, 2:-1:0))
             test_vbyte_decode(UInt8[0x01], mapreduce(i->UInt64(i) << 7(i - 1), |, 1:-1:0))
         end
+    end
+
+    @testset "decode more than 10 bytes" begin
+        @test_throws ErrorException vbyte_decode(PipeBuffer(UInt8[fill(0x80, 10); 0x00]), UInt32)
+        @test_throws ErrorException vbyte_decode(PipeBuffer(UInt8[fill(0x80, 10); 0x00]), UInt64)
     end
 
     @testset "encode" begin

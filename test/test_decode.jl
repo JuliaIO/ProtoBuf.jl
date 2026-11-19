@@ -276,6 +276,15 @@ end
         @testset "unknown enum member" begin
             test_decode([0x10], Core.bitcast(TestEnum.T, Int32(0x10)))
         end
+
+        @testset "negative enum member" begin
+            # Negative enum values are sign-extended to 10 bytes on the wire
+            neg = Core.bitcast(TestEnum.T, Int32(-1))
+            ten_bytes = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01]
+            test_decode(ten_bytes, neg)
+            test_decode([ten_bytes; 0x01], [neg, TestEnum.B])
+            @test decode(ProtoDecoder(IOBuffer([0x10; ten_bytes])), TestStruct).oneof[] === neg
+        end
     end
 
     @testset "fixed" begin
