@@ -323,16 +323,16 @@ end
 # Since we're potentially mixing type params used to forward declare cyclic deps and type params for oneofs,
 # and since all are potentially optional, we must tell the constructor what is the type of the forward declared
 # type even if we get a default value like 'nothing'. And since we're specializing on OneOfs, we'll make sure
-# to use the concrete type of the OneOf union by calling `typeof` on the provided value (which is always
-# named the same as the field itself).
-function _maybe_parametrize_constructor_to_handle_oneofs(io, t::MessageType, ctx::Context)
+# to use the concrete type of the OneOf union by calling `typeof` on the provided value. `varname` maps
+# the oneof's Julia field name to the variable that holds its value in the generated method.
+function _maybe_parametrize_constructor_to_handle_oneofs(io, t::MessageType, ctx::Context, varname=identity)
     if t.has_oneof_field && ctx.options.parametrize_oneofs
         i = 1
         if t.name in keys(ctx._types_and_oneofs_requiring_type_params)
             print(io, stub_type_name(t.name), "{")
             for (isoneof, name) in ctx._types_and_oneofs_requiring_type_params[t.name]
                 i > 1 && print(io, ",")
-                isoneof ? print(io, "typeof(", _safename(name), ")") : print(io, _safename(name))
+                isoneof ? print(io, "typeof(", varname(_safename(name)), ")") : print(io, _safename(name))
                 i += 1
             end
         else
@@ -340,7 +340,7 @@ function _maybe_parametrize_constructor_to_handle_oneofs(io, t::MessageType, ctx
             for field in t.fields
                 field isa OneOfType || continue
                 i > 1 && print(io, ",")
-                print(io, "typeof(", _safename(field.name), ")")
+                print(io, "typeof(", varname(_safename(field.name)), ")")
                 i += 1
             end
         end

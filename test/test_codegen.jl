@@ -1349,6 +1349,62 @@ end
         """))
     end
 
+    @testset "Fields named like names the generated decode method uses round-trip" begin
+        proto = """
+        syntax = "proto2";
+        message Sub { optional int32 v = 1; }
+        message M {
+            optional double d = 1;
+            optional sint32 _endpos = 2;
+            optional fixed64 _group = 3;
+            optional group Field_number = 4 { optional int32 v = 5; }
+            optional int64 wire_type = 6;
+            optional bool PB = 7;
+            optional Sub Ref = 8;
+            optional float Nothing = 9 [default = inf];
+            optional double nothing = 10 [default = nan];
+            optional bytes Val = 11;
+            map<sfixed32, sint64> Tuple = 12;
+            optional uint32 zero = 13;
+            repeated float Float32 = 14;
+            optional double Float64 = 15;
+            optional int32 Int32 = 16;
+            optional int64 Int64 = 17;
+            optional uint32 UInt32 = 18;
+            optional uint64 UInt64 = 19;
+            optional bool Bool = 20;
+            optional string String = 21;
+            optional bytes UInt8 = 22;
+            optional float Inf = 23;
+            optional double NaN = 24;
+            oneof typeof { int32 oi = 25; Sub os = 26; }
+        }
+        """
+        for options in (Options(), Options(parametrize_oneofs=true))
+            s, _, _ = translate_simple_proto(proto, options)
+            mod = Core.eval(Module(gensym()), Meta.parse(s)).main_pb
+            m, m2 = Base.invokelatest(mod) do mod
+                Sub = mod.Sub
+                m = mod.M(
+                    1.5, Int32(-3), UInt64(7), getproperty(mod, Symbol("M.Field_number"))(Int32(9)), Int64(11),
+                    true, Sub(Int32(13)), Float32(1.25), 2.5, UInt8[1, 2], Dict{Int32,Int64}(1 => -2), UInt32(14),
+                    Float32[0.5, -1.0], 3.5, Int32(-15), Int64(16), UInt32(17), UInt64(18), true, "s", UInt8[3],
+                    Float32(4.5), 5.5, OneOf(:os, Sub(Int32(19))),
+                )
+                io = IOBuffer()
+                ProtoBuf.encode(ProtoBuf.ProtoEncoder(io), m)
+                return m, ProtoBuf.decode(ProtoBuf.ProtoDecoder(seekstart(io)), mod.M)
+            end
+            @test fieldnames(typeof(m2)) == (
+                :d, :_endpos, :_group, :field_number, :wire_type, :PB, :Ref, :Nothing, :nothing, :Val, :Tuple, :zero,
+                :Float32, :Float64, :Int32, :Int64, :UInt32, :UInt64, :Bool, :String, :UInt8, :Inf, :NaN, :typeof,
+            )
+            for name in fieldnames(typeof(m))
+                @test isequal(getfield(m2, name), getfield(m, name))
+            end
+        end
+    end
+
     @testset "Services code generation handlers work" begin
         try
             import_cb(io, ctx, definitions) = println(io, "import gRPCClient")
