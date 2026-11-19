@@ -1280,6 +1280,22 @@ end
             @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method,        p.definitions["A"], ctx) == "A(;a = nothing, o = nothing) = A(a, o)\n"
         end
 
+        @testset "integer and bytes literals in default values" begin
+            function default_a(field)
+                s, p, ctx = translate_simple_proto("syntax = \"proto2\"; message A { $field }")
+                str = strify(CodeGenerators.maybe_generate_default_values_method, p.definitions["A"], ctx)
+                return eval(Meta.parse(split(str, " = ", limit=2)[2])).a
+            end
+            @test default_a("optional int32 a = 1 [default = 017];") === Int32(15)
+            @test default_a("optional sint64 a = 1 [default = -017];") === Int64(-15)
+            @test default_a("optional uint32 a = 1 [default = 0XfF];") === UInt32(255)
+            @test default_a("optional sfixed32 a = 1 [default = -0x10];") === Int32(-16)
+            @test default_a("optional fixed64 a = 1 [default = 0];") === UInt64(0)
+            @test default_a("optional uint64 a = 1 [default = 10];") === UInt64(10)
+            @test default_a("optional bytes a = 1 [default = \"\$x\\\\\$\"];") == codeunits("\$x\\\$")
+            @test default_a("optional string a = 1 [default = \"\$x\"];") == "\$x"
+        end
+
         @testset "deprecated message: depwarn in kwarg constructor" begin
             s, p, ctx = translate_simple_proto("syntax = \"proto3\"; message A { option deprecated = true; int32 x = 1; }", Options(add_kwarg_constructors=true))
             @test strify(CodeGenerators.maybe_generate_kwarg_constructor_method, p.definitions["A"], ctx) == "function A(;x = zero(Int32))\n    Base.depwarn(\"`A` is deprecated.\", nameof(A))\n    return A(x)\nend\n"
