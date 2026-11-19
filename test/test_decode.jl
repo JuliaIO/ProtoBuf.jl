@@ -296,6 +296,20 @@ end
         end
     end
 
+    @testset "truncated input" begin
+        # bytes field (TestStruct.bytes = 1) claiming 5 bytes, 2 present
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x0a, 0x05, 0x61, 0x62])), TestStruct)
+        # unknown fields cut short: length-delimited, fixed64, fixed32
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x2a, 0x0a, 0x61, 0x62])), TestInner)
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x29, 0x01, 0x02])), TestInner)
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x2d, 0x01])), TestInner)
+        mktemp() do path, io
+            write(io, UInt8[0x2a, 0x0a, 0x61, 0x62])
+            seekstart(io)
+            @test_throws EOFError decode(ProtoDecoder(io), TestInner)
+        end
+    end
+
     @testset "skipping" begin
         io = IOBuffer()
         d = PB.ProtoDecoder(io)
