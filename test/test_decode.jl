@@ -259,8 +259,8 @@ end
 
         @testset "sint32" begin
             test_decode([0x04], Int32(2), Val{:zigzag})
-            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF], typemin(Int32), Val{:zigzag})
-            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0xFF], typemax(Int32), Val{:zigzag})
+            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0x0F], typemin(Int32), Val{:zigzag})
+            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0x0F], typemax(Int32), Val{:zigzag})
         end
 
         @testset "sint64" begin
