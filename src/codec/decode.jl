@@ -111,11 +111,17 @@ end
 
 function decode(d::AbstractProtoDecoder, ::Type{Vector{UInt8}})
     bytelen = vbyte_decode(get_stream(d), UInt32)
-    return read(get_stream(d), bytelen)
+    return _read_bytes(get_stream(d), bytelen)
 end
 function decode(d::AbstractProtoDecoder, ::Type{Base.CodeUnits{UInt8, String}})
     bytelen = vbyte_decode(get_stream(d), UInt32)
-    return read(get_stream(d), bytelen)
+    return _read_bytes(get_stream(d), bytelen)
+end
+# `read(io, n)` returns fewer bytes at the end of the input instead of throwing.
+function _read_bytes(io::IO, n::Integer)
+    bytes = read(io, n)
+    length(bytes) == n || throw(EOFError())
+    return bytes
 end
 function decode!(d::AbstractProtoDecoder, buffer::BufferedVector{Vector{UInt8}})
     buffer[] = decode(d, Vector{UInt8})
@@ -318,22 +324,31 @@ end
     end
 end
 
+# `skip` stops silently at the end of an IOBuffer or IOStream. Reading the last byte
+# makes a truncated input throw EOFError.
+function _skip_bytes(io::IO, n::Integer)
+    n > 0 || return nothing
+    skip(io, n - 1)
+    read(io, UInt8)
+    return nothing
+end
+
 @inline function Base.skip(d::AbstractProtoDecoder, wire_type::WireType)
     io = get_stream(d)
     if wire_type == VARINT
         while read(io, UInt8) >= 0x80 end
     elseif wire_type == FIXED64
-        skip(io, 8)
+        _skip_bytes(io, 8)
     elseif wire_type == LENGTH_DELIMITED
         bytelen = vbyte_decode(io, UInt32)
-        skip(io, bytelen)
+        _skip_bytes(io, bytelen)
     elseif wire_type == START_GROUP
         while peek(io) != UInt8(END_GROUP)
             skip(d, decode_tag(d)[2])
         end
         skip(io, 1)
     elseif wire_type == FIXED32
-        skip(io, 4)
+        _skip_bytes(io, 4)
     else wire_type == END_GROUP
         error("Encountered END_GROUP wiretype while skipping")
     end
