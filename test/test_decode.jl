@@ -369,6 +369,12 @@ end
         @test decode(d, TestInner) == TestInner(0)
     end
 
+    @testset "skipping groups whose end tag carries the field number" begin
+        # unknown field 9 is a group holding a varint and a nested group 10, then x = 5
+        bytes = [0x4b, 0x08, 0x01, 0x53, 0x08, 0x02, 0x54, 0x4c, 0x08, 0x05]
+        @test decode(ProtoDecoder(IOBuffer(bytes)), TestInner) == TestInner(5)
+    end
+
     @testset "backwards compat" begin
         OlderVersion = include(joinpath(test_dir, "test_protos", "test_decode_backwards_compat.jl"))
         msg = OlderVersion.TestInner(0, OlderVersion.TestInner(1, OlderVersion.TestInner(2, nothing)))
