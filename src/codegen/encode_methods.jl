@@ -68,14 +68,26 @@ function print_field_encode_expr(io, f::GroupType, ctx::Context)
     println(io, "    !isnothing(x.$(jl_fieldname(f))) && ", field_encode_expr(f, ctx))
 end
 
+# OneOf fields are typed as e.g. `Union{Nothing,OneOf{<:Union{Int32,String}}}`, which is not
+# concrete. Each read of `x.<oneof>` followed by a method call (including `isnothing`) makes
+# Julia union-split with a runtime `isa(v, OneOf{<:Union{...}})` check, which goes through the
+# (slow) general subtyping algorithm. To avoid that, we read the field once into a local, test
+# it with the `===` builtin, and read its `name` once. The `let` block keeps the locals from
+# clashing with other generated code / other oneof fields in the same message.
+function print_oneof_let_header(io, fs::OneOfType)
+    println(io, "    let oneof = x.$(safename(fs)), oneof_name = oneof === nothing ? nothing : oneof.name")
+    println(io, "        if oneof === nothing;")
+end
+
 function print_field_encode_expr(io, fs::OneOfType, ctx::Context)
-    println(io, "    if isnothing(x.$(safename(fs)));")
+    print_oneof_let_header(io, fs)
     for f in fs.fields
         V = _decoding_val_type(f.type)
         V = isempty(V) ? "" : ", Val{$V}"
-        println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
-        println(io, "    " ^ 2, "PB.encode(e, $(string(f.number)), x.$(safename(fs))[]::$(jl_typename(f, ctx))$V)")
+        println(io, "        elseif oneof_name === :", jl_fieldname(f))
+        println(io, "    " ^ 3, "PB.encode(e, $(string(f.number)), oneof[]::$(jl_typename(f, ctx))$V)")
     end
+    println(io, "        end")
     println(io, "    end")
 end
 
@@ -103,13 +115,14 @@ function print_field_encoded_size_expr(io, f::GroupType, ::Context)
 end
 
 function print_field_encoded_size_expr(io, fs::OneOfType, ctx::Context)
-    println(io, "    if isnothing(x.$(safename(fs)));")
+    print_oneof_let_header(io, fs)
     for f in fs.fields
         V = _decoding_val_type(f.type)
         V = isempty(V) ? "" : ", Val{$V}"
-        println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
-        println(io, "    " ^ 2, "encoded_size += PB._encoded_size(x.$(safename(fs))[]::$(jl_typename(f, ctx)), $(string(f.number))$V)")
+        println(io, "        elseif oneof_name === :", jl_fieldname(f))
+        println(io, "    " ^ 3, "encoded_size += PB._encoded_size(oneof[]::$(jl_typename(f, ctx)), $(string(f.number))$V)")
     end
+    println(io, "        end")
     println(io, "    end")
 end
 
