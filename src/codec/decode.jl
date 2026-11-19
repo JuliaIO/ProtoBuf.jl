@@ -23,7 +23,8 @@ function decode(d::AbstractProtoDecoder, ::Type{T}, ::Type{Val{:zigzag}}) where 
     z = zigzag_decode(v)
     return reinterpret(T, z)
 end
-decode(d::AbstractProtoDecoder, ::Type{Bool}) = Bool(read(get_stream(d), UInt8))
+# bool is a varint on the wire; like Google's parsers, read any nonzero value as true.
+decode(d::AbstractProtoDecoder, ::Type{Bool}) = vbyte_decode(get_stream(d), UInt64) != 0
 function decode(d::AbstractProtoDecoder, ::Type{T}) where {T <: Union{Enum{Int32},Enum{UInt32}}}
     val = vbyte_decode(get_stream(d), UInt32)
     return Core.bitcast(T, reinterpret(Int32, val))
@@ -137,6 +138,23 @@ function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}
     return nothing
 end
 
+# Packed bools are usually one byte each, so size the buffer for that, then read varints.
+function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{Bool})
+    w == LENGTH_DELIMITED || (buffer[] = decode(d, Bool); return nothing)
+    io = get_stream(d)
+    bytelen = vbyte_decode(io, UInt32)
+    endpos = bytelen + position(io)
+    n = buffer.occupied
+    resize!(buffer.elements, n + bytelen)
+    while position(io) < endpos
+        n += 1
+        @inbounds buffer.elements[n] = decode(d, Bool)
+    end
+    buffer.occupied = n
+    @assert position(io) == endpos
+    return nothing
+end
+
 function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}, ::Type{Val{:zigzag}}) where {T <: Union{Int32,Int64}}
     if w == LENGTH_DELIMITED
         io = get_stream(d)
@@ -171,7 +189,7 @@ function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}
     return nothing
 end
 
-function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Bool,Float32,Float64}}
+function decode!(d::AbstractProtoDecoder, w::WireType, buffer::BufferedVector{T}) where {T <: Union{Float32,Float64}}
     if w == LENGTH_DELIMITED
         io = get_stream(d)
         bytelen = vbyte_decode(io, UInt32)
