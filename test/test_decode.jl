@@ -219,6 +219,18 @@ end
 
             @testset "sint32,sint32" begin test_decode([0x0a, 0x04, 0x08, 0x02, 0x10, 0x02], Dict{Int32,Int32}(1 => 1), Val{Tuple{:zigzag,:zigzag}}) end
             @testset "sint64,sint64" begin test_decode([0x0a, 0x04, 0x08, 0x02, 0x10, 0x02], Dict{Int64,Int64}(1 => 1), Val{Tuple{:zigzag,:zigzag}}) end
+
+            # An entry's key and value can come in any order or be missing (then they take their
+            # default value), and unknown fields in an entry are skipped.
+            @testset "value before key" begin test_decode([0x0a, 0x05, 0x12, 0x01, 0x61, 0x08, 0x01], Dict{Int32,String}(1 => "a")) end
+            @testset "missing value" begin test_decode([0x0a, 0x02, 0x08, 0x01], Dict{Int32,String}(1 => "")) end
+            @testset "missing key" begin test_decode([0x0a, 0x03, 0x12, 0x01, 0x61], Dict{Int32,String}(0 => "a")) end
+            @testset "empty entry" begin test_decode([0x0a, 0x00], Dict{String,Vector{UInt8}}("" => UInt8[])) end
+            @testset "unknown field" begin test_decode([0x0a, 0x07, 0x08, 0x01, 0x18, 0x07, 0x12, 0x01, 0x61], Dict{Int32,String}(1 => "a")) end
+            @testset "missing message value" begin test_decode([0x0a, 0x03, 0x0a, 0x01, 0x6b], Dict{String,TestInner}("k" => TestInner(0))) end
+            @testset "missing enum value" begin test_decode([0x0a, 0x02, 0x08, 0x01], Dict{Int32,TestEnum.T}(1 => TestEnum.A)) end
+            @testset "missing sint32 value" begin test_decode([0x0a, 0x02, 0x08, 0x01], Dict{Int32,Int32}(1 => 0), Val{Tuple{Nothing,:zigzag}}) end
+            @testset "missing fixed64 key" begin test_decode([0x0a, 0x02, 0x10, 0x04], Dict{UInt64,Int64}(0 => 2), Val{Tuple{:fixed,:zigzag}}) end
         end
 
         @testset "message" begin
