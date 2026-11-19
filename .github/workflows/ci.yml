@@ -22,7 +22,6 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macOS-latest
-          - macOS-14
         arch:
           - x64
           - aarch64
@@ -31,10 +30,6 @@ jobs:
             arch: aarch64
           - os: windows-latest
             arch: aarch64
-          - os: macOS-14
-            arch: x64
-          - os: macOS-14
-            version: '1.6'
     steps:
       - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v1

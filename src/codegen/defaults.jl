@@ -50,10 +50,16 @@ function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoFloatTy
     end
     return string(type_name, '(', default, ')')
 end
-_jl_parse_default_int(::Union{Int32Type,SInt32Type,SFixed32Type}, s::String) = parse(Int32, s)
-_jl_parse_default_int(::Union{Int64Type,SInt64Type,SFixed64Type}, s::String) = parse(Int64, s)
-_jl_parse_default_int(::Union{UInt32Type,Fixed32Type}, s::String) = parse(UInt32, s)
-_jl_parse_default_int(::Union{UInt64Type,Fixed64Type}, s::String) = parse(UInt64, s)
+_jl_parse_default_int(::Union{Int32Type,SInt32Type,SFixed32Type}, s::String) = _parse_int_literal(Int32, s)
+_jl_parse_default_int(::Union{Int64Type,SInt64Type,SFixed64Type}, s::String) = _parse_int_literal(Int64, s)
+_jl_parse_default_int(::Union{UInt32Type,Fixed32Type}, s::String) = _parse_int_literal(UInt32, s)
+_jl_parse_default_int(::Union{UInt64Type,Fixed64Type}, s::String) = _parse_int_literal(UInt64, s)
+# In .proto files a `0x` or `0X` prefix means hexadecimal and a leading `0` means octal.
+function _parse_int_literal(::Type{T}, s::String) where {T<:Integer}
+    m = match(r"^([+-]?)0([xX]?)([0-9a-fA-F]+)$", s)
+    m === nothing && return parse(T, s)
+    return parse(T, m[1] * m[3]; base = isempty(m[2]) ? 8 : 16)
+end
 function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoNumericType}), ctx::Context)
     type_name = jl_typename(f, ctx)
     default = get(f.options, "default", nothing)
@@ -64,7 +70,8 @@ function jl_type_default_value(@nospecialize(f::FieldType{<:AbstractProtoNumeric
 end
 function jl_type_default_value(f::FieldType{BytesType}, ::Context)
     out = get(f.options, "default", nothing)
-    return isnothing(out) ? "UInt8[]" : "b$(out)"
+    # The lexer escapes `$` for Julia string literals, but `b"..."` doesn't interpolate and rejects `\$`.
+    return isnothing(out) ? "UInt8[]" : "b$(replace(out, "\\\$" => "\$"))"
 end
 function jl_type_default_value(f::FieldType{MapType}, ctx::Context)
     return "Dict{$(jl_typename(f.type.keytype, ctx)),$(jl_typename(f.type.valuetype, ctx))}()"

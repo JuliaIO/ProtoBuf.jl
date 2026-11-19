@@ -137,6 +137,8 @@ end
 
         @testset "repeated bool" begin
             test_decode([0x00, 0x01, 0x00], Bool[false, true, false])
+            # bools are varints: any nonzero value is true
+            test_decode([0x02, 0x80, 0x01, 0x80, 0x00], Bool[true, true, false])
         end
 
         @testset "repeated float64" begin
@@ -217,6 +219,18 @@ end
 
             @testset "sint32,sint32" begin test_decode([0x0a, 0x04, 0x08, 0x02, 0x10, 0x02], Dict{Int32,Int32}(1 => 1), Val{Tuple{:zigzag,:zigzag}}) end
             @testset "sint64,sint64" begin test_decode([0x0a, 0x04, 0x08, 0x02, 0x10, 0x02], Dict{Int64,Int64}(1 => 1), Val{Tuple{:zigzag,:zigzag}}) end
+
+            # An entry's key and value can come in any order or be missing (then they take their
+            # default value), and unknown fields in an entry are skipped.
+            @testset "value before key" begin test_decode([0x0a, 0x05, 0x12, 0x01, 0x61, 0x08, 0x01], Dict{Int32,String}(1 => "a")) end
+            @testset "missing value" begin test_decode([0x0a, 0x02, 0x08, 0x01], Dict{Int32,String}(1 => "")) end
+            @testset "missing key" begin test_decode([0x0a, 0x03, 0x12, 0x01, 0x61], Dict{Int32,String}(0 => "a")) end
+            @testset "empty entry" begin test_decode([0x0a, 0x00], Dict{String,Vector{UInt8}}("" => UInt8[])) end
+            @testset "unknown field" begin test_decode([0x0a, 0x07, 0x08, 0x01, 0x18, 0x07, 0x12, 0x01, 0x61], Dict{Int32,String}(1 => "a")) end
+            @testset "missing message value" begin test_decode([0x0a, 0x03, 0x0a, 0x01, 0x6b], Dict{String,TestInner}("k" => TestInner(0))) end
+            @testset "missing enum value" begin test_decode([0x0a, 0x02, 0x08, 0x01], Dict{Int32,TestEnum.T}(1 => TestEnum.A)) end
+            @testset "missing sint32 value" begin test_decode([0x0a, 0x02, 0x08, 0x01], Dict{Int32,Int32}(1 => 0), Val{Tuple{Nothing,:zigzag}}) end
+            @testset "missing fixed64 key" begin test_decode([0x0a, 0x02, 0x10, 0x04], Dict{UInt64,Int64}(0 => 2), Val{Tuple{:fixed,:zigzag}}) end
         end
 
         @testset "message" begin
@@ -255,12 +269,16 @@ end
 
         @testset "bool" begin
             test_decode([0x01], true)
+            # bools are varints: any nonzero value is true, e.g. an int32 field read as bool
+            test_decode([0x02], true)
+            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01], true)
+            test_decode([0x80, 0x00], false)
         end
 
         @testset "sint32" begin
             test_decode([0x04], Int32(2), Val{:zigzag})
-            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0xFF], typemin(Int32), Val{:zigzag})
-            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0xFF], typemax(Int32), Val{:zigzag})
+            test_decode([0xFF, 0xFF, 0xFF, 0xFF, 0x0F], typemin(Int32), Val{:zigzag})
+            test_decode([0xFE, 0xFF, 0xFF, 0xFF, 0x0F], typemax(Int32), Val{:zigzag})
         end
 
         @testset "sint64" begin
@@ -275,6 +293,20 @@ end
 
         @testset "unknown enum member" begin
             test_decode([0x10], Core.bitcast(TestEnum.T, Int32(0x10)))
+        end
+
+        @testset "negative enum member" begin
+            # Negative enum values are sign-extended to 10 bytes on the wire
+            neg = Core.bitcast(TestEnum.T, Int32(-1))
+            ten_bytes = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01]
+            test_decode(ten_bytes, neg)
+            test_decode([ten_bytes; 0x01], [neg, TestEnum.B])
+            @test decode(ProtoDecoder(IOBuffer([0x10; ten_bytes])), TestStruct).oneof[] === neg
+        end
+
+        @testset "skipped varint longer than 10 bytes" begin
+            # unknown field 3 holding an 11-byte varint, then x = 5
+            @test_throws ErrorException decode(ProtoDecoder(IOBuffer([0x18; fill(0x80, 10); 0x00; 0x08; 0x05])), TestInner)
         end
     end
 
@@ -293,6 +325,20 @@ end
 
         @testset "fixed64" begin
             test_decode(reinterpret(UInt8, [UInt64(2)]), UInt64(2), Val{:fixed})
+        end
+    end
+
+    @testset "truncated input" begin
+        # bytes field (TestStruct.bytes = 1) claiming 5 bytes, 2 present
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x0a, 0x05, 0x61, 0x62])), TestStruct)
+        # unknown fields cut short: length-delimited, fixed64, fixed32
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x2a, 0x0a, 0x61, 0x62])), TestInner)
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x29, 0x01, 0x02])), TestInner)
+        @test_throws EOFError decode(ProtoDecoder(IOBuffer([0x2d, 0x01])), TestInner)
+        mktemp() do path, io
+            write(io, UInt8[0x2a, 0x0a, 0x61, 0x62])
+            seekstart(io)
+            @test_throws EOFError decode(ProtoDecoder(io), TestInner)
         end
     end
 
