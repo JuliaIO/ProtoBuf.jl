@@ -71,6 +71,19 @@ abstract_type_name(name::AbstractString) = string("var\"##Abstract#", name, "\""
 jl_fieldname(@nospecialize(f::AbstractProtoFieldType)) = _safename(f.name)
 jl_fieldname(f::GroupType) = _safename(f.field_name)
 
+# Names that a generated `PB.decode` method binds or reads besides its field locals: its arguments
+# and locals, the `PB` alias, and the Base names in its initial values, decode calls, and return.
+# A field local with one of these names would shadow it, so the local becomes `var"##name"`.
+# `_safename` already escapes `Base`, `OneOf`, `Union`, `Vector`, and `Dict`.
+const DECODE_METHOD_NAMES = Set{String}([
+    "_endpos", "_group", "d", "field_number", "wire_type",
+    "Bool", "Float32", "Float64", "Inf", "Int32", "Int64", "NaN", "Nothing", "PB", "Ref",
+    "String", "Tuple", "UInt32", "UInt64", "UInt8", "Val", "nothing", "typeof", "zero",
+])
+
+_decode_local(jl_name::String) = jl_name in DECODE_METHOD_NAMES ? string("var\"##", jl_name, '"') : jl_name
+jl_decode_local(@nospecialize(f::AbstractProtoFieldType)) = _decode_local(jl_fieldname(f))
+
 _safe_namespace_string(ns::AbstractVector{<:AbstractString}) = string("var\"#$(first(ns))\"", '.', join(@view(ns[2:end]), '.'))
 
 stub_type_name(x) = string("var\"##Stub#", x, "\"")

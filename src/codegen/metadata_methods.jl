@@ -1,8 +1,17 @@
-function maybe_generate_deprecation(io, t::Union{MessageType, EnumType, ServiceType})
+function maybe_generate_deprecation(io, t::Union{EnumType, ServiceType}, ::Context)
     if parse(Bool, get(t.options, "deprecated", "false"))
         name = safename(t)
         println(io, "Base.depwarn(\"`$(escape_string(name))` is deprecated.\", nameof($name))")
     end
+end
+
+function maybe_generate_deprecation(io, t::MessageType, ctx::Context)
+    parse(Bool, get(t.options, "deprecated", "false")) || return
+    # If the kwarg constructor is being generated it will contain the depwarn, so
+    # only fall back to a module-scope warning when it won't be.
+    ctx.options.add_kwarg_constructors && length(t.fields) > 0 && return
+    name = safename(t)
+    println(io, "Base.depwarn(\"`$(escape_string(name))` is deprecated.\", nameof($name))")
 end
 
 function maybe_generate_reserved_fields_method(io, t::MessageType)
@@ -95,22 +104,42 @@ end
 function maybe_generate_kwarg_constructor_method(io, t::MessageType, ctx::Context)
     n = length(t.fields)
     (!ctx.options.add_kwarg_constructors || n == 0) && return
+    is_deprecated = parse(Bool, get(t.options, "deprecated", "false"))
     type_name = safename(t)
-    print(io, "$(type_name)(;")
+    if is_deprecated
+        print(io, "function $(type_name)(;") # multiline definition to inject `depwarn`, see below
+    else
+        print(io, "$(type_name)(;")
+    end
     for (i, field) in enumerate(t.fields)
         val = jl_default_value(field, ctx)
         print(io, jl_fieldname(field), !isnothing(val) ? string(" = ", val) : "")
         i < n && print(io, ", ")
     end
-    print(io, ") = ")
-    _maybe_parametrize_constructor_to_handle_oneofs(io, t, ctx)
-
-    print(io, "(")
-    for (i, field) in enumerate(t.fields)
-        print(io, jl_fieldname(field))
-        i < n && print(io, ", ")
+    # If the message is deprecated then inject a `Base.depwarn` into the kwarg constructor 
+    # that fires when the constructor is first called
+    if is_deprecated
+        println(io, ")")
+        println(io, "    Base.depwarn(\"`$(escape_string(type_name))` is deprecated.\", nameof($(type_name)))")
+        print(io, "    return ")
+        _maybe_parametrize_constructor_to_handle_oneofs(io, t, ctx)
+        print(io, "(")
+        for (i, field) in enumerate(t.fields)
+            print(io, jl_fieldname(field))
+            i < n && print(io, ", ")
+        end
+        println(io, ')')
+        println(io, "end")
+    else
+        print(io, ") = ")
+        _maybe_parametrize_constructor_to_handle_oneofs(io, t, ctx)
+        print(io, "(")
+        for (i, field) in enumerate(t.fields)
+            print(io, jl_fieldname(field))
+            i < n && print(io, ", ")
+        end
+        println(io, ')')
     end
-    println(io, ')')
 end
 
 function maybe_generate_constructor_for_type_alias(io, t::MessageType, ctx::Context)
