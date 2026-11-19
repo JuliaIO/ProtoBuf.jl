@@ -71,7 +71,7 @@ end
 function print_field_encode_expr(io, fs::OneOfType, ctx::Context)
     println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
-        V = _decoding_val_type(f.type)
+        V = f isa GroupType ? ":group" : _decoding_val_type(f.type)
         V = isempty(V) ? "" : ", Val{$V}"
         println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
         println(io, "    " ^ 2, "PB.encode(e, $(string(f.number)), x.$(safename(fs))[]::$(jl_typename(f, ctx))$V)")
@@ -105,7 +105,7 @@ end
 function print_field_encoded_size_expr(io, fs::OneOfType, ctx::Context)
     println(io, "    if isnothing(x.$(safename(fs)));")
     for f in fs.fields
-        V = _decoding_val_type(f.type)
+        V = f isa GroupType ? ":group" : _decoding_val_type(f.type)
         V = isempty(V) ? "" : ", Val{$V}"
         println(io, "    elseif ", "x.$(safename(fs)).name === :", jl_fieldname(f))
         println(io, "    " ^ 2, "encoded_size += PB._encoded_size(x.$(safename(fs))[]::$(jl_typename(f, ctx)), $(string(f.number))$V)")
@@ -114,7 +114,7 @@ function print_field_encoded_size_expr(io, fs::OneOfType, ctx::Context)
 end
 
 field_encoded_size_expr(f::FieldType) = "PB._encoded_size(x.$(jl_fieldname(f)::String), $(string(f.number)))"
-field_encoded_size_expr(f::GroupType) = "PB._encoded_size(x.$(jl_fieldname(f)), $(string(f.number)))"
+field_encoded_size_expr(f::GroupType) = "PB._encoded_size(x.$(jl_fieldname(f)), $(string(f.number)), Val{:group})"
 field_encoded_size_expr(f::FieldType{<:AbstractProtoFixedType}) = "PB._encoded_size(x.$(jl_fieldname(f)), $(string(f.number)), Val{:fixed})"
 field_encoded_size_expr(f::FieldType{<:Union{SInt32Type,SInt64Type}}) = "PB._encoded_size(x.$(jl_fieldname(f)), $(string(f.number)), Val{:zigzag})"
 function field_encoded_size_expr(f::FieldType{<:MapType})
