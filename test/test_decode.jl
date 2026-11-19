@@ -285,6 +285,11 @@ end
             test_decode([ten_bytes; 0x01], [neg, TestEnum.B])
             @test decode(ProtoDecoder(IOBuffer([0x10; ten_bytes])), TestStruct).oneof[] === neg
         end
+
+        @testset "skipped varint longer than 10 bytes" begin
+            # unknown field 3 holding an 11-byte varint, then x = 5
+            @test_throws ErrorException decode(ProtoDecoder(IOBuffer([0x18; fill(0x80, 10); 0x00; 0x08; 0x05])), TestInner)
+        end
     end
 
     @testset "fixed" begin
