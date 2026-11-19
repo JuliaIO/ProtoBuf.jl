@@ -113,6 +113,12 @@ using Test
 using ProtoBuf
 using BufferedStreams
 
+function roundtrip_bytes(input)
+    e = ProtoEncoder(IOBuffer())
+    encode(e, input)
+    return take!(e.io)
+end
+
 function roundtrip_iobuffer(input, f_in=identity, f_out=identity)
     io = IOBuffer()
     e = ProtoEncoder(f_in(io))
@@ -275,6 +281,28 @@ end
         seekstart(io)
         x = decode(ProtoDecoder(io), DuplicatedMessage)
         test_by_field(x, DuplicatedMessage(DuplicatedInnerMessage(UInt32(43), UInt32[1, 2, 3, 4], DuplicatedMessage(DuplicatedInnerMessage(UInt32(43), UInt32[1, 2, 5, 6], nothing)))))
+    end
+
+    @testset "Groups use the same wire format as Google's protobuf" begin
+        # Bytes from Python google.protobuf: optional group Group = 82 {a: 42}, repeated group Repeated_group = 83 [{a: 43}]
+        google = [0x93, 0x05, 0x08, 0x2a, 0x94, 0x05, 0x9b, 0x05, 0x08, 0x2b, 0x9c, 0x05]
+        x = decode(ProtoDecoder(IOBuffer(google)), OmniMessage)
+        @test x.group == var"OmniMessage.Group"(Int32(42))
+        @test x.repeated_group == [var"OmniMessage.Repeated_group"(Int32(43))]
+        e = ProtoEncoder(IOBuffer())
+        encode(e, x)
+        @test take!(e.io) == google
+        @test ProtoBuf._encoded_size(x) == length(google)
+        @test ProtoBuf._encoded_size(msg) == length(roundtrip_bytes(msg))
+
+        # GroupOneof(pick = G(x = 7))
+        google = [0x13, 0x18, 0x07, 0x14]
+        y = decode(ProtoDecoder(IOBuffer(google)), GroupOneof)
+        @test y.pick == OneOf(:g, var"GroupOneof.pick.G"(Int32(7)))
+        e = ProtoEncoder(IOBuffer())
+        encode(e, y)
+        @test take!(e.io) == google
+        @test ProtoBuf._encoded_size(y) == length(google)
     end
 end
 end

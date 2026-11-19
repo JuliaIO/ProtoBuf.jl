@@ -68,14 +68,14 @@ end
 
 # These methods handle fields that refer to messages/groups
 _encoded_size(xs, i::Int)                      = _encoded_size(i << 3) + _with_size(_encoded_size(xs))
-_encoded_size(xs, i::Int, ::Type{Val{:group}}) = _encoded_size(i << 3) + _encoded_size(xs) + 2
+_encoded_size(xs, i::Int, ::Type{Val{:group}}) = 2 * _encoded_size(i << 3) + _encoded_size(xs)
 
 # These methods handle vectors of messages, these (like strings and bytes) are not "packed"
 _encoded_size(xs::AbstractArray)          = sum(x->_with_size(_encoded_size(x)), xs, init=0)
 _encoded_size(xs::AbstractArray, i::Int)  = _encoded_size(i << 3) * length(xs) + _encoded_size(xs)
 
 _encoded_size(xs::AbstractArray, ::Type{Val{:group}})          = sum(x->_encoded_size(x) + 2, xs, init=0)
-_encoded_size(xs::AbstractArray, i::Int, ::Type{Val{:group}})  = _encoded_size(i << 3) * length(xs) + _encoded_size(xs, Val{:group})
+_encoded_size(xs::AbstractArray, i::Int, ::Type{Val{:group}})  = 2 * _encoded_size(i << 3) * length(xs) + sum(_encoded_size, xs, init=0)
 
 _encoded_size(xs::Union{AbstractString,AbstractVector{UInt8}}, i::Int) = _encoded_size(i << 3) + _with_size(_encoded_size(xs))
 function _encoded_size(xs::AbstractVector{T}, i::Int) where {T<:Union{Float64,Float32,Int32,Int64,UInt64,UInt32,Bool,Enum}}
