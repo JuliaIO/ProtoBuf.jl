@@ -119,3 +119,4 @@ message OmniMessage {
 
 message DuplicatedInnerMessage { optional uint32 x = 1; repeated uint32 y = 2; optional DuplicatedMessage r = 3; }
 message DuplicatedMessage { optional DuplicatedInnerMessage i = 1; }
+message GroupOneof { oneof pick { int32 n = 1; group G = 2 { optional int32 x = 3; } } }

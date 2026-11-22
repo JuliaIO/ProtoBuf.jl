@@ -269,6 +269,26 @@ end
             test_encode_struct(TestStruct(PB.OneOf(:var"#struct", TestInner(2))), 3, [0x08, 0x02], Val{:group})
             test_encode_struct(TestStruct(PB.OneOf(:var"#struct", TestInner(2, TestInner(3)))), 3, [0x08, 0x02, 0x12, 0x02, 0x08, 0x03], Val{:group})
         end
+
+        @testset "group end tag carries the field number" begin
+            x = TestStruct(PB.OneOf(:enum, TestEnum.C))
+            e = ProtoEncoder(IOBuffer())
+            encode(e, 5, x, Val{:group})
+            @test take!(e.io) == [0x2b, 0x10, 0x02, 0x2c]
+            encode(e, 5, [x, x], Val{:group})
+            @test take!(e.io) == [0x2b, 0x10, 0x02, 0x2c, 0x2b, 0x10, 0x02, 0x2c]
+            encode(e, 100, x, Val{:group})
+            @test take!(e.io) == [0xa3, 0x06, 0x10, 0x02, 0xa4, 0x06]
+            @test _encoded_size(x, 5, Val{:group}) == 4
+            @test _encoded_size([x, x], 5, Val{:group}) == 8
+            @test _encoded_size(x, 100, Val{:group}) == 6
+        end
+
+        @testset "empty repeated group" begin
+            e = ProtoEncoder(IOBuffer())
+            encode(e, 5, TestStruct[], Val{:group})
+            @test isempty(take!(e.io))
+        end
     end
 
     @testset "varint" begin

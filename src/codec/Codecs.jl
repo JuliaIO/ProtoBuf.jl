@@ -15,14 +15,21 @@ end
 function message_done(d::AbstractProtoDecoder, endpos::Int, group::Bool)
     io = get_stream(d)
     if group
-        done = peek(io) == UInt8(END_GROUP)
-        done && skip(io, 1)
+        done = _peek_end_group(io)
     else
         done = d.message_done(io) || (endpos > 0 && position(io) >= endpos)
     end
     return done
 end
 ProtoDecoder(io::IO) = ProtoDecoder(io, eof)
+
+# The low 3 bits of a tag's first byte are its wire type. An END_GROUP tag also carries the
+# group's field number, so it can be longer than one byte. Consume it when found.
+function _peek_end_group(io::IO)
+    done = peek(io) & 0x07 == UInt8(END_GROUP)
+    done && vbyte_decode(io, UInt32)
+    return done
+end
 
 struct ProtoEncoder{I<:IO} <: AbstractProtoEncoder
     io::I
@@ -71,9 +78,7 @@ struct GroupProtoDecoder{I<:IO} <: AbstractProtoDecoder
     io::I
 end
 function message_done(d::GroupProtoDecoder)
-    done = peek(d.io) == UInt8(END_GROUP)
-    done && skip(d.io, 1)
-    return done
+    return _peek_end_group(d.io)
 end
 
 end # module

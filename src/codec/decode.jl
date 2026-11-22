@@ -350,10 +350,9 @@ end
         bytelen = vbyte_decode(io, UInt32)
         _skip_bytes(io, bytelen)
     elseif wire_type == START_GROUP
-        while peek(io) != UInt8(END_GROUP)
+        while !_peek_end_group(io)
             skip(d, decode_tag(d)[2])
         end
-        skip(io, 1)
     elseif wire_type == FIXED32
         _skip_bytes(io, 4)
     else wire_type == END_GROUP
