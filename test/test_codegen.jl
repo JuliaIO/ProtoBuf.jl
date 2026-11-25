@@ -800,6 +800,38 @@ end
             a::Union{Nothing,OneOf{<:Union{Int32,UInt32}}}
         end
         """
+
+        # The oneof field is read once and checked with `===` (not `isnothing`), so that
+        # encoding doesn't repeatedly union-split on the non-concrete field type.
+        for parametrize_oneofs in (false, true)
+            s, p, ctx = translate_simple_proto("message A { oneof a { int32 b = 1; sint64 c = 2; } }", Options(; parametrize_oneofs))
+            @test contains(s, """
+            function PB.encode(e::PB.AbstractProtoEncoder, x::A)
+                initpos = position(e.io)
+                let oneof = x.a, oneof_name = oneof === nothing ? nothing : oneof.name
+                    if oneof === nothing;
+                    elseif oneof_name === :b
+                        PB.encode(e, 1, oneof[]::Int32)
+                    elseif oneof_name === :c
+                        PB.encode(e, 2, oneof[]::Int64, Val{:zigzag})
+                    end
+                end
+                return position(e.io) - initpos
+            end
+            function PB._encoded_size(x::A)
+                encoded_size = 0
+                let oneof = x.a, oneof_name = oneof === nothing ? nothing : oneof.name
+                    if oneof === nothing;
+                    elseif oneof_name === :b
+                        encoded_size += PB._encoded_size(oneof[]::Int32, 1)
+                    elseif oneof_name === :c
+                        encoded_size += PB._encoded_size(oneof[]::Int64, 2, Val{:zigzag})
+                    end
+                end
+                return encoded_size
+            end
+            """)
+        end
     end
 
     @testset "`force_required` OneOf field" begin
