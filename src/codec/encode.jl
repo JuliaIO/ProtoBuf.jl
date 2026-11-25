@@ -42,14 +42,10 @@ maybe_ensure_room(::IO, n) = nothing
             for _ in encoded_size_len_guess+1:encoded_size_len
                 write(io, 0x00)
             end
-            # Move the data right after the correct size
-            unsafe_copyto!(
-                io.data,
-                initpos + encoded_size_len + 1,
-                io.data,
-                initpos + encoded_size_len_guess + 1,
-                encoded_size
-            )
+            # Move the data right after the correct size. `io.ptr` indexes `io.data`;
+            # positions don't when the buffer starts at an offset into its memory.
+            dst = io.ptr - encoded_size
+            unsafe_copyto!(io.data, dst, io.data, dst - (encoded_size_len - encoded_size_len_guess), encoded_size)
         end
         # Now we can encode the size
         seek(io, initpos)
