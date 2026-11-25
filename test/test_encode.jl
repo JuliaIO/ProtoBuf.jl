@@ -342,7 +342,23 @@ const test_dir = joinpath(pkgdir(PB), "test")
 PB.protojl("test_messages_for_codec2.proto", joinpath(test_dir, "test_protos"), temp_dir, always_use_modules=false, parametrize_oneofs=true)
 include(joinpath(temp_dir, "test_messages_for_codec2_pb.jl"))
 
+# Appends `n` length-delimited copies of `v` to `io`, as encoding a repeated field does.
+function with_size_repeated!(io, v, n)
+    for _ in 1:n
+        Codecs._with_size(Codecs._encode, io, io, v)
+    end
+    return io
+end
+
 @testset "_with_size" begin
+    # Each element grows the buffer by a few bytes; growing it with `truncate` copied the
+    # whole buffer every time on Julia 1.12+, which allocated ~800 MB here
+    v = [1, 2, 3]
+    with_size_repeated!(IOBuffer(), v, 2)
+    io = IOBuffer()
+    @test (@allocated with_size_repeated!(io, v, 20_000)) < 2_000_000
+    @test take!(io) == repeat(UInt8[3, 1, 2, 3], 20_000)
+
     io = IOBuffer()
     Codecs._with_size(Codecs._encode, io, io, [1, 2, 3, 4, 5, 6])
     @test take!(io) == UInt8[6, 1, 2, 3, 4, 5, 6]

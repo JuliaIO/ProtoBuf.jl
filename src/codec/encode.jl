@@ -21,8 +21,15 @@ maybe_ensure_room(::IO, n) = nothing
         # needed to contain the message.
         # TODO: make the guess better (e.g. by incorporating maxsize)
         encoded_size_len_guess = 1
-        truncate(io, initpos + encoded_size_len_guess)
-        seek(io, initpos + encoded_size_len_guess)
+        if eof(io)
+            # At the end, append rather than grow with `truncate`: on Julia 1.12+ `truncate`
+            # copies the whole buffer every time it grows it, which would make encoding a
+            # repeated field quadratic in its length.
+            write(io, 0x00) == 1 || _incomplete_encode_error(io, 0, 1)
+        else
+            truncate(io, initpos + encoded_size_len_guess)
+            seek(io, initpos + encoded_size_len_guess)
+        end
         # Now we can encode the object itself
         f(sink, x, V...) # e.g. _encode(io, x) or _encode(io, x, Val{:zigzag})
         endpos = position(io)
@@ -31,7 +38,10 @@ maybe_ensure_room(::IO, n) = nothing
         @assert (initpos + encoded_size_len + encoded_size) <= io.maxsize
         # If our initial guess on encoded size of the size was wrong, then we need to move the encoded data
         if encoded_size_len_guess < encoded_size_len
-            truncate(io, initpos + encoded_size_len + encoded_size)
+            # `io` is at its end, so grow it by appending (see above)
+            for _ in encoded_size_len_guess+1:encoded_size_len
+                write(io, 0x00)
+            end
             # Move the data right after the correct size
             unsafe_copyto!(
                 io.data,
